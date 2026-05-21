@@ -87,8 +87,10 @@ write_files:
     content: |
       networks:
         socket_net:
+          name: socket_net
           internal: true
         web_net:
+          name: web_net:
 
       services:
         socket-proxy:
@@ -104,7 +106,6 @@ write_files:
             - NETWORKS=1
             - SERVICES=1
           mem_limit: 32m
-          read_only: true
           cap_drop:
             - ALL
           security_opt:
@@ -113,6 +114,7 @@ write_files:
         traefik:
           image: traefik:v3
           container_name: traefik
+          command: ["--configFile=/traefik/traefik.yml"]
           restart: unless-stopped
           networks:
             - socket_net
