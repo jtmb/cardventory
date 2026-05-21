@@ -41,6 +41,11 @@ COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 RUN mkdir -p /app/data /app/public/uploads && \
     chown -R nextjs:nodejs /app/data /app/public/uploads
 
+ARG APP_VERSION=dev
+LABEL org.opencontainers.image.version="${APP_VERSION}" \
+      org.opencontainers.image.title="Cardventory" \
+      org.opencontainers.image.source="https://github.com/jtmb/cardventory"
+
 USER nextjs
 
 EXPOSE 3000

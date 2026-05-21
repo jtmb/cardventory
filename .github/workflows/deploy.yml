@@ -1,0 +1,31 @@
+name: Deploy
+
+on:
+  # Auto-deploy after a successful Release workflow run
+  workflow_run:
+    workflows: ["Release"]
+    types: [completed]
+  # Manual re-deploy (e.g. to roll back or force-push latest)
+  workflow_dispatch:
+
+permissions: {}
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    # Skip if the triggering release workflow failed
+    if: ${{ github.event.workflow_run.conclusion == 'success' || github.event_name == 'workflow_dispatch' }}
+
+    steps:
+      - name: Deploy to Linode
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.LINODE_HOST }}
+          username: root
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          script: |
+            set -e
+            cd /opt/cardventory
+            docker compose pull
+            docker compose up -d --remove-orphans
+            docker image prune -f
