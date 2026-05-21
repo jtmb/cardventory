@@ -1,0 +1,248 @@
+#cloud-config
+
+package_update: true
+package_upgrade: false
+
+packages:
+  - ca-certificates
+  - curl
+  - fail2ban
+  - unattended-upgrades
+
+write_files:
+  # ---------------------------------------------------------------------------
+  # OS hardening
+  # ---------------------------------------------------------------------------
+
+  - path: /etc/ssh/sshd_config.d/99-harden.conf
+    content: |
+      PasswordAuthentication no
+      PermitRootLogin prohibit-password
+      MaxAuthTries 3
+      LoginGraceTime 20
+      X11Forwarding no
+      AllowAgentForwarding no
+      PrintMotd no
+
+  - path: /etc/sysctl.d/99-harden.conf
+    content: |
+      net.ipv4.tcp_syncookies = 1
+      net.ipv4.conf.all.rp_filter = 1
+      net.ipv4.conf.default.rp_filter = 1
+      kernel.dmesg_restrict = 1
+      fs.protected_hardlinks = 1
+      fs.protected_symlinks = 1
+
+  - path: /etc/fail2ban/jail.d/sshd.conf
+    content: |
+      [sshd]
+      enabled  = true
+      maxretry = 5
+      bantime  = 1h
+      findtime = 10m
+
+  - path: /etc/apt/apt.conf.d/20auto-upgrades
+    content: |
+      APT::Periodic::Update-Package-Lists "1";
+      APT::Periodic::Unattended-Upgrade "1";
+      APT::Periodic::AutocleanInterval "7";
+
+  # ---------------------------------------------------------------------------
+  # Docker daemon hardening
+  # ---------------------------------------------------------------------------
+
+  - path: /etc/docker/daemon.json
+    content: |
+      {
+        "log-driver": "json-file",
+        "log-opts": {
+          "max-size": "10m",
+          "max-file": "3"
+        },
+        "no-new-privileges": true,
+        "userland-proxy": false,
+        "live-restore": true
+      }
+
+  # ---------------------------------------------------------------------------
+  # Application config
+  # ---------------------------------------------------------------------------
+
+  - path: /opt/cardventory/.env
+    permissions: "0600"
+    content: |
+      AUTH_SECRET=${auth_secret}
+      NEXTAUTH_URL=${nextauth_url}
+      DATABASE_PATH=/app/data/cardventory.db
+      DATA_DIR=/opt/cardventory/data
+      UPLOADS_DIR=/opt/cardventory/uploads
+      EBAY_CLIENT_ID=${ebay_client_id}
+      EBAY_CLIENT_SECRET=${ebay_client_secret}
+
+  # docker-compose.yml for the server:
+  #   socket-proxy  — read-only Docker API proxy; only Traefik can reach it
+  #   traefik       — public ingress on 80/443; no direct docker.sock access
+  #   cardventory   — app; NOT port-exposed, only reachable via Traefik internally
+  - path: /opt/cardventory/docker-compose.yml
+    content: |
+      networks:
+        socket_net:
+          internal: true
+        web_net:
+
+      services:
+        socket-proxy:
+          image: tecnativa/docker-socket-proxy:edge
+          container_name: socket-proxy
+          restart: unless-stopped
+          networks:
+            - socket_net
+          volumes:
+            - /var/run/docker.sock:/var/run/docker.sock:ro
+          environment:
+            - CONTAINERS=1
+            - NETWORKS=1
+            - SERVICES=1
+          mem_limit: 32m
+          read_only: true
+          cap_drop:
+            - ALL
+          security_opt:
+            - no-new-privileges:true
+
+        traefik:
+          image: traefik:v3
+          container_name: traefik
+          restart: unless-stopped
+          networks:
+            - socket_net
+            - web_net
+          volumes:
+            - /opt/cardventory/traefik:/traefik:ro
+          tmpfs:
+            - /tmp
+          read_only: true
+          mem_limit: 64m
+          cap_drop:
+            - ALL
+          cap_add:
+            - NET_BIND_SERVICE
+          security_opt:
+            - no-new-privileges:true
+
+        cardventory:
+          image: ghcr.io/${ghcr_username}/cardventory:latest
+          container_name: cardventory
+          restart: unless-stopped
+          networks:
+            - web_net
+          env_file: .env
+          volumes:
+            - /opt/cardventory/data:/app/data
+            - /opt/cardventory/uploads:/app/public/uploads
+          mem_limit: 256m
+          cap_drop:
+            - ALL
+          security_opt:
+            - no-new-privileges:true
+          labels:
+            - "traefik.enable=true"
+            - "traefik.http.routers.cardventory.rule=Host(`${app_hostname}`)"
+            - "traefik.http.routers.cardventory.entrypoints=web"
+            - "traefik.http.routers.cardventory.middlewares=secureHeaders@file,rateLimit@file"
+            - "traefik.http.services.cardventory.loadbalancer.server.port=3000"
+
+        cloudflared:
+          image: cloudflare/cloudflared:latest
+          container_name: cloudflared
+          restart: unless-stopped
+          command: tunnel --no-autoupdate run
+          environment:
+            - TUNNEL_TOKEN=${cloudflare_tunnel_token}
+          networks:
+            - web_net
+          mem_limit: 64m
+          cap_drop:
+            - ALL
+          security_opt:
+            - no-new-privileges:true
+
+  # ---------------------------------------------------------------------------
+  # Traefik static config
+  # ---------------------------------------------------------------------------
+
+  - path: /opt/cardventory/traefik/traefik.yml
+    content: |
+      api:
+        dashboard: false
+
+      log:
+        level: ERROR
+
+      providers:
+        docker:
+          endpoint: "tcp://socket-proxy:2375"
+          exposedByDefault: false
+          network: web_net
+        file:
+          filename: /traefik/dynamic.yml
+          watch: true
+
+      entryPoints:
+        web:
+          address: ":80"
+
+  # ---------------------------------------------------------------------------
+  # Traefik dynamic config — security headers, rate limiting, TLS hardening
+  # ---------------------------------------------------------------------------
+
+  - path: /opt/cardventory/traefik/dynamic.yml
+    content: |
+      http:
+        middlewares:
+          secureHeaders:
+            headers:
+              frameDeny: true
+              contentTypeNosniff: true
+              referrerPolicy: "no-referrer"
+              permissionsPolicy: "camera=(), microphone=()"
+              customResponseHeaders:
+                X-Powered-By: ""
+                Server: ""
+          rateLimit:
+            rateLimit:
+              average: 100
+              burst: 200
+
+runcmd:
+  # --- Swap file (critical: g6-nanode-1 has only 1GB RAM) ---
+  - fallocate -l 1G /swapfile
+  - chmod 600 /swapfile
+  - mkswap /swapfile
+  - swapon /swapfile
+  - echo '/swapfile none swap sw 0 0' >> /etc/fstab
+
+  # --- Apply kernel hardening (reads /etc/sysctl.d/*.conf) ---
+  - sysctl --system
+
+  # --- Install Docker from official Ubuntu noble repository ---
+  - install -m 0755 -d /etc/apt/keyrings
+  - curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc
+  - chmod a+r /etc/apt/keyrings/docker.asc
+  - echo "deb [arch=amd64 signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu noble stable" | tee /etc/apt/sources.list.d/docker.list > /dev/null
+  - apt-get update -qq
+  - DEBIAN_FRONTEND=noninteractive apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+  - systemctl enable --now docker
+
+  # --- Ensure data directories exist ---
+  - mkdir -p /opt/cardventory/data /opt/cardventory/uploads /opt/cardventory/traefik
+
+  # --- Login to ghcr.io so docker compose pull can fetch the app image ---
+  - echo "${ghcr_token}" | docker login ghcr.io -u "${ghcr_username}" --password-stdin
+
+  # --- Pull images and start the stack ---
+  - cd /opt/cardventory && docker compose pull && docker compose up -d
+
+  # --- Restart SSH and fail2ban with hardened configs ---
+  - systemctl restart ssh
+  - systemctl restart fail2ban

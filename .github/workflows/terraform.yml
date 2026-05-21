@@ -1,0 +1,47 @@
+name: Terraform
+
+on:
+  # Auto-apply when Terraform files change on main (after PR review/merge)
+  push:
+    branches: [main]
+    paths:
+      - "terraform/**"
+  # Manual trigger for initial provisioning or out-of-band changes
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  terraform:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: terraform
+
+    env:
+      TF_VAR_linode_token: ${{ secrets.LINODE_TOKEN }}
+      TF_VAR_ssh_public_key: ${{ secrets.TF_VAR_SSH_PUBLIC_KEY }}
+      TF_VAR_auth_secret: ${{ secrets.TF_VAR_AUTH_SECRET }}
+      TF_VAR_nextauth_url: ${{ secrets.TF_VAR_NEXTAUTH_URL }}
+      TF_VAR_cloudflare_tunnel_token: ${{ secrets.TF_VAR_CLOUDFLARE_TUNNEL_TOKEN }}
+      TF_VAR_ghcr_username: ${{ secrets.TF_VAR_GHCR_USERNAME }}
+      TF_VAR_ghcr_token: ${{ secrets.TF_VAR_GHCR_TOKEN }}
+      TF_VAR_ebay_client_id: ${{ secrets.TF_VAR_EBAY_CLIENT_ID }}
+      TF_VAR_ebay_client_secret: ${{ secrets.TF_VAR_EBAY_CLIENT_SECRET }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+
+      - name: Terraform Init
+        run: terraform init
+
+      - name: Terraform Plan
+        run: terraform plan -out=tfplan
+
+      - name: Terraform Apply
+        run: terraform apply -auto-approve tfplan

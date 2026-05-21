@@ -1,0 +1,55 @@
+# Copy this file to terraform.tfvars and fill in all values.
+# Never commit terraform.tfvars — it contains secrets.
+
+# Linode API token — generate at https://cloud.linode.com/profile/tokens
+# Required scopes: Linodes (Read/Write), Firewalls (Read/Write)
+linode_token = "your-linode-api-token"
+
+# Linode region. Run `terraform providers` or see https://api.linode.com/v4/regions
+region = "us-east"
+
+# Instance type. g6-nanode-1 = 1 vCPU / 1GB RAM / 25GB disk / $5/mo
+instance_type = "g6-nanode-1"
+
+# Full contents of your SSH public key, e.g. from ~/.ssh/id_ed25519.pub
+ssh_public_key = "ssh-ed25519 AAAA... user@host"
+
+# NextAuth secret — generate with: openssl rand -base64 32
+auth_secret = "your-nextauth-secret"
+
+# Full public URL where the app will be served (must match your DNS)
+nextauth_url = "https://cards.example.com"
+
+# Cloudflare Tunnel token
+# 1. Go to https://one.dash.cloudflare.com/ → Zero Trust → Networks → Tunnels
+# 2. Create a tunnel, choose Docker as the connector
+# 3. Configure Public Hostname: <your-domain> → http://traefik:80
+# 4. Copy the token shown in the install command
+cloudflare_tunnel_token = "eyJhIjoixx..."
+
+# GitHub username for pulling the image from ghcr.io
+ghcr_username = "jtmb"
+
+# GitHub classic PAT with read:packages scope
+# Generate at https://github.com/settings/tokens
+ghcr_token = "ghp_your-personal-access-token"
+
+# Optional — leave empty strings if not using eBay price lookup
+ebay_client_id     = ""
+ebay_client_secret = ""
+
+# ---------------------------------------------------------------------------
+# After first `terraform apply`:
+#
+#   1. Run `terraform output instance_ip` to get the server IP.
+#   2. Add the IP as the LINODE_HOST GitHub secret.
+#   3. Add your SSH private key as the DEPLOY_SSH_KEY GitHub secret.
+#
+# DNS is managed via Cloudflare Tunnel — no need to point an A record at the
+# Linode IP. Configure the Public Hostname in the Zero Trust tunnel dashboard.
+#
+# For remote Terraform state (recommended for the CI terraform.yml workflow),
+# uncomment the backend "s3" block in main.tf and set these env vars in CI:
+#   AWS_ACCESS_KEY_ID     — Linode Object Storage access key
+#   AWS_SECRET_ACCESS_KEY — Linode Object Storage secret key
+# ---------------------------------------------------------------------------
