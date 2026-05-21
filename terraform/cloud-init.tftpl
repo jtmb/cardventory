@@ -238,6 +238,7 @@ runcmd:
 
   # --- Ensure data directories exist ---
   - mkdir -p /opt/cardventory/data /opt/cardventory/uploads /opt/cardventory/traefik
+  - chown -R 1001:1001 /opt/cardventory/data /opt/cardventory/uploads
 
   # --- Login to ghcr.io so docker compose pull can fetch the app image ---
   - echo "${ghcr_token}" | docker login ghcr.io -u "${ghcr_username}" --password-stdin
