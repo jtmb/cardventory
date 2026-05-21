@@ -1074,29 +1074,6 @@ function SettingsContent() {
             <p className="font-mono text-sm">v{process.env.NEXT_PUBLIC_APP_VERSION ?? "unknown"}</p>
           </CardContent>
         </Card>
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Docker Volume Mounts</CardTitle>
-            <CardDescription>
-              Configure storage paths via environment variables in docker-compose.yml.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            <div className="font-mono text-xs bg-muted rounded-lg p-4 text-muted-foreground space-y-1">
-              <p className="opacity-60"># Database (SQLite file)</p>
-              <p>DATA_DIR=./data</p>
-              <p className="mt-2 opacity-60"># Card images</p>
-              <p>UPLOADS_DIR=./uploads</p>
-              <p className="mt-2 opacity-60"># Port</p>
-              <p>PORT=3000</p>
-            </div>
-            <p className="type-body-small text-muted-foreground">
-              Set these in a <code className="bg-muted px-1 rounded">.env</code> file alongside{" "}
-              <code className="bg-muted px-1 rounded">docker-compose.yml</code>.
-            </p>
-          </CardContent>
-        </Card>
-
         {/* Database Backups */}
         <Card>
           <CardHeader>
