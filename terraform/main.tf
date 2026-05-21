@@ -41,6 +41,7 @@ resource "linode_instance" "cardventory" {
 
   lifecycle {
     prevent_destroy = true
+    ignore_changes  = [authorized_keys, image, metadata, disk, config, alerts, backups]
   }
 }
 
