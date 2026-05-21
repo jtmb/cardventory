@@ -24,7 +24,7 @@ jobs:
           CURRENT=$(node -p "require('./package.json').version")
           TAG="v$CURRENT"
 
-          if git rev-parse "$TAG" >/dev/null 2>&1; then
+          if git ls-remote --tags origin "refs/tags/$TAG" | grep -q .; then
             echo "Tag $TAG already exists — auto-bumping patch version"
             IFS='.' read -r MAJOR MINOR PATCH <<< "$CURRENT"
             NEW_VERSION="$MAJOR.$MINOR.$((PATCH + 1))"
