@@ -1,5 +1,6 @@
 "use client";
 
+import { cn } from "@/lib/utils";
 import { Card } from "@/lib/db/schema";
 import Link from "next/link";
 import Image from "next/image";
@@ -148,13 +149,28 @@ export function CardRow({
         </button>
       ) : (
         <Link href={`/cards/${card.id}`} className="block">
-          <div className={`cv-card rounded-xl border border-border bg-card overflow-hidden hover:border-primary/40 hover:shadow-xl hover:shadow-black/40 hover:-translate-y-0.5 transition-all duration-200 ${isPending ? "opacity-40 pointer-events-none" : ""}`}>
+          <div className={cn(
+            "cv-card rounded-xl border bg-card overflow-hidden transition-all duration-200",
+            "border-border/60 hover:border-primary/60 hover:shadow-2xl hover:shadow-black/60 hover:-translate-y-1",
+            isPending && "opacity-40 pointer-events-none"
+          )}>
             <CardInner card={card} setLine={setLine} isPending={isPending} loading={loading} currentValue={currentValue} priceChange7d={priceChange7d} priceChange30d={priceChange30d} />
           </div>
         </Link>
       )}
     </div>
   );
+}
+
+function gradeColor(company: string | null | undefined): string {
+  switch (company?.toUpperCase()) {
+    case "PSA":     return "bg-blue-700 text-white";
+    case "BGS":
+    case "BECKETT": return "bg-amber-500 text-black";
+    case "SGC":     return "bg-red-700 text-white";
+    case "CSG":     return "bg-emerald-700 text-white";
+    default:        return "bg-zinc-600 text-white";
+  }
 }
 
 /** Shared card visual — used in both normal and selectable modes */
@@ -178,13 +194,13 @@ function CardInner({
   return (
     <>
       {/* Card image — trading card 5:7 aspect ratio */}
-      <div className="cv-card-image relative w-full aspect-[5/7] bg-muted/60 overflow-hidden">
+      <div className="cv-card-image relative w-full aspect-[5/7] bg-gradient-to-b from-muted/25 to-muted/75 overflow-hidden">
         {card.photoUrl ? (
           <Image
             src={card.photoUrl}
             alt={card.name}
             fill
-            className="object-contain p-1.5 group-hover:scale-[1.03] transition-transform duration-300"
+            className="object-contain p-2 group-hover:scale-[1.05] transition-transform duration-300"
             unoptimized={card.photoUrl.startsWith("http")}
           />
         ) : (
@@ -192,17 +208,22 @@ function CardInner({
             <span className="text-5xl opacity-20">🃏</span>
           </div>
         )}
+        {/* Sheen overlay */}
+        <div className="absolute inset-0 bg-gradient-to-br from-white/[0.05] via-transparent to-transparent pointer-events-none" />
         {/* Grade badge */}
         {card.gradeCompany && card.gradeValue && (
-          <div className="absolute top-2 right-2 bg-amber-500 text-black text-xs font-bold px-1.5 py-0.5 rounded-md leading-tight shadow-md">
+          <div className={cn(
+            "absolute top-2 right-2 text-xs font-bold px-2 py-0.5 rounded-md leading-tight shadow-lg ring-1 ring-white/20",
+            gradeColor(card.gradeCompany)
+          )}>
             {card.gradeCompany} {card.gradeValue}
           </div>
         )}
       </div>
 
       {/* Info area */}
-      <div className={`p-3 space-y-1 border-t border-border/60 ${isPending ? "opacity-40" : ""}`}>
-        <p className="type-title-small font-semibold leading-tight line-clamp-1">{card.name}</p>
+      <div className={cn("p-3 space-y-1 border-t border-border/50", isPending && "opacity-40")}>
+        <p className="type-title-small font-semibold leading-tight line-clamp-1 tracking-tight">{card.name}</p>
         {setLine && (
           <p className="text-xs text-muted-foreground line-clamp-2 leading-snug">{setLine}</p>
         )}
@@ -219,11 +240,11 @@ function CardInner({
               )}
               {priceChange7d === null && priceChange30d === null && (
                 currentValue !== null ? (
-                  <span className="inline-flex items-baseline bg-primary/10 text-primary rounded px-1.5 py-0.5 text-sm font-bold tabular-nums leading-tight">
+                  <span className="inline-flex items-baseline bg-primary/15 text-primary rounded-md px-2 py-0.5 text-sm font-bold tabular-nums leading-tight ring-1 ring-primary/20">
                     {fmt(currentValue)}
                   </span>
                 ) : (
-                  <span className="text-xs text-muted-foreground/50">No data</span>
+                  <span className="text-xs text-muted-foreground/40">No price data</span>
                 )
               )}
             </div>
@@ -251,8 +272,11 @@ export function CardRowSkeleton() {
 function PriceChange({ label, value }: { label: string; value: number }) {
   const up = value >= 0;
   return (
-    <span className={`text-xs font-medium tabular-nums ${up ? "text-emerald-400" : "text-red-400"}`}>
-      {label && <span className="text-muted-foreground/60 font-normal">{label} </span>}
+    <span className={cn(
+      "inline-flex items-baseline gap-1 text-xs font-semibold tabular-nums px-1.5 py-0.5 rounded",
+      up ? "bg-emerald-500/15 text-emerald-400" : "bg-red-500/15 text-red-400"
+    )}>
+      {label && <span className="font-normal opacity-60">{label}</span>}
       {up ? "▲" : "▼"} {Math.abs(value).toFixed(1)}%
     </span>
   );

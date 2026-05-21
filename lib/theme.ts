@@ -14,13 +14,13 @@ export const THEME_VARS: Array<{
   desc: string;
   default: string;
 }> = [
-  { key: "primary",         label: "Button Accent",     desc: "Primary buttons, active nav, focus ring", default: "#d6d2e0" },
-  { key: "background",      label: "Background",    desc: "Main page background",             default: "#2a2d40" },
-  { key: "card",            label: "Card / Panel",  desc: "Cards, dropdowns, panels",         default: "#323649" },
-  { key: "sidebar",         label: "Sidebar",       desc: "Navigation sidebar",               default: "#1d2030" },
-  { key: "foreground",      label: "Text",          desc: "Primary body text",                default: "#c9c9c9" },
-  { key: "mutedForeground", label: "Muted Text",    desc: "Secondary / subdued text",         default: "#838383" },
-  { key: "destructive",     label: "Destructive",   desc: "Delete / error actions",           default: "#d94536" },
+  { key: "primary",         label: "Button Accent",     desc: "Primary buttons, active nav, focus ring", default: "#b8b8c7" },
+  { key: "background",      label: "Background",    desc: "Main page background",             default: "#1a1919" },
+  { key: "card",            label: "Card / Panel",  desc: "Cards, dropdowns, panels",         default: "#1a1a1a" },
+  { key: "sidebar",         label: "Sidebar",       desc: "Navigation sidebar",               default: "#111111" },
+  { key: "foreground",      label: "Text",          desc: "Primary body text",                default: "#e5e5e5" },
+  { key: "mutedForeground", label: "Muted Text",    desc: "Secondary / subdued text",         default: "#737373" },
+  { key: "destructive",     label: "Destructive",   desc: "Delete / error actions",           default: "#ef4444" },
 ];
 
 export const THEME_LS_KEY = "cv_theme";
@@ -174,15 +174,15 @@ export const PRESET_THEMES: Array<{
   {
     key: "default",
     label: "Default",
-    desc: "Sonarr-inspired dark blue & orange",
+    desc: "Near-black with muted lavender accent",
     colors: {
-      primary: "#f5a323",
-      background: "#2a2d40",
-      card: "#323649",
-      sidebar: "#1d2030",
-      foreground: "#c9c9c9",
-      mutedForeground: "#838383",
-      destructive: "#d94536",
+      primary: "#b8b8c7",
+      background: "#1a1919",
+      card: "#1a1a1a",
+      sidebar: "#111111",
+      foreground: "#e5e5e5",
+      mutedForeground: "#737373",
+      destructive: "#ef4444",
     },
   },
   {

@@ -3,12 +3,15 @@ import { auth } from "@/auth";
 import { db } from "@/lib/db";
 import { settings } from "@/lib/db/schema";
 import { eq, isNull, and } from "drizzle-orm";
+import { startAutoBackupScheduler } from "@/lib/backup";
 
 export const SYSTEM_SETTING_KEYS = [
   "oauth_google_client_id",
   "oauth_google_client_secret",
   "oauth_github_client_id",
   "oauth_github_client_secret",
+  "auto_backup_interval_hours",
+  "auto_backup_max_count",
 ] as const;
 
 export async function GET(_req: NextRequest) {
@@ -58,6 +61,17 @@ export async function POST(req: NextRequest) {
     } else {
       await db.insert(settings).values({ key, value, userId: null });
     }
+  }
+
+  // Restart scheduler if backup settings changed
+  const backupKeys = ["auto_backup_interval_hours", "auto_backup_max_count"] as const;
+  const touchedBackup = backupKeys.some((k) => k in body);
+  if (touchedBackup) {
+    const rows = await db.select().from(settings).where(isNull(settings.userId)).all();
+    const get = (k: string) => rows.find((r) => r.key === k)?.value;
+    const hours = parseInt(get("auto_backup_interval_hours") ?? "0", 10);
+    const max = parseInt(get("auto_backup_max_count") ?? "10", 10);
+    startAutoBackupScheduler(hours, max);
   }
 
   return NextResponse.json({ success: true });

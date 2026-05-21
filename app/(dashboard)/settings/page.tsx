@@ -13,6 +13,7 @@ import {
   SaveIcon, RefreshCwIcon, FlaskConicalIcon, RotateCcwIcon,
   CheckIcon, DownloadIcon, UploadIcon, SparklesIcon, EyeIcon, ShieldIcon,
   BellIcon, MailIcon, MessageSquareIcon, EyeOffIcon, SendIcon,
+  DatabaseIcon, Trash2Icon,
 } from "lucide-react";
 import { seedTestData } from "@/lib/actions";
 import {
@@ -73,6 +74,12 @@ const SECTION_LABELS: Record<string, string> = {
   system: "System",
 };
 
+function formatBytes(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
 function SettingsContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -85,13 +92,13 @@ function SettingsContent() {
   const [saving, setSaving] = useState(false);
   const [seeding, setSeeding] = useState(false);
   const [themeColors, setThemeColors] = useState<Partial<ThemeColors>>({});
-  const [fontTheme, setFontTheme] = useState<FontThemeKey>("sport");
+  const [fontTheme, setFontTheme] = useState<FontThemeKey>("system");
   const [activePreset, setActivePreset] = useState<PresetThemeKey | null>(null);
   const [typeDensity, setTypeDensity] = useState<TypeDensityKey>("default");
   const [cardStyle, setCardStyle] = useState<CardStyleKey>("outlined");
   const [chipStyle, setChipStyle] = useState<ChipStyleKey>("assist");
   const [btnStyle, setBtnStyle] = useState<ButtonStyleKey>("filled");
-  const [sleeveEffect, setSleeveEffect] = useState(false);
+  const [sleeveEffect, setSleeveEffect] = useState(true);
   const [refreshCooldownUntil, setRefreshCooldownUntil] = useState<Date | null>(null);
   // Notification state
   const [notifEmailEnabled, setNotifEmailEnabled] = useState(false);
@@ -118,6 +125,13 @@ function SettingsContent() {
   // Test notification loading
   const [testingEmail, setTestingEmail] = useState(false);
   const [testingDiscord, setTestingDiscord] = useState(false);
+  // Backup state (System tab, admin only)
+  const [backupList, setBackupList] = useState<{ name: string; size: number; createdAt: string }[]>([]);
+  const [backupsLoading, setBackupsLoading] = useState(false);
+  const [creatingBackup, setCreatingBackup] = useState(false);
+  const [restoringBackup, setRestoringBackup] = useState<string | null>(null);
+  const [autoBackupHours, setAutoBackupHours] = useState("0");
+  const [autoBackupMax, setAutoBackupMax] = useState("10");
 
   const refreshBlocked = !isActualAdmin && refreshCooldownUntil !== null && refreshCooldownUntil > new Date();
 
@@ -240,9 +254,23 @@ function SettingsContent() {
         if (data.oauth_google_client_secret) setOauthGoogleSecret(data.oauth_google_client_secret);
         if (data.oauth_github_client_id) setOauthGithubId(data.oauth_github_client_id);
         if (data.oauth_github_client_secret) setOauthGithubSecret(data.oauth_github_client_secret);
+        if (data.auto_backup_interval_hours) setAutoBackupHours(data.auto_backup_interval_hours);
+        if (data.auto_backup_max_count) setAutoBackupMax(data.auto_backup_max_count);
       })
       .catch(() => {});
   }, []);
+
+  // Lazy-load backup list when System tab is opened
+  useEffect(() => {
+    if (activeSection === "system" && isActualAdmin) {
+      setBackupsLoading(true);
+      fetch("/api/backups")
+        .then((r) => r.json())
+        .then((data) => { setBackupList(data); })
+        .catch(() => {})
+        .finally(() => setBackupsLoading(false));
+    }
+  }, [activeSection, isActualAdmin]);
 
   function handlePresetTheme(key: PresetThemeKey) {
     setActivePreset(key);
@@ -356,11 +384,11 @@ function SettingsContent() {
         if (data.theme_colors) { setThemeColors(data.theme_colors); applyThemeColors(data.theme_colors); localStorage.setItem(THEME_LS_KEY, JSON.stringify(data.theme_colors)); }
         if (data.preset_theme) { setActivePreset(data.preset_theme); localStorage.setItem(PRESET_LS_KEY, data.preset_theme); }
         if (data.font_theme) { setFontTheme(data.font_theme); applyFontTheme(data.font_theme); localStorage.setItem(FONT_LS_KEY, data.font_theme); }
-        if (data.type_density) { setTypeDensity(data.type_density); applyTypeDensity(data.type_density); }
-        if (data.card_style) { setCardStyle(data.card_style); applyCardStyle(data.card_style); }
-        if (data.chip_style) { setChipStyle(data.chip_style); applyChipStyle(data.chip_style); }
-        if (data.btn_style) { setBtnStyle(data.btn_style); applyButtonStyle(data.btn_style); }
-        if (data.sleeve_effect !== undefined) { setSleeveEffect(data.sleeve_effect); applySleeve(data.sleeve_effect); }
+        if (data.type_density) { setTypeDensity(data.type_density); applyTypeDensity(data.type_density); const opt = TYPE_DENSITY_OPTIONS.find((o) => o.key === data.type_density); if (opt) localStorage.setItem(TYPE_DENSITY_LS_KEY, opt.value); }
+        if (data.card_style) { setCardStyle(data.card_style); applyCardStyle(data.card_style); localStorage.setItem(CARD_STYLE_LS_KEY, data.card_style); }
+        if (data.chip_style) { setChipStyle(data.chip_style); applyChipStyle(data.chip_style); localStorage.setItem(CHIP_STYLE_LS_KEY, data.chip_style); }
+        if (data.btn_style) { setBtnStyle(data.btn_style); applyButtonStyle(data.btn_style); localStorage.setItem(BUTTON_STYLE_LS_KEY, data.btn_style); }
+        if (data.sleeve_effect !== undefined) { const sv = Boolean(data.sleeve_effect); setSleeveEffect(sv); applySleeve(sv); localStorage.setItem(SLEEVE_LS_KEY, String(sv)); }
         if (data.refresh_interval) setRefreshInterval(data.refresh_interval);
         if (data.notif_email_enabled !== undefined) setNotifEmailEnabled(data.notif_email_enabled);
         if (data.notif_smtp_host) setNotifSmtpHost(data.notif_smtp_host);
@@ -436,6 +464,8 @@ function SettingsContent() {
           oauth_google_client_secret: oauthGoogleSecret,
           oauth_github_client_id: oauthGithubId,
           oauth_github_client_secret: oauthGithubSecret,
+          auto_backup_interval_hours: autoBackupHours,
+          auto_backup_max_count: autoBackupMax,
         }),
       }).catch(() => {});
     }
@@ -1102,6 +1132,167 @@ function SettingsContent() {
               Set these in a <code className="bg-muted px-1 rounded">.env</code> file alongside{" "}
               <code className="bg-muted px-1 rounded">docker-compose.yml</code>.
             </p>
+          </CardContent>
+        </Card>
+
+        {/* Database Backups */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base flex items-center gap-2">
+              <DatabaseIcon className="h-4 w-4" /> Database Backups
+            </CardTitle>
+            <CardDescription>
+              Manual and automatic SQLite backups. Stored in <code className="bg-muted px-1 rounded">data/backups/</code>.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-5">
+            {/* Scheduler config */}
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <Label>Auto-backup interval</Label>
+                <select
+                  value={autoBackupHours}
+                  onChange={(e) => setAutoBackupHours(e.target.value)}
+                  className="w-full h-9 rounded-md border border-border bg-background px-3 text-sm"
+                >
+                  <option value="0">Disabled</option>
+                  <option value="1">Every hour</option>
+                  <option value="6">Every 6 hours</option>
+                  <option value="12">Every 12 hours</option>
+                  <option value="24">Every 24 hours</option>
+                  <option value="168">Every week</option>
+                </select>
+              </div>
+              <div className="space-y-1.5">
+                <Label>Keep last <span className="text-muted-foreground font-normal">(oldest pruned)</span></Label>
+                <input
+                  type="number"
+                  min="1"
+                  max="100"
+                  value={autoBackupMax}
+                  onChange={(e) => setAutoBackupMax(e.target.value)}
+                  className="w-full h-9 rounded-md border border-border bg-background px-3 text-sm"
+                />
+              </div>
+            </div>
+            <p className="type-label-small text-muted-foreground -mt-2">
+              Scheduler starts on first request after server boot. Save settings to update interval.
+            </p>
+
+            {/* Manual backup */}
+            <div className="flex items-center justify-between">
+              <p className="text-sm font-medium">Manual snapshot</p>
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={creatingBackup}
+                onClick={async () => {
+                  setCreatingBackup(true);
+                  try {
+                    const res = await fetch("/api/backups", { method: "POST" });
+                    const data = await res.json();
+                    if (!res.ok) throw new Error(data.error);
+                    setBackupList((prev) => [data, ...prev]);
+                    toast.success("Backup created");
+                  } catch (err) {
+                    toast.error(err instanceof Error ? err.message : "Backup failed");
+                  } finally {
+                    setCreatingBackup(false);
+                  }
+                }}
+                className="gap-2"
+              >
+                <DatabaseIcon className="h-4 w-4" />
+                {creatingBackup ? "Backing up…" : "Back Up Now"}
+              </Button>
+            </div>
+
+            {/* Backup list */}
+            {backupsLoading ? (
+              <div className="space-y-2">
+                {[1, 2].map((i) => (
+                  <div key={i} className="h-10 bg-muted rounded-md animate-pulse" />
+                ))}
+              </div>
+            ) : backupList.length === 0 ? (
+              <p className="text-sm text-muted-foreground">No backups yet.</p>
+            ) : (
+              <div className="space-y-1.5 max-h-64 overflow-y-auto pr-0.5">
+                {backupList.map((b) => (
+                  <div
+                    key={b.name}
+                    className="flex items-center justify-between gap-2 rounded-md border border-border px-3 py-2"
+                  >
+                    <div className="min-w-0">
+                      <p className="font-mono text-xs truncate">{b.name}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {formatBytes(b.size)} · {new Date(b.createdAt).toLocaleString()}
+                      </p>
+                    </div>
+                    <div className="flex gap-1 shrink-0">
+                      {/* Download */}
+                      <a
+                        href={`/api/backups/${encodeURIComponent(b.name)}`}
+                        download
+                        className="flex items-center justify-center w-7 h-7 rounded border border-border hover:bg-muted transition-colors"
+                        title="Download"
+                      >
+                        <DownloadIcon className="h-3.5 w-3.5" />
+                      </a>
+                      {/* Restore */}
+                      <button
+                        type="button"
+                        disabled={restoringBackup !== null}
+                        onClick={async () => {
+                          if (!confirm(`Restore "${b.name}"?\n\nA safety snapshot will be created first. The server must be restarted after restoring.`)) return;
+                          setRestoringBackup(b.name);
+                          try {
+                            const res = await fetch(`/api/backups/${encodeURIComponent(b.name)}/restore`, { method: "POST" });
+                            const data = await res.json();
+                            if (!res.ok) throw new Error(data.error);
+                            toast.success("Restored! Restart the server to load the new data.");
+                            // Refresh list to show the pre-restore snapshot
+                            const listRes = await fetch("/api/backups");
+                            if (listRes.ok) setBackupList(await listRes.json());
+                          } catch (err) {
+                            toast.error(err instanceof Error ? err.message : "Restore failed");
+                          } finally {
+                            setRestoringBackup(null);
+                          }
+                        }}
+                        className="flex items-center justify-center w-7 h-7 rounded border border-border hover:bg-muted transition-colors disabled:opacity-40"
+                        title="Restore"
+                      >
+                        {restoringBackup === b.name ? (
+                          <RefreshCwIcon className="h-3.5 w-3.5 animate-spin" />
+                        ) : (
+                          <RotateCcwIcon className="h-3.5 w-3.5" />
+                        )}
+                      </button>
+                      {/* Delete */}
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          if (!confirm(`Delete backup "${b.name}"?`)) return;
+                          try {
+                            const res = await fetch(`/api/backups/${encodeURIComponent(b.name)}`, { method: "DELETE" });
+                            if (!res.ok) throw new Error((await res.json()).error);
+                            setBackupList((prev) => prev.filter((x) => x.name !== b.name));
+                            toast.success("Backup deleted");
+                          } catch (err) {
+                            toast.error(err instanceof Error ? err.message : "Delete failed");
+                          }
+                        }}
+                        className="flex items-center justify-center w-7 h-7 rounded border border-border hover:bg-destructive/80 hover:text-destructive-foreground transition-colors"
+                        title="Delete"
+                      >
+                        <Trash2Icon className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </CardContent>
         </Card>
 
