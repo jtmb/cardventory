@@ -13,9 +13,10 @@ import {
   SaveIcon, RefreshCwIcon, FlaskConicalIcon, RotateCcwIcon,
   CheckIcon, DownloadIcon, UploadIcon, SparklesIcon, EyeIcon, ShieldIcon,
   BellIcon, MailIcon, MessageSquareIcon, EyeOffIcon, SendIcon,
-  DatabaseIcon, Trash2Icon,
+  DatabaseIcon, Trash2Icon, StarIcon,
 } from "lucide-react";
 import { seedTestData } from "@/lib/actions";
+import { UserManagementSection } from "@/components/user-management-section";
 import {
   THEME_VARS, type ThemeColors, THEME_LS_KEY, applyThemeColors, resetThemeColors,
   FONT_THEMES, type FontThemeKey, FONT_LS_KEY, applyFontTheme,
@@ -70,6 +71,7 @@ const SECTION_LABELS: Record<string, string> = {
   appearance: "Appearance",
   data: "Data",
   notifications: "Notifications",
+  "user-management": "User Management",
   system: "System",
 };
 
@@ -86,7 +88,7 @@ function SettingsContent() {
   const isActualAdmin = session?.user?.role === "admin";
   const [previewRole, setPreviewRole] = useState<"admin" | "user">("admin");
   const isAdmin = isActualAdmin && previewRole === "admin";
-  const activeSection = searchParams.get("s") ?? "appearance";
+  const activeSection = searchParams.get("s") ?? "general";
   const [refreshInterval, setRefreshInterval] = useState("1440");
   const [saving, setSaving] = useState(false);
   const [seeding, setSeeding] = useState(false);
@@ -773,18 +775,55 @@ function SettingsContent() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <Button
-              variant="outline"
-              className="gap-2"
-              onClick={() => {
-                localStorage.removeItem("cv_tour_done");
-                router.push("/dashboard");
-                setTimeout(() => window.dispatchEvent(new CustomEvent("cv:start-tour")), 50);
-              }}
-            >
-              <SparklesIcon className="h-4 w-4" />
-              Start Welcome Tour
-            </Button>
+            <div className="relative inline-flex">
+              <StarIcon className="sparkle-star absolute -top-3 -right-2 h-3.5 w-3.5 text-yellow-400 fill-yellow-400 pointer-events-none" />
+              <StarIcon className="sparkle-star absolute -bottom-2.5 right-2 h-3 w-3 text-yellow-400 fill-yellow-400 pointer-events-none" />
+              <StarIcon className="sparkle-star absolute top-0 -left-2.5 h-2.5 w-2.5 text-yellow-300 fill-yellow-300 pointer-events-none" />
+              <StarIcon className="sparkle-star absolute -top-1 right-7 h-2 w-2 text-yellow-400 fill-yellow-400 pointer-events-none" />
+              <StarIcon className="sparkle-star absolute bottom-0 -left-1.5 h-2 w-2 text-yellow-300 fill-yellow-300 pointer-events-none" />
+              <Button
+                variant="outline"
+                className="gap-2 tour-btn-shimmer ring-1 ring-yellow-400/40 hover:ring-yellow-400/80 hover:border-yellow-400/60 hover:bg-yellow-400/5 transition-colors"
+                onClick={() => {
+                  localStorage.removeItem("cv_tour_done");
+                  router.push("/dashboard");
+                  setTimeout(() => window.dispatchEvent(new CustomEvent("cv:start-tour")), 50);
+                }}
+              >
+                <SparklesIcon className="h-4 w-4 text-yellow-400" />
+                Start Welcome Tour
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Welcome to Cardventory</CardTitle>
+            <CardDescription>Your sports card collection manager.</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <ul className="space-y-2">
+              {([
+                "Track and organize your entire card collection",
+                "Live price lookups from eBay, SportsCardInvestor & SportscardsPro",
+                "Watchlist for cards you\u2019re hunting",
+                "Notifications for price spikes and new all-time highs",
+                "Automatic backups with import/export support",
+                "Customizable themes, layouts, and display preferences",
+              ] as const).map((feature) => (
+                <li key={feature} className="flex items-start gap-2 text-sm text-muted-foreground">
+                  <CheckIcon className="h-3.5 w-3.5 text-primary shrink-0 mt-0.5" />
+                  {feature}
+                </li>
+              ))}
+            </ul>
+            <div className="flex items-center gap-2 pt-1 border-t border-border">
+              <span className="text-xs text-muted-foreground">Release Version</span>
+              <code className="font-mono text-xs bg-muted px-2 py-0.5 rounded-md border border-border">
+                v{process.env.NEXT_PUBLIC_APP_VERSION ?? "unknown"}
+              </code>
+            </div>
           </CardContent>
         </Card>
 
@@ -1059,6 +1098,13 @@ function SettingsContent() {
             )}
           </CardContent>
         </Card>
+        </div>
+      )}
+
+      {/* ── User Management ───────────────────────────────────────────────── */}
+      {activeSection === "user-management" && isAdmin && (
+        <div className="space-y-4">
+          <UserManagementSection />
         </div>
       )}
 

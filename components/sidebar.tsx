@@ -20,6 +20,7 @@ import {
   MenuIcon,
   XIcon,
   BookmarkIcon,
+  UsersIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -33,11 +34,15 @@ const navItems = [
 ];
 
 const settingsSubItems = [
-  { key: "general",       label: "General",       icon: TagIcon,      adminOnly: false },
-  { key: "appearance",   label: "Appearance",   icon: PaletteIcon,  adminOnly: false },
-  { key: "data",         label: "Data",         icon: DatabaseIcon, adminOnly: false },
-  { key: "notifications",label: "Notifications",icon: BellIcon,     adminOnly: false },
-  { key: "system",       label: "System",       icon: ServerIcon,   adminOnly: true  },
+  { key: "general",        label: "General",        icon: TagIcon      },
+  { key: "appearance",    label: "Appearance",    icon: PaletteIcon  },
+  { key: "data",          label: "Data",          icon: DatabaseIcon },
+  { key: "notifications", label: "Notifications", icon: BellIcon     },
+];
+
+const adminSubItems = [
+  { key: "user-management", label: "User Management", icon: UsersIcon  },
+  { key: "system",          label: "System",          icon: ServerIcon },
 ];
 
 /** Nav links + sign-out — rendered in both desktop sidebar and mobile drawer. */
@@ -45,7 +50,7 @@ function NavContent({ onNavigate }: { onNavigate?: () => void }) {
   const pathname = usePathname();
   const onSettings = pathname.startsWith("/settings");
   const searchParams = useSearchParams();
-  const activeSubSection = onSettings ? (searchParams.get("s") ?? "appearance") : null;
+  const activeSubSection = onSettings ? (searchParams.get("s") ?? "general") : null;
   const { data: session } = useSession();
   const isAdmin = session?.user?.role === "admin";
 
@@ -78,7 +83,7 @@ function NavContent({ onNavigate }: { onNavigate?: () => void }) {
 
               {href === "/settings" && onSettings && (
                 <div className="mt-0.5 ml-3 pl-4 border-l border-sidebar-border space-y-0.5">
-                  {settingsSubItems.filter((i) => !i.adminOnly || isAdmin).map(({ key, label: subLabel, icon: SubIcon }) => (
+                  {settingsSubItems.map(({ key, label: subLabel, icon: SubIcon }) => (
                     <Link
                       key={key}
                       href={`/settings?s=${key}`}
@@ -95,27 +100,34 @@ function NavContent({ onNavigate }: { onNavigate?: () => void }) {
                       {subLabel}
                     </Link>
                   ))}
+                  {isAdmin && (
+                    <>
+                      <div className="px-2.5 pt-3 pb-1 text-[10px] font-semibold uppercase tracking-widest text-sidebar-foreground/35">Admin</div>
+                      {adminSubItems.map(({ key, label: subLabel, icon: SubIcon }) => (
+                        <Link
+                          key={key}
+                          href={`/settings?s=${key}`}
+                          onClick={onNavigate}
+                          className={cn(
+                            "flex items-center gap-2.5 px-2.5 py-1.5 rounded-md text-xs font-medium transition-colors",
+                            activeSubSection === key
+                              ? "text-primary bg-primary/10"
+                              : "text-sidebar-foreground/55 hover:text-sidebar-foreground hover:bg-sidebar-accent"
+                          )}
+                        >
+                          <SubIcon className="h-3.5 w-3.5 shrink-0" />
+                          {subLabel}
+                        </Link>
+                      ))}
+                    </>
+                  )}
                 </div>
               )}
             </div>
           );
         })}
 
-        {isAdmin && (
-          <Link
-            href="/admin"
-            onClick={onNavigate}
-            className={cn(
-              "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors",
-              pathname.startsWith("/admin")
-                ? "bg-primary/15 text-primary"
-                : "text-sidebar-foreground/60 hover:text-sidebar-foreground hover:bg-sidebar-accent"
-            )}
-          >
-            <ShieldIcon className="h-4 w-4 shrink-0" />
-            Admin
-          </Link>
-        )}
+
       </nav>
 
       <div className="px-3 py-4 border-t border-sidebar-border">

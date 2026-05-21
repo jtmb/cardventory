@@ -338,3 +338,44 @@
   pointer-events: none;
   z-index: 3;
 }
+
+/* ── Tour Button Shimmer ─────────────────────────────────────────────────── */
+@keyframes shimmer-sweep {
+  0%   { transform: translateX(-150%); }
+  100% { transform: translateX(300%); }
+}
+@keyframes star-sparkle {
+  0%   { opacity: 0;   transform: scale(0.2) rotate(-30deg); }
+  35%  { opacity: 1;   transform: scale(1.2) rotate(8deg);   }
+  65%  { opacity: 1;   transform: scale(0.9) rotate(-5deg);  }
+  100% { opacity: 0;   transform: scale(0.3) rotate(30deg);  }
+}
+.tour-btn-shimmer {
+  position: relative;
+  overflow: hidden;
+}
+.tour-btn-shimmer::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 45%;
+  height: 100%;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(250, 204, 21, 0.4),
+    transparent
+  );
+  animation: shimmer-sweep 1.6s ease-in-out infinite;
+  pointer-events: none;
+  z-index: 1;
+}
+.sparkle-star {
+  animation: star-sparkle 1.4s ease-in-out infinite;
+}
+.sparkle-star:nth-child(1) { animation-delay: 0s;    }
+.sparkle-star:nth-child(2) { animation-delay: 0.28s; }
+.sparkle-star:nth-child(3) { animation-delay: 0.56s; }
+.sparkle-star:nth-child(4) { animation-delay: 0.84s; }
+.sparkle-star:nth-child(5) { animation-delay: 1.12s; }
