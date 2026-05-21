@@ -55,11 +55,9 @@ jobs:
         if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
         run: terraform apply -auto-approve tfplan
 
-      - name: Publish instance IP
+      - name: Show instance IP
         if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
         run: |
           IP=$(terraform output -raw instance_ip)
           echo "Instance IP: $IP"
-          gh variable set LINODE_HOST --body "$IP" --repo "${{ github.repository }}"
-        env:
-          GH_TOKEN: ${{ github.token }}
+          echo "::notice title=Instance IP::$IP — update LINODE_HOST variable if this changed: gh variable set LINODE_HOST --body \"$IP\" --repo \${{ github.repository }}"
