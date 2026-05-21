@@ -1,0 +1,21 @@
+services:
+  cardventory:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: cardventory
+    restart: unless-stopped
+    ports:
+      - "${PORT:-3000}:3000"
+    environment:
+      - AUTH_SECRET=${AUTH_SECRET:?AUTH_SECRET is required — run: openssl rand -base64 32}
+      - DATABASE_PATH=/app/data/cardventory.db
+      - NEXTAUTH_URL=${NEXTAUTH_URL:-http://localhost:3000}
+      # Optional eBay API credentials
+      - EBAY_CLIENT_ID=${EBAY_CLIENT_ID:-}
+      - EBAY_CLIENT_SECRET=${EBAY_CLIENT_SECRET:-}
+    volumes:
+      # Database persistence — SQLite file lives here
+      - ${DATA_DIR:-./data}:/app/data
+      # Uploaded card images
+      - ${UPLOADS_DIR:-./uploads}:/app/public/uploads
