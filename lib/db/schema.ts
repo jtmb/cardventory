@@ -71,6 +71,48 @@ export const settings = sqliteTable("settings", {
   value: text("value").notNull(),
 });
 
+export const notifications = sqliteTable("notifications", {
+  id: text("id")
+    .primaryKey()
+    .$defaultFn(() => crypto.randomUUID()),
+  userId: text("user_id")
+    .notNull()
+    .references(() => users.id, { onDelete: "cascade" }),
+  message: text("message").notNull(),
+  cardId: text("card_id").references(() => cards.id, { onDelete: "cascade" }),
+  type: text("type", { enum: ["new_high", "price_change"] }).notNull(),
+  read: integer("read", { mode: "boolean" }).notNull().default(false),
+  createdAt: integer("created_at", { mode: "timestamp" })
+    .notNull()
+    .$defaultFn(() => new Date()),
+});
+
+export const userLoginLogs = sqliteTable("user_login_logs", {
+  id: text("id")
+    .primaryKey()
+    .$defaultFn(() => crypto.randomUUID()),
+  userId: text("user_id")
+    .notNull()
+    .references(() => users.id, { onDelete: "cascade" }),
+  ipAddress: text("ip_address").notNull(),
+  loginAt: integer("login_at", { mode: "timestamp" })
+    .notNull()
+    .$defaultFn(() => new Date()),
+});
+
+export const bannedUsers = sqliteTable("banned_users", {
+  id: text("id")
+    .primaryKey()
+    .$defaultFn(() => crypto.randomUUID()),
+  email: text("email").notNull(),
+  ipAddress: text("ip_address"),
+  bannedAt: integer("banned_at", { mode: "timestamp" })
+    .notNull()
+    .$defaultFn(() => new Date()),
+  bannedByUserId: text("banned_by_user_id"),
+  reason: text("reason"),
+});
+
 export type User = typeof users.$inferSelect;
 export type NewUser = typeof users.$inferInsert;
 export type Card = typeof cards.$inferSelect;
@@ -78,3 +120,8 @@ export type NewCard = typeof cards.$inferInsert;
 export type PriceHistory = typeof priceHistory.$inferSelect;
 export type NewPriceHistory = typeof priceHistory.$inferInsert;
 export type Setting = typeof settings.$inferSelect;
+export type Notification = typeof notifications.$inferSelect;
+export type NewNotification = typeof notifications.$inferInsert;
+export type UserLoginLog = typeof userLoginLogs.$inferSelect;
+export type NewUserLoginLog = typeof userLoginLogs.$inferInsert;
+export type BannedUser = typeof bannedUsers.$inferSelect;

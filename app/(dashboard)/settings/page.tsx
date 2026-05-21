@@ -2,7 +2,7 @@
 
 import { useState, useEffect, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
-import { useSession } from "next-auth/react";
+import { useSession, signOut } from "next-auth/react";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -13,7 +13,7 @@ import {
   SaveIcon, RefreshCwIcon, FlaskConicalIcon, RotateCcwIcon,
   CheckIcon, DownloadIcon, UploadIcon, SparklesIcon, EyeIcon, ShieldIcon,
   BellIcon, MailIcon, MessageSquareIcon, EyeOffIcon, SendIcon,
-  DatabaseIcon, Trash2Icon, StarIcon,
+  DatabaseIcon, Trash2Icon, StarIcon, LogOutIcon,
 } from "lucide-react";
 import { seedTestData } from "@/lib/actions";
 import { UserManagementSection } from "@/components/user-management-section";
@@ -25,6 +25,7 @@ import {
   CHIP_STYLE_OPTIONS, CHIP_STYLE_LS_KEY, applyChipStyle, type ChipStyleKey,
   BUTTON_STYLE_OPTIONS, BUTTON_STYLE_LS_KEY, applyButtonStyle, type ButtonStyleKey,
   SLEEVE_LS_KEY, applySleeve,
+  ZOOM_SCALE_OPTIONS, ZOOM_SCALE_LS_KEY, applyZoomScale, type ZoomScaleKey,
 } from "@/lib/theme";
 
 const REFRESH_INTERVALS = [
@@ -67,6 +68,7 @@ function OptionPicker<T extends string>({
 }
 
 const SECTION_LABELS: Record<string, string> = {
+  account: "Account",
   general: "General",
   appearance: "Appearance",
   data: "Data",
@@ -125,7 +127,7 @@ function SettingsContent() {
   const [showSecrets, setShowSecrets] = useState(false);
   const [allowRegistration, setAllowRegistration] = useState(true);
   const [requireApproval, setRequireApproval] = useState(false);
-  const [autoDenyHours, setAutoDenyHours] = useState("");
+  const [autoDenyHours, setAutoDenyHours] = useState("0");
   // Test notification loading
   const [testingEmail, setTestingEmail] = useState(false);
   const [testingDiscord, setTestingDiscord] = useState(false);
@@ -136,6 +138,25 @@ function SettingsContent() {
   const [restoringBackup, setRestoringBackup] = useState<string | null>(null);
   const [autoBackupHours, setAutoBackupHours] = useState("0");
   const [autoBackupMax, setAutoBackupMax] = useState("10");
+  const [zoomScale, setZoomScale] = useState<ZoomScaleKey>("natural");
+  // Appearance extras
+  const [priceBadges, setPriceBadges] = useState(true);
+  // Logo state (admin)
+  const [logoPreview, setLogoPreview] = useState<string | null>(null);
+  const [logoUploading, setLogoUploading] = useState(false);
+  const [logoUrlInput, setLogoUrlInput] = useState("");
+  // Account panel state
+  const [accountName, setAccountName] = useState(session?.user?.name ?? "");
+  const [accountCurrentPw, setAccountCurrentPw] = useState("");
+  const [accountNewPw, setAccountNewPw] = useState("");
+  const [accountConfirmPw, setAccountConfirmPw] = useState("");
+  const [accountSaving, setAccountSaving] = useState(false);
+
+  // Sync name from session when session loads
+  useEffect(() => {
+    if (session?.user?.name && !accountName) setAccountName(session.user.name);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [session?.user?.name]);
 
   const refreshBlocked = !isActualAdmin && refreshCooldownUntil !== null && refreshCooldownUntil > new Date();
 
@@ -167,6 +188,10 @@ function SettingsContent() {
     try {
       const sl = localStorage.getItem(SLEEVE_LS_KEY);
       if (sl !== null) setSleeveEffect(sl === "true");
+    } catch {}
+    try {
+      const z = localStorage.getItem(ZOOM_SCALE_LS_KEY) as ZoomScaleKey | null;
+      if (z) setZoomScale(z);
     } catch {}
 
     fetch("/api/settings")
@@ -216,6 +241,13 @@ function SettingsContent() {
           localStorage.setItem(SLEEVE_LS_KEY, String(sl));
           applySleeve(sl);
         }
+        if (data.zoom_scale) {
+          const z = data.zoom_scale as ZoomScaleKey;
+          setZoomScale(z);
+          localStorage.setItem(ZOOM_SCALE_LS_KEY, z);
+          applyZoomScale(z);
+        }
+        if (data.price_badges !== undefined) setPriceBadges(data.price_badges !== "false");
         if (data.manual_refresh_last) {
           const nextAllowed = new Date(new Date(data.manual_refresh_last).getTime() + 24 * 60 * 60 * 1000);
           setRefreshCooldownUntil(nextAllowed);
@@ -252,7 +284,11 @@ function SettingsContent() {
         if (data.auto_backup_max_count) setAutoBackupMax(data.auto_backup_max_count);
         if (data.allow_registration !== undefined) setAllowRegistration(data.allow_registration !== "false");
         if (data.require_approval !== undefined) setRequireApproval(data.require_approval === "true");
-        if (data.auto_deny_after_hours !== undefined) setAutoDenyHours(data.auto_deny_after_hours);
+        if (data.auto_deny_after_hours !== undefined) {
+          const validOptions = ["0", "24", "48", "96", "168"];
+          const stored = String(data.auto_deny_after_hours);
+          setAutoDenyHours(validOptions.includes(stored) ? stored : "0");
+        }
       })
       .catch(() => {});
   }, []);
@@ -266,6 +302,11 @@ function SettingsContent() {
         .then((data) => { setBackupList(data); })
         .catch(() => {})
         .finally(() => setBackupsLoading(false));
+      // Load current logo
+      fetch("/api/admin/logo")
+        .then((r) => r.json())
+        .then((data) => { if (data.url) setLogoPreview(data.url); })
+        .catch(() => {});
     }
   }, [activeSection, isActualAdmin]);
 
@@ -323,6 +364,12 @@ function SettingsContent() {
     localStorage.setItem(SLEEVE_LS_KEY, String(on));
   }
 
+  function handleZoomScale(key: ZoomScaleKey) {
+    setZoomScale(key);
+    applyZoomScale(key);
+    localStorage.setItem(ZOOM_SCALE_LS_KEY, key);
+  }
+
   /** Single source of truth for all exportable / saveable settings. */
   function buildSettingsPayload() {
     const defaultColors = Object.fromEntries(
@@ -336,6 +383,8 @@ function SettingsContent() {
       chip_style: chipStyle,
       btn_style: btnStyle,
       sleeve_effect: sleeveEffect,
+      zoom_scale: zoomScale,
+      price_badges: priceBadges,
       refresh_interval: refreshInterval,
       notif_email_enabled: notifEmailEnabled,
       notif_smtp_host: notifSmtpHost,
@@ -418,6 +467,7 @@ function SettingsContent() {
           chip_style: s.chip_style,
           btn_style: s.btn_style,
           sleeve_effect: String(s.sleeve_effect),
+          price_badges: String(s.price_badges),
           notif_email_enabled: String(s.notif_email_enabled),
           notif_smtp_host: s.notif_smtp_host,
           notif_smtp_port: s.notif_smtp_port,
@@ -536,6 +586,129 @@ function SettingsContent() {
         <h1 className="type-headline-large font-bold">{SECTION_LABELS[activeSection] ?? "Settings"}</h1>
         <p className="type-body-medium text-muted-foreground mt-1">Configure Cardventory to your preferences</p>
       </div>
+
+      {/* ── Account ────────────────────────────────────────────────────────── */}
+      {activeSection === "account" && (
+        <div className="space-y-4">
+          {/* Profile */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">Profile</CardTitle>
+              <CardDescription>Update your display name.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <div className="space-y-1.5">
+                <Label>Display name</Label>
+                <input
+                  value={accountName}
+                  onChange={(e) => setAccountName(e.target.value)}
+                  placeholder="Your name"
+                  className="w-full h-9 rounded-md border border-border bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                />
+              </div>
+              <div className="flex justify-end">
+                <Button
+                  size="sm"
+                  disabled={accountSaving || !accountName.trim() || accountName === session?.user?.name}
+                  onClick={async () => {
+                    setAccountSaving(true);
+                    try {
+                      const res = await fetch("/api/profile", {
+                        method: "PATCH",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ action: "update_profile", name: accountName.trim() }),
+                      });
+                      const data = await res.json();
+                      if (!res.ok) throw new Error(data.error);
+                      toast.success("Name updated");
+                    } catch (e) {
+                      toast.error(e instanceof Error ? e.message : "Failed");
+                    } finally {
+                      setAccountSaving(false);
+                    }
+                  }}
+                >
+                  Save name
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Password */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">Change Password</CardTitle>
+              <CardDescription>
+                {session?.user
+                  ? "Update your sign-in password. You'll need your current password to confirm."
+                  : "OAuth accounts cannot set a password."}
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <div className="space-y-1.5">
+                <Label>Current password</Label>
+                <input
+                  type="password"
+                  value={accountCurrentPw}
+                  onChange={(e) => setAccountCurrentPw(e.target.value)}
+                  placeholder="Enter current password"
+                  className="w-full h-9 rounded-md border border-border bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label>New password</Label>
+                <input
+                  type="password"
+                  value={accountNewPw}
+                  onChange={(e) => setAccountNewPw(e.target.value)}
+                  placeholder="Min. 8 characters"
+                  className="w-full h-9 rounded-md border border-border bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label>Confirm new password</Label>
+                <input
+                  type="password"
+                  value={accountConfirmPw}
+                  onChange={(e) => setAccountConfirmPw(e.target.value)}
+                  placeholder="Repeat new password"
+                  className="w-full h-9 rounded-md border border-border bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                />
+              </div>
+              <div className="flex justify-end">
+                <Button
+                  size="sm"
+                  disabled={accountSaving || !accountCurrentPw || !accountNewPw || !accountConfirmPw}
+                  onClick={async () => {
+                    if (accountNewPw.length < 8) { toast.error("New password must be at least 8 characters"); return; }
+                    if (accountNewPw !== accountConfirmPw) { toast.error("Passwords do not match"); return; }
+                    setAccountSaving(true);
+                    try {
+                      const res = await fetch("/api/profile", {
+                        method: "PATCH",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ action: "change_password", currentPassword: accountCurrentPw, newPassword: accountNewPw }),
+                      });
+                      const data = await res.json();
+                      if (!res.ok) throw new Error(data.error);
+                      toast.success("Password changed");
+                      setAccountCurrentPw("");
+                      setAccountNewPw("");
+                      setAccountConfirmPw("");
+                    } catch (e) {
+                      toast.error(e instanceof Error ? e.message : "Failed");
+                    } finally {
+                      setAccountSaving(false);
+                    }
+                  }}
+                >
+                  Change password
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
 
       {/* ── Appearance ─────────────────────────────────────────────────────── */}
       {activeSection === "appearance" && (
@@ -705,6 +878,75 @@ function SettingsContent() {
                   }`}
                 />
               </button>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Price Change Badges */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Price Change Badges</CardTitle>
+            <CardDescription>
+              Show trend badges on card thumbnails when the 7-day price moves up or down.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="type-label-large font-medium">Price badges</p>
+                <p className="type-label-small text-muted-foreground mt-0.5">
+                  {priceBadges ? "On — badges show on card thumbnails" : "Off — badges hidden"}
+                </p>
+              </div>
+              <button
+                type="button"
+                role="switch"
+                aria-checked={priceBadges}
+                onClick={() => setPriceBadges((v) => !v)}
+                className={`relative inline-flex h-6 w-11 items-center rounded-full border-2 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
+                  priceBadges ? "bg-primary border-primary" : "bg-muted border-border"
+                }`}
+              >
+                <span
+                  className={`inline-block h-4 w-4 rounded-full bg-white shadow transition-transform ${
+                    priceBadges ? "translate-x-5" : "translate-x-0.5"
+                  }`}
+                />
+              </button>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Desktop Zoom Scale */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Desktop Zoom</CardTitle>
+            <CardDescription className="hidden sm:block">
+              Scale the entire UI for desktop screens. Has no effect on mobile.
+            </CardDescription>
+            <CardDescription className="sm:hidden text-muted-foreground/60">
+              Desktop-only setting — not applied on mobile.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:opacity-100 opacity-50 pointer-events-none sm:pointer-events-auto">
+              {ZOOM_SCALE_OPTIONS.map((opt) => (
+                <button
+                  key={opt.key}
+                  type="button"
+                  onClick={() => handleZoomScale(opt.key)}
+                  disabled={typeof window !== "undefined" && window.innerWidth < 1024}
+                  className={`text-left rounded-lg border-2 p-4 transition-colors hover:border-primary/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
+                    zoomScale === opt.key ? "border-primary bg-primary/5" : "border-border"
+                  }`}
+                >
+                  <p className="font-bold mb-1 leading-none" style={{ fontSize: `${Math.max(opt.value * 0.95, 0.85)}rem` }}>
+                    {Math.round(opt.value * 100)}%
+                  </p>
+                  <p className="type-label-large font-semibold mt-1.5">{opt.label}</p>
+                  <p className="type-label-small text-muted-foreground mt-0.5">{opt.desc}</p>
+                </button>
+              ))}
             </div>
           </CardContent>
         </Card>
@@ -1162,17 +1404,20 @@ function SettingsContent() {
               <div className="border-t border-border" />
               <div className="flex items-center justify-between gap-4">
                 <div>
-                  <p className="text-sm font-medium">Auto-deny after (hours)</p>
-                  <p className="text-xs text-muted-foreground mt-0.5">Automatically deny and delete pending requests after this many hours. Leave blank or set to 0 to never auto-deny.</p>
+                  <p className="text-sm font-medium">Auto-deny after</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">Automatically deny and delete pending requests after the selected time. Set to Never to disable.</p>
                 </div>
-                <input
-                  type="number"
-                  min="0"
+                <select
                   value={autoDenyHours}
                   onChange={(e) => setAutoDenyHours(e.target.value)}
-                  placeholder="0"
-                  className="w-20 h-9 rounded-md border border-border bg-background px-3 text-sm text-right shrink-0"
-                />
+                  className="h-9 rounded-md border border-border bg-background px-3 text-sm shrink-0 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 cursor-pointer"
+                >
+                  <option value="0">Never</option>
+                  <option value="24">1 day</option>
+                  <option value="48">2 days</option>
+                  <option value="96">4 days</option>
+                  <option value="168">7 days</option>
+                </select>
               </div>
             </CardContent>
           </Card>
@@ -1236,6 +1481,121 @@ function SettingsContent() {
       {/* ── System ────────────────────────────────────────────────────────── */}
       {activeSection === "system" && (
         <div className="space-y-4">
+        {/* App Logo */}
+        {isAdmin && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Application Logo</CardTitle>
+            <CardDescription>
+              Upload a custom logo that replaces the default icon in the sidebar. Max 512 KB, image files only.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex items-center gap-4">
+              {logoPreview ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={logoPreview} alt="Logo preview" className="w-12 h-12 rounded-xl object-contain border border-border bg-muted" />
+              ) : (
+                <div className="w-12 h-12 rounded-xl border border-dashed border-border bg-muted flex items-center justify-center text-muted-foreground text-xl">&#128247;</div>
+              )}
+              <div className="flex flex-col gap-2">
+                <label className="cursor-pointer">
+                  <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-border bg-background hover:bg-muted transition-colors text-sm font-medium">
+                    {logoPreview ? "Change Logo" : "Upload Logo"}
+                  </span>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    disabled={logoUploading}
+                    onChange={async (e) => {
+                      const file = e.target.files?.[0];
+                      if (!file) return;
+                      if (file.size > 512 * 1024) { toast.error("File too large (max 512 KB)"); return; }
+                      setLogoUploading(true);
+                      try {
+                        const fd = new FormData();
+                        fd.append("logo", file);
+                        const res = await fetch("/api/admin/logo", { method: "POST", body: fd });
+                        const data = await res.json();
+                        if (!res.ok) throw new Error(data.error);
+                        setLogoPreview(data.url);
+                        toast.success("Logo updated");
+                      } catch (err) {
+                        toast.error(err instanceof Error ? err.message : "Upload failed");
+                      } finally {
+                        setLogoUploading(false);
+                        e.target.value = "";
+                      }
+                    }}
+                  />
+                </label>
+                {logoPreview && (
+                  <button
+                    type="button"
+                    className="text-xs text-destructive hover:underline"
+                    disabled={logoUploading}
+                    onClick={async () => {
+                      setLogoUploading(true);
+                      try {
+                        await fetch("/api/admin/logo", { method: "DELETE" });
+                        setLogoPreview(null);
+                        toast.success("Logo removed");
+                      } finally { setLogoUploading(false); }
+                    }}
+                  >
+                    Remove logo
+                  </button>
+                )}
+              </div>
+            </div>
+
+            <div className="space-y-1.5">
+              <p className="type-label-large font-medium">Or use an image URL</p>
+              <div className="flex gap-2">
+                <input
+                  type="url"
+                  value={logoUrlInput}
+                  onChange={(e) => setLogoUrlInput(e.target.value)}
+                  placeholder="https://example.com/logo.png"
+                  className="flex-1 h-9 rounded-md border border-border bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                />
+                <Button
+                  size="sm"
+                  variant="outline"
+                  disabled={logoUploading || !logoUrlInput.trim()}
+                  onClick={async () => {
+                    const url = logoUrlInput.trim();
+                    if (!url.startsWith("http://") && !url.startsWith("https://")) {
+                      toast.error("URL must start with http:// or https://");
+                      return;
+                    }
+                    setLogoUploading(true);
+                    try {
+                      const res = await fetch("/api/admin/logo", {
+                        method: "PATCH",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ url }),
+                      });
+                      const data = await res.json();
+                      if (!res.ok) throw new Error(data.error);
+                      setLogoPreview(data.url);
+                      setLogoUrlInput("");
+                      toast.success("Logo updated");
+                    } catch (err) {
+                      toast.error(err instanceof Error ? err.message : "Failed");
+                    } finally {
+                      setLogoUploading(false);
+                    }
+                  }}
+                >
+                  Apply
+                </Button>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        )}
         <Card>
           <CardHeader>
             <CardTitle className="text-base">Release Version</CardTitle>
@@ -1410,7 +1770,7 @@ function SettingsContent() {
       )}
       </div>{/* end p-6 wrapper */}
 
-      <div className="fixed bottom-0 left-60 right-0 z-10 border-t border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+      <div className="fixed bottom-0 left-0 md:left-60 right-0 z-10 border-t border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
         <div className="max-w-2xl mx-auto px-6 py-3 flex items-center gap-3">
           {isActualAdmin && (
             <Button
@@ -1429,6 +1789,15 @@ function SettingsContent() {
           <Button onClick={saveSettings} disabled={saving} className="gap-2 ml-auto shadow-sm">
             <SaveIcon className="h-4 w-4" />
             {saving ? "Saving…" : "Save Settings"}
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="gap-2 text-muted-foreground hover:text-foreground shrink-0"
+            onClick={() => signOut({ callbackUrl: "/login" })}
+          >
+            <LogOutIcon className="h-3.5 w-3.5" />
+            Sign Out
           </Button>
         </div>
       </div>

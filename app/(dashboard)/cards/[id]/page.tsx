@@ -68,8 +68,8 @@ export default async function CardDetailPage({
       {/* Main detail section */}
       <div className="flex flex-col md:flex-row gap-8">
         {/* Card image */}
-        <div className="shrink-0 flex flex-col gap-3">
-          <div className="w-64 h-88 rounded-xl overflow-hidden bg-muted border border-border flex items-center justify-center">
+        <div className="shrink-0 flex flex-col gap-3 w-full md:w-64 mx-auto md:mx-0 max-w-xs md:max-w-none">
+          <div className="w-full md:w-64 aspect-[5/7] md:aspect-auto md:h-88 rounded-xl overflow-hidden bg-muted border border-border flex items-center justify-center">
             {displayImage ? (
               <Image
                 src={displayImage}

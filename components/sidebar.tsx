@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { useState, useEffect } from "react";
 import { usePathname, useSearchParams } from "next/navigation";
 import { signOut, useSession } from "next-auth/react";
@@ -21,6 +22,8 @@ import {
   XIcon,
   BookmarkIcon,
   UsersIcon,
+  BarChart3Icon,
+  UserCircleIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -34,6 +37,7 @@ const navItems = [
 ];
 
 const settingsSubItems = [
+  { key: "account",       label: "Account",       icon: UserCircleIcon },
   { key: "general",        label: "General",        icon: TagIcon      },
   { key: "appearance",    label: "Appearance",    icon: PaletteIcon  },
   { key: "data",          label: "Data",          icon: DatabaseIcon },
@@ -49,7 +53,7 @@ const adminSubItems = [
 /** Nav links + sign-out — rendered in both desktop sidebar and mobile drawer. */
 function NavContent({ onNavigate }: { onNavigate?: () => void }) {
   const pathname = usePathname();
-  const onSettings = pathname.startsWith("/settings");
+  const onSettings = pathname.startsWith("/settings") || pathname.startsWith("/admin");
   const searchParams = useSearchParams();
   const activeSubSection = onSettings ? (searchParams.get("s") ?? "general") : null;
   const { data: session } = useSession();
@@ -72,6 +76,7 @@ function NavContent({ onNavigate }: { onNavigate?: () => void }) {
             href === "/dashboard" ? pathname === "/dashboard" || pathname === "/" :
             href === "/cards"     ? pathname === "/cards" || (pathname.startsWith("/cards/") && !pathname.startsWith("/cards/add")) :
             href === "/cards/add" ? pathname === "/cards/add" :
+            href === "/settings" ? pathname.startsWith("/settings") || pathname.startsWith("/admin") :
             pathname.startsWith(href);
           const tourId = href === "/cards/add" ? "tour-add-card" : href === "/settings" ? "tour-settings" : undefined;
           return (
@@ -113,6 +118,19 @@ function NavContent({ onNavigate }: { onNavigate?: () => void }) {
                   {isAdmin && (
                     <>
                       <div className="px-2.5 pt-3 pb-1 text-[10px] font-semibold uppercase tracking-widest text-sidebar-foreground/35">Admin</div>
+                      <Link
+                        href="/admin/analytics"
+                        onClick={onNavigate}
+                        className={cn(
+                          "flex items-center gap-2.5 px-2.5 py-1.5 rounded-md text-xs font-medium transition-colors",
+                          pathname === "/admin/analytics"
+                            ? "text-primary bg-primary/10"
+                            : "text-sidebar-foreground/55 hover:text-sidebar-foreground hover:bg-sidebar-accent"
+                        )}
+                      >
+                        <BarChart3Icon className="h-3.5 w-3.5 shrink-0" />
+                        Analytics
+                      </Link>
                       {adminSubItems.map(({ key, label: subLabel, icon: SubIcon }) => (
                         <Link
                           key={key}
@@ -127,7 +145,7 @@ function NavContent({ onNavigate }: { onNavigate?: () => void }) {
                         >
                           <SubIcon className="h-3.5 w-3.5 shrink-0" />
                           <span className="flex-1">{subLabel}</span>
-                          {pendingCount > 0 && (key === "user-management" || key === "authentication") && (
+                          {pendingCount > 0 && key === "user-management" && (
                             <span className="inline-flex items-center justify-center h-4 min-w-4 px-1 rounded-full bg-amber-400/20 text-amber-400 text-[10px] font-bold leading-none">
                               {pendingCount}
                             </span>
@@ -159,6 +177,22 @@ function NavContent({ onNavigate }: { onNavigate?: () => void }) {
   );
 }
 
+function AppLogo({ size = "md" }: { size?: "sm" | "md" }) {
+  const [logoUrl, setLogoUrl] = useState<string | null>(null);
+  useEffect(() => {
+    fetch("/api/admin/logo")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => { if (d?.url) setLogoUrl(d.url); })
+      .catch(() => {});
+  }, []);
+  const cls = size === "sm" ? "h-5 w-5" : "h-6 w-6";
+  return logoUrl ? (
+    <Image src={logoUrl} alt="App logo" width={size === "sm" ? 20 : 24} height={size === "sm" ? 20 : 24} className={`${cls} object-contain rounded`} unoptimized />
+  ) : (
+    <TrendingUpIcon className={`${cls} text-primary`} />
+  );
+}
+
 export function Sidebar() {
   const [drawerOpen, setDrawerOpen] = useState(false);
 
@@ -167,7 +201,7 @@ export function Sidebar() {
       {/* ── Desktop sidebar (md and up) ──────────────────────────────────── */}
       <aside className="hidden md:flex w-60 shrink-0 bg-sidebar border-r border-sidebar-border flex-col sticky top-0 h-screen overflow-y-auto">
         <div className="flex items-center gap-2 px-5 py-5 border-b border-sidebar-border">
-          <TrendingUpIcon className="h-6 w-6 text-primary" />
+          <AppLogo size="md" />
           <span className="font-bold text-lg text-sidebar-foreground tracking-tight">Cardventory</span>
         </div>
         <NavContent />
@@ -183,7 +217,7 @@ export function Sidebar() {
         >
           <MenuIcon className="h-5 w-5" />
         </button>
-        <TrendingUpIcon className="h-5 w-5 text-primary" />
+        <AppLogo size="sm" />
         <span className="font-bold text-base text-sidebar-foreground tracking-tight">Cardventory</span>
       </div>
 
@@ -205,7 +239,7 @@ export function Sidebar() {
       >
         <div className="flex items-center justify-between px-5 py-4 border-b border-sidebar-border">
           <div className="flex items-center gap-2">
-            <TrendingUpIcon className="h-5 w-5 text-primary" />
+            <AppLogo size="sm" />
             <span className="font-bold text-base text-sidebar-foreground tracking-tight">Cardventory</span>
           </div>
           <button

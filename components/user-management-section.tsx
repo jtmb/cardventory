@@ -2,7 +2,10 @@
 
 import { useState, useEffect } from "react";
 import { toast } from "sonner";
-import { LockIcon, LockOpenIcon, KeyIcon, TrashIcon, ChevronDownIcon, UserIcon, CheckIcon, XIcon } from "lucide-react";
+import {
+  LockIcon, LockOpenIcon, KeyIcon, TrashIcon, ChevronUpIcon,
+  UserIcon, CheckIcon, XIcon, HistoryIcon, BanIcon,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -21,6 +24,23 @@ type UserRow = {
   status: "active" | "pending";
   lockedAt: string | null;
   createdAt: string;
+  lastIp: string | null;
+  lastLoginAt: string | null;
+};
+
+type LoginLog = {
+  id: string;
+  userId: string;
+  ipAddress: string;
+  loginAt: string;
+};
+
+type BanRow = {
+  id: string;
+  email: string;
+  ipAddress: string | null;
+  bannedAt: string;
+  reason: string | null;
 };
 
 function PasswordModal({ userId, userName, onClose }: { userId: string; userName: string; onClose: () => void }) {
@@ -65,8 +85,59 @@ function PasswordModal({ userId, userName, onClose }: { userId: string; userName
         </div>
         <div className="flex justify-end gap-2 mt-5">
           <Button variant="ghost" size="sm" onClick={onClose} disabled={saving}>Cancel</Button>
-          <Button size="sm" onClick={handleSave} disabled={saving}>{saving ? "Saving…" : "Set Password"}</Button>
+          <Button size="sm" onClick={handleSave} disabled={saving}>{saving ? "Saving\u2026" : "Set Password"}</Button>
         </div>
+      </div>
+    </div>
+  );
+}
+
+function LoginHistoryPopover({ userId, onClose }: { userId: string; onClose: () => void }) {
+  const [logs, setLogs] = useState<LoginLog[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetch(`/api/admin/users/${userId}`)
+      .then((r) => r.json())
+      .then((data) => setLogs(data))
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, [userId]);
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60" onClick={onClose}>
+      <div
+        className="bg-card border border-border rounded-xl shadow-2xl p-5 w-full max-w-sm mx-4"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="font-bold text-sm">Login History</h2>
+          <button
+            onClick={onClose}
+            className="h-6 w-6 flex items-center justify-center rounded text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+          >
+            <XIcon className="h-4 w-4" />
+          </button>
+        </div>
+        {loading ? (
+          <div className="space-y-2">
+            {[1, 2, 3].map((i) => <div key={i} className="h-8 bg-muted rounded animate-pulse" />)}
+          </div>
+        ) : logs.length === 0 ? (
+          <p className="text-sm text-muted-foreground text-center py-4">No login history</p>
+        ) : (
+          <div className="space-y-1">
+            {logs.map((log, i) => (
+              <div key={log.id} className="flex items-center justify-between px-2 py-1.5 rounded-md hover:bg-muted/60 transition-colors">
+                <span className="text-xs font-mono text-foreground">{log.ipAddress}</span>
+                <span className="text-xs text-muted-foreground">
+                  {i === 0 && <span className="mr-1.5 px-1 py-0.5 rounded bg-primary/10 text-primary text-[10px] font-medium">latest</span>}
+                  {new Date(log.loginAt).toLocaleString()}
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );
@@ -77,9 +148,12 @@ export function UserManagementSection() {
   const [users, setUsers] = useState<UserRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [passwordModalUser, setPasswordModalUser] = useState<UserRow | null>(null);
+  const [loginHistoryUser, setLoginHistoryUser] = useState<UserRow | null>(null);
+  const [bans, setBans] = useState<BanRow[]>([]);
+  const [bansLoading, setBansLoading] = useState(true);
   const myId = session?.user?.id;
 
-  useEffect(() => { loadUsers(); }, []);
+  useEffect(() => { loadUsers(); loadBans(); }, []);
 
   async function loadUsers() {
     setLoading(true);
@@ -91,6 +165,30 @@ export function UserManagementSection() {
       toast.error("Access denied");
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function loadBans() {
+    setBansLoading(true);
+    try {
+      const res = await fetch("/api/admin/bans");
+      if (res.ok) setBans(await res.json());
+    } catch {}
+    finally { setBansLoading(false); }
+  }
+
+  async function unban(id: string) {
+    try {
+      const res = await fetch("/api/admin/bans", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id }),
+      });
+      if (!res.ok) throw new Error("Failed");
+      toast.success("Ban removed");
+      loadBans();
+    } catch {
+      toast.error("Failed to unban");
     }
   }
 
@@ -154,13 +252,30 @@ export function UserManagementSection() {
     }
   }
 
-  const pending = users.filter((u) => u.status === "pending");
-  const active = users.filter((u) => u.status !== "pending");
+  async function denyUser(userId: string, name: string) {
+    try {
+      const res = await fetch(`/api/admin/users/${userId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "deny" }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+      toast.success(`${name} denied and banned`);
+      loadUsers();
+      loadBans();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Failed");
+    }
+  }
 
-  const PENDING_PAGE_SIZE = 4;
-  const [pendingPage, setPendingPage] = useState(1);
-  const pendingPageCount = Math.max(1, Math.ceil(pending.length / PENDING_PAGE_SIZE));
-  const pendingSlice = pending.slice((pendingPage - 1) * PENDING_PAGE_SIZE, pendingPage * PENDING_PAGE_SIZE);
+  const sorted = [...users].sort((a, b) => {
+    if (a.status === "pending" && b.status !== "pending") return -1;
+    if (a.status !== "pending" && b.status === "pending") return 1;
+    return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+  });
+
+  const pendingCount = users.filter((u) => u.status === "pending").length;
 
   return (
     <>
@@ -171,105 +286,24 @@ export function UserManagementSection() {
           onClose={() => setPasswordModalUser(null)}
         />
       )}
-
-      {/* Pending approvals */}
-      {!loading && pending.length > 0 && (
-        <Card className="border-amber-500/30">
-          <CardHeader>
-            <CardTitle className="text-base flex items-center gap-2">
-              <span className="inline-flex items-center justify-center h-5 w-5 rounded-full bg-amber-400/20 text-amber-400 text-xs font-bold">{pending.length}</span>
-              Pending Approval
-            </CardTitle>
-            <CardDescription>These accounts are awaiting admin approval before they can sign in.</CardDescription>
-          </CardHeader>
-          <CardContent className="p-0">
-            <div className="overflow-hidden">
-              {pendingSlice.map((user) => (
-                <div
-                  key={user.id}
-                  className="flex items-center gap-3 px-4 py-3 border-b border-border/60 last:border-0 hover:bg-muted/20 transition-colors"
-                >
-                  <div className="w-8 h-8 rounded-full bg-amber-400/10 flex items-center justify-center shrink-0">
-                    <UserIcon className="h-4 w-4 text-amber-400" />
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <p className="font-medium text-sm truncate">{user.name}</p>
-                    <p className="text-xs text-muted-foreground truncate">{user.email}</p>
-                  </div>
-                  <span className="text-xs text-muted-foreground hidden sm:block">
-                    {new Date(user.createdAt).toLocaleDateString()}
-                  </span>
-                  <div className="flex items-center gap-1">
-                    <button
-                      onClick={() => approveUser(user)}
-                      className="flex items-center gap-1.5 h-7 px-2.5 rounded-md text-xs font-medium bg-emerald-500/15 text-emerald-500 hover:bg-emerald-500/25 transition-colors"
-                      title="Approve"
-                    >
-                      <CheckIcon className="h-3.5 w-3.5" />
-                      Approve
-                    </button>
-                    <AlertDialog>
-                      <AlertDialogTrigger
-                        className="flex items-center gap-1.5 h-7 px-2.5 rounded-md text-xs font-medium bg-destructive/10 text-destructive hover:bg-destructive/20 transition-colors"
-                        title="Deny"
-                      >
-                        <XIcon className="h-3.5 w-3.5" />
-                        Deny
-                      </AlertDialogTrigger>
-                      <AlertDialogContent>
-                        <AlertDialogHeader>
-                          <AlertDialogTitle>Deny and delete?</AlertDialogTitle>
-                          <AlertDialogDescription>
-                            <span className="font-medium text-foreground">{user.name}</span> ({user.email}) will be permanently removed. They will need to register again.
-                          </AlertDialogDescription>
-                        </AlertDialogHeader>
-                        <AlertDialogFooter>
-                          <AlertDialogCancel>Cancel</AlertDialogCancel>
-                          <AlertDialogAction
-                            onClick={() => deleteUser(user.id, user.name)}
-                            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                          >
-                            Deny &amp; Delete
-                          </AlertDialogAction>
-                        </AlertDialogFooter>
-                      </AlertDialogContent>
-                    </AlertDialog>
-                  </div>
-                </div>
-              ))}
-            </div>
-            {pendingPageCount > 1 && (
-              <div className="flex items-center justify-between px-4 py-2.5 border-t border-border/60 bg-muted/20">
-                <span className="text-xs text-muted-foreground">
-                  {(pendingPage - 1) * PENDING_PAGE_SIZE + 1}–{Math.min(pendingPage * PENDING_PAGE_SIZE, pending.length)} of {pending.length}
-                </span>
-                <div className="flex items-center gap-1">
-                  <button
-                    onClick={() => setPendingPage((p) => Math.max(1, p - 1))}
-                    disabled={pendingPage === 1}
-                    className="h-6 px-2 rounded text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-                  >
-                    Prev
-                  </button>
-                  <span className="text-xs text-muted-foreground px-1">{pendingPage} / {pendingPageCount}</span>
-                  <button
-                    onClick={() => setPendingPage((p) => Math.min(pendingPageCount, p + 1))}
-                    disabled={pendingPage === pendingPageCount}
-                    className="h-6 px-2 rounded text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-                  >
-                    Next
-                  </button>
-                </div>
-              </div>
-            )}
-          </CardContent>
-        </Card>
+      {loginHistoryUser && (
+        <LoginHistoryPopover
+          userId={loginHistoryUser.id}
+          onClose={() => setLoginHistoryUser(null)}
+        />
       )}
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Accounts</CardTitle>
-          <CardDescription>Manage accounts, roles, and access.</CardDescription>
+          <CardTitle className="text-base flex items-center gap-2">
+            Accounts
+            {pendingCount > 0 && (
+              <span className="inline-flex items-center justify-center h-5 px-1.5 rounded-full bg-amber-400/20 text-amber-400 text-xs font-bold">
+                {pendingCount} pending
+              </span>
+            )}
+          </CardTitle>
+          <CardDescription>Manage accounts, roles, and access. Pending accounts appear at the top.</CardDescription>
         </CardHeader>
         <CardContent className="p-0">
           {loading ? (
@@ -280,30 +314,37 @@ export function UserManagementSection() {
             </div>
           ) : (
             <div className="overflow-hidden">
-              {/* Header */}
-              <div className="grid grid-cols-[1fr_1fr_auto_auto] gap-4 px-4 py-2.5 bg-muted/40 border-b border-border text-xs font-medium text-muted-foreground uppercase tracking-wide">
+              {/* Fixed column widths so header and data rows always align */}
+              <div className="grid grid-cols-[1fr_1fr_7rem_auto] gap-4 px-4 py-2.5 bg-muted/40 border-b border-border text-xs font-medium text-muted-foreground uppercase tracking-wide">
                 <span>User</span>
-                <span>Email</span>
+                <span>Email / Last Login</span>
                 <span>Role</span>
                 <span>Actions</span>
               </div>
 
-              {active.length === 0 && (
+              {sorted.length === 0 && (
                 <div className="py-12 text-center text-muted-foreground text-sm">No users found</div>
               )}
 
-              {active.map((user) => {
+              {sorted.map((user) => {
                 const isMe = user.id === myId;
                 const isLocked = !!user.lockedAt;
+                const isPending = user.status === "pending";
+
                 return (
                   <div
                     key={user.id}
-                    className={`grid grid-cols-[1fr_1fr_auto_auto] gap-4 items-center px-4 py-3 border-b border-border/60 last:border-0 transition-colors ${isLocked ? "opacity-60" : "hover:bg-muted/20"}`}
+                    className={`grid grid-cols-[1fr_1fr_7rem_auto] gap-4 items-center px-4 py-3 border-b border-border/60 last:border-0 transition-colors ${
+                      isPending
+                        ? "border-l-2 border-l-amber-400 bg-amber-400/5 hover:bg-amber-400/10"
+                        : isLocked
+                        ? "opacity-60"
+                        : "hover:bg-muted/20"
+                    }`}
                   >
-                    {/* User info */}
                     <div className="flex items-center gap-2.5 min-w-0">
-                      <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
-                        <UserIcon className="h-4 w-4 text-primary" />
+                      <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${isPending ? "bg-amber-400/10" : "bg-primary/10"}`}>
+                        <UserIcon className={`h-4 w-4 ${isPending ? "text-amber-400" : "text-primary"}`} />
                       </div>
                       <div className="min-w-0">
                         <p className="font-medium text-sm truncate">
@@ -316,95 +357,227 @@ export function UserManagementSection() {
                       </div>
                     </div>
 
-                    {/* Email */}
-                    <p className="text-sm text-muted-foreground truncate">{user.email}</p>
-
-                    {/* Role badge */}
-                    <div className="flex items-center gap-1.5">
-                      {isLocked && (
-                        <span className="text-xs font-medium px-1.5 py-0.5 rounded-md bg-destructive/15 text-destructive">Locked</span>
+                    <div className="min-w-0">
+                      <p className="text-sm text-muted-foreground truncate">{user.email}</p>
+                      {user.lastIp ? (
+                        <p className="text-xs text-muted-foreground/70 truncate font-mono">
+                          {user.lastIp}
+                          {user.lastLoginAt && (
+                            <span className="font-sans ml-1 opacity-70">
+                              &#183; {new Date(user.lastLoginAt).toLocaleDateString()}
+                            </span>
+                          )}
+                        </p>
+                      ) : (
+                        <p className="text-xs text-muted-foreground/40">No logins recorded</p>
                       )}
-                      <div className="relative group">
-                        <button
-                          disabled={isMe}
-                          className={`flex items-center gap-1 text-xs font-medium px-2 py-1 rounded-md transition-colors ${
-                            user.role === "admin"
-                              ? "bg-primary/15 text-primary"
-                              : "bg-muted text-muted-foreground"
-                          } ${isMe ? "cursor-default" : "hover:opacity-80"}`}
-                        >
-                          {user.role === "admin" ? "Admin" : "User"}
-                          {!isMe && <ChevronDownIcon className="h-3 w-3" />}
-                        </button>
-                        {!isMe && (
-                          <div className="absolute left-0 top-full mt-1 bg-popover border border-border rounded-lg shadow-xl overflow-hidden z-10 hidden group-focus-within:block group-hover:block min-w-[7rem]">
-                            {(["admin", "user"] as const).map((r) => (
-                              <button
-                                key={r}
-                                onClick={() => setRole(user.id, r)}
-                                className={`w-full text-left px-3 py-1.5 text-sm capitalize hover:bg-muted transition-colors ${user.role === r ? "font-semibold text-primary" : ""}`}
-                              >
-                                {r}
-                              </button>
-                            ))}
-                          </div>
-                        )}
-                      </div>
                     </div>
 
-                    {/* Actions */}
+                    {/* Role column — fixed 7rem wide, dropdown opens upward to avoid clipping */}
+                    <div className="flex items-center gap-1.5">
+                      {isPending ? (
+                        <span className="text-xs font-medium px-1.5 py-0.5 rounded-md bg-amber-400/15 text-amber-500">Pending</span>
+                      ) : (
+                        <>
+                          {isLocked && (
+                            <span className="text-xs font-medium px-1.5 py-0.5 rounded-md bg-destructive/15 text-destructive">Locked</span>
+                          )}
+                          <div className="relative group">
+                            <button
+                              disabled={isMe}
+                              className={`flex items-center gap-1 text-xs font-medium px-2 py-1 rounded-md transition-colors ${
+                                user.role === "admin"
+                                  ? "bg-primary/15 text-primary"
+                                  : "bg-muted text-muted-foreground"
+                              } ${isMe ? "cursor-default" : "hover:opacity-80"}`}
+                            >
+                              {user.role === "admin" ? "Admin" : "User"}
+                              {!isMe && <ChevronUpIcon className="h-3 w-3" />}
+                            </button>
+                            {!isMe && (
+                              <div className="absolute left-0 bottom-full mb-1 bg-popover border border-border rounded-lg shadow-xl overflow-hidden z-20 hidden group-focus-within:block group-hover:block min-w-[7rem]">
+                                {(["admin", "user"] as const).map((r) => (
+                                  <button
+                                    key={r}
+                                    onClick={() => setRole(user.id, r)}
+                                    className={`w-full text-left px-3 py-1.5 text-sm capitalize hover:bg-muted transition-colors ${user.role === r ? "font-semibold text-primary" : ""}`}
+                                  >
+                                    {r === "admin" ? "Admin" : "User"}
+                                  </button>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        </>
+                      )}
+                    </div>
+
                     <div className="flex items-center gap-1">
-                      <button
-                        onClick={() => setPasswordModalUser(user)}
-                        className="flex items-center justify-center w-7 h-7 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
-                        title="Reset password"
-                      >
-                        <KeyIcon className="h-3.5 w-3.5" />
-                      </button>
-                      {!isMe && (
+                      {isPending ? (
                         <>
                           <button
-                            onClick={() => toggleLock(user)}
-                            className={`flex items-center justify-center w-7 h-7 rounded-md transition-colors ${
-                              isLocked
-                                ? "text-amber-400 hover:bg-muted"
-                                : "text-muted-foreground hover:text-amber-400 hover:bg-muted"
-                            }`}
-                            title={isLocked ? "Unlock account" : "Lock account"}
+                            onClick={() => approveUser(user)}
+                            className="flex items-center gap-1.5 h-7 px-2.5 rounded-md text-xs font-medium bg-emerald-500/15 text-emerald-500 hover:bg-emerald-500/25 transition-colors"
+                            title="Approve"
                           >
-                            {isLocked ? <LockOpenIcon className="h-3.5 w-3.5" /> : <LockIcon className="h-3.5 w-3.5" />}
+                            <CheckIcon className="h-3.5 w-3.5" />
+                            Approve
                           </button>
                           <AlertDialog>
                             <AlertDialogTrigger
-                              className="flex items-center justify-center w-7 h-7 rounded-md text-muted-foreground hover:text-destructive hover:bg-muted transition-colors"
-                              title="Delete user"
+                              className="flex items-center gap-1.5 h-7 px-2.5 rounded-md text-xs font-medium bg-destructive/10 text-destructive hover:bg-destructive/20 transition-colors"
+                              title="Deny and ban"
                             >
-                              <TrashIcon className="h-3.5 w-3.5" />
+                              <BanIcon className="h-3.5 w-3.5" />
+                              Deny
                             </AlertDialogTrigger>
                             <AlertDialogContent>
                               <AlertDialogHeader>
-                                <AlertDialogTitle>Delete user?</AlertDialogTitle>
+                                <AlertDialogTitle>Deny and ban?</AlertDialogTitle>
                                 <AlertDialogDescription>
-                                  <span className="font-medium text-foreground">{user.name}</span> ({user.email}) and all their cards will be permanently deleted. This cannot be undone.
+                                  <span className="font-medium text-foreground">{user.name}</span> ({user.email}) will be denied and their email and IP added to the ban list. They will not be able to register again until the ban is lifted.
                                 </AlertDialogDescription>
                               </AlertDialogHeader>
                               <AlertDialogFooter>
                                 <AlertDialogCancel>Cancel</AlertDialogCancel>
                                 <AlertDialogAction
-                                  onClick={() => deleteUser(user.id, user.name)}
+                                  onClick={() => denyUser(user.id, user.name)}
                                   className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
                                 >
-                                  Delete
+                                  Deny and Ban
                                 </AlertDialogAction>
                               </AlertDialogFooter>
                             </AlertDialogContent>
                           </AlertDialog>
+                        </>
+                      ) : (
+                        <>
+                          <button
+                            onClick={() => setLoginHistoryUser(user)}
+                            className="flex items-center justify-center w-7 h-7 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                            title="Login history"
+                          >
+                            <HistoryIcon className="h-3.5 w-3.5" />
+                          </button>
+                          <button
+                            onClick={() => setPasswordModalUser(user)}
+                            className="flex items-center justify-center w-7 h-7 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                            title="Reset password"
+                          >
+                            <KeyIcon className="h-3.5 w-3.5" />
+                          </button>
+                          {!isMe && (
+                            <>
+                              <button
+                                onClick={() => toggleLock(user)}
+                                className={`flex items-center justify-center w-7 h-7 rounded-md transition-colors ${
+                                  isLocked
+                                    ? "text-amber-400 hover:bg-muted"
+                                    : "text-muted-foreground hover:text-amber-400 hover:bg-muted"
+                                }`}
+                                title={isLocked ? "Unlock account" : "Lock account"}
+                              >
+                                {isLocked ? <LockOpenIcon className="h-3.5 w-3.5" /> : <LockIcon className="h-3.5 w-3.5" />}
+                              </button>
+                              <AlertDialog>
+                                <AlertDialogTrigger
+                                  className="flex items-center justify-center w-7 h-7 rounded-md text-muted-foreground hover:text-destructive hover:bg-muted transition-colors"
+                                  title="Delete user"
+                                >
+                                  <TrashIcon className="h-3.5 w-3.5" />
+                                </AlertDialogTrigger>
+                                <AlertDialogContent>
+                                  <AlertDialogHeader>
+                                    <AlertDialogTitle>Delete user?</AlertDialogTitle>
+                                    <AlertDialogDescription>
+                                      <span className="font-medium text-foreground">{user.name}</span> ({user.email}) and all their cards will be permanently deleted.
+                                    </AlertDialogDescription>
+                                  </AlertDialogHeader>
+                                  <AlertDialogFooter>
+                                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                    <AlertDialogAction
+                                      onClick={() => deleteUser(user.id, user.name)}
+                                      className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                    >
+                                      Delete
+                                    </AlertDialogAction>
+                                  </AlertDialogFooter>
+                                </AlertDialogContent>
+                              </AlertDialog>
+                            </>
+                          )}
                         </>
                       )}
                     </div>
                   </div>
                 );
               })}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* ── Ban List ─────────────────────────────────────────────────────── */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base flex items-center gap-2">
+            <BanIcon className="h-4 w-4 text-destructive" />
+            Ban List
+            {bans.length > 0 && (
+              <span className="inline-flex items-center justify-center h-5 px-1.5 rounded-full bg-destructive/15 text-destructive text-xs font-bold">
+                {bans.length}
+              </span>
+            )}
+          </CardTitle>
+          <CardDescription>
+            Banned emails and IPs cannot register or sign in. Remove a ban to allow access again.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="p-0">
+          {bansLoading ? (
+            <div className="space-y-2 p-4">
+              {[1, 2].map((i) => <div key={i} className="h-12 bg-muted rounded-lg animate-pulse" />)}
+            </div>
+          ) : bans.length === 0 ? (
+            <div className="py-8 text-center text-muted-foreground text-sm">No bans active</div>
+          ) : (
+            <div className="overflow-hidden">
+              <div className="grid grid-cols-[1fr_1fr_auto] gap-4 px-4 py-2.5 bg-muted/40 border-b border-border text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                <span>Email</span>
+                <span>IP / Banned</span>
+                <span>Actions</span>
+              </div>
+              {bans.map((ban) => (
+                <div key={ban.id} className="grid grid-cols-[1fr_1fr_auto] gap-4 items-center px-4 py-3 border-b border-border/60 last:border-0 hover:bg-muted/20 transition-colors">
+                  <p className="text-sm font-mono truncate">{ban.email}</p>
+                  <div className="min-w-0">
+                    <p className="text-xs font-mono text-muted-foreground truncate">{ban.ipAddress ?? "—"}</p>
+                    <p className="text-xs text-muted-foreground/60">{new Date(ban.bannedAt).toLocaleDateString()}</p>
+                  </div>
+                  <AlertDialog>
+                    <AlertDialogTrigger
+                      className="flex items-center gap-1.5 h-7 px-2.5 rounded-md text-xs font-medium bg-muted text-muted-foreground hover:text-foreground hover:bg-muted/80 transition-colors"
+                      title="Remove ban"
+                    >
+                      Remove ban
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>Remove ban?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                          <span className="font-medium text-foreground">{ban.email}</span> will be able to register and sign in again.
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogAction onClick={() => unban(ban.id)}>
+                          Remove Ban
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
+                </div>
+              ))}
             </div>
           )}
         </CardContent>

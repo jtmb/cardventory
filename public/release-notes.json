@@ -1,0 +1,15 @@
+{
+  "1.0.11": {
+    "title": "Notifications, Analytics & More",
+    "notes": [
+      "Toast notifications for price events — persistent alerts when cards hit new highs or price changes",
+      "In-app notification polling every 30 seconds",
+      "Admin analytics dashboard with per-user stats, genre breakdown, and activity charts",
+      "IP login logging with history — admins can now view the last 10 logins per user",
+      "Accounts and pending approvals merged into a single unified panel",
+      "Auto-deny setting now uses a clear day-based dropdown instead of raw hours",
+      "Recently added cards in row view now paginate at 4 per page",
+      "Mobile settings save bar now spans full screen width"
+    ]
+  }
+}

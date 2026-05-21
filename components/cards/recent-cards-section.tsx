@@ -84,6 +84,11 @@ function MiniCardCompact({ card }: { card: Card }) {
 
 export function RecentCardsSection({ cards }: { cards: Card[] }) {
   const [view, setView] = useState<ViewMode>("row");
+  const [rowPage, setRowPage] = useState(1);
+
+  const ROW_PAGE_SIZE = 4;
+  const rowPageCount = Math.max(1, Math.ceil(cards.length / ROW_PAGE_SIZE));
+  const rowSlice = cards.slice((rowPage - 1) * ROW_PAGE_SIZE, rowPage * ROW_PAGE_SIZE);
 
   useEffect(() => {
     const stored = localStorage.getItem(LS_KEY) as ViewMode | null;
@@ -92,6 +97,7 @@ export function RecentCardsSection({ cards }: { cards: Card[] }) {
 
   function setViewMode(v: ViewMode) {
     setView(v);
+    setRowPage(1);
     localStorage.setItem(LS_KEY, v);
   }
 
@@ -135,11 +141,37 @@ export function RecentCardsSection({ cards }: { cards: Card[] }) {
       </div>
 
       {view === "row" && (
-        <div className="space-y-2">
-          {cards.map((card) => (
-            <MiniCardRow key={card.id} card={card} />
-          ))}
-        </div>
+        <>
+          <div className="space-y-2">
+            {rowSlice.map((card) => (
+              <MiniCardRow key={card.id} card={card} />
+            ))}
+          </div>
+          {rowPageCount > 1 && (
+            <div className="flex items-center justify-between mt-3 px-0.5">
+              <span className="text-xs text-muted-foreground">
+                {(rowPage - 1) * ROW_PAGE_SIZE + 1}–{Math.min(rowPage * ROW_PAGE_SIZE, cards.length)} of {cards.length}
+              </span>
+              <div className="flex items-center gap-1">
+                <button
+                  onClick={() => setRowPage((p) => Math.max(1, p - 1))}
+                  disabled={rowPage === 1}
+                  className="h-6 px-2.5 rounded text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                >
+                  Prev
+                </button>
+                <span className="text-xs text-muted-foreground px-1">{rowPage} / {rowPageCount}</span>
+                <button
+                  onClick={() => setRowPage((p) => Math.min(rowPageCount, p + 1))}
+                  disabled={rowPage === rowPageCount}
+                  className="h-6 px-2.5 rounded text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                >
+                  Next
+                </button>
+              </div>
+            </div>
+          )}
+        </>
       )}
 
       {view === "grid" && (

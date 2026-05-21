@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { db } from "@/lib/db";
-import { users } from "@/lib/db/schema";
-import { eq } from "drizzle-orm";
+import { users, userLoginLogs, bannedUsers } from "@/lib/db/schema";
+import { eq, desc } from "drizzle-orm";
 import bcrypt from "bcryptjs";
 
 async function requireAdmin() {
@@ -22,7 +22,7 @@ export async function PATCH(
 
   const { userId } = await params;
   const body = await req.json() as {
-    action: "set_password" | "toggle_lock" | "set_role" | "approve";
+    action: "set_password" | "toggle_lock" | "set_role" | "approve" | "deny";
     password?: string;
     role?: "admin" | "user";
   };
@@ -32,6 +32,29 @@ export async function PATCH(
 
   if (body.action === "approve") {
     await db.update(users).set({ status: "active" }).where(eq(users.id, userId));
+    return NextResponse.json({ success: true });
+  }
+
+  if (body.action === "deny") {
+    // Get last known IP before deleting
+    const lastLog = await db
+      .select({ ipAddress: userLoginLogs.ipAddress })
+      .from(userLoginLogs)
+      .where(eq(userLoginLogs.userId, userId))
+      .orderBy(desc(userLoginLogs.loginAt))
+      .limit(1)
+      .get();
+
+    // Write to ban list
+    await db.insert(bannedUsers).values({
+      email: target.email,
+      ipAddress: lastLog?.ipAddress ?? null,
+      bannedByUserId: admin.id,
+      reason: "Denied during registration",
+    });
+
+    // Delete the user record
+    await db.delete(users).where(eq(users.id, userId));
     return NextResponse.json({ success: true });
   }
 
@@ -83,4 +106,24 @@ export async function DELETE(
 
   await db.delete(users).where(eq(users.id, userId));
   return NextResponse.json({ success: true });
+}
+
+export async function GET(
+  _req: NextRequest,
+  { params }: { params: Promise<{ userId: string }> }
+) {
+  const admin = await requireAdmin();
+  if (!admin) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+
+  const { userId } = await params;
+
+  const loginHistory = await db
+    .select()
+    .from(userLoginLogs)
+    .where(eq(userLoginLogs.userId, userId))
+    .orderBy(desc(userLoginLogs.loginAt))
+    .limit(10)
+    .all();
+
+  return NextResponse.json(loginHistory);
 }

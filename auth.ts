@@ -4,7 +4,7 @@ import Google from "next-auth/providers/google";
 import GitHub from "next-auth/providers/github";
 import bcrypt from "bcryptjs";
 import { db, rawSqlite } from "@/lib/db";
-import { users } from "@/lib/db/schema";
+import { users, bannedUsers } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
 import authConfig from "@/auth.config";
 
@@ -52,6 +52,12 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         // Reject pending accounts
         if (user.status === "pending") return null;
 
+        // Reject banned emails
+        const ban = rawSqlite
+          .prepare("SELECT id FROM banned_users WHERE email = ? LIMIT 1")
+          .get(credentials.email as string) as { id: string } | undefined;
+        if (ban) return null;
+
         // OAuth users have empty passwordHash — cannot sign in with credentials
         if (!user.passwordHash) return null;
 
@@ -88,6 +94,12 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
 
       if (existing?.lockedAt) return false;
       if (existing?.status === "pending") return false;
+
+      // Reject banned emails
+      const ban = rawSqlite
+        .prepare("SELECT id FROM banned_users WHERE email = ? LIMIT 1")
+        .get(user.email) as { id: string } | undefined;
+      if (ban) return false;
 
       if (!existing) {
         // Check if registration is allowed

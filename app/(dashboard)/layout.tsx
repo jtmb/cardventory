@@ -4,6 +4,8 @@ import { Sidebar } from "@/components/sidebar";
 import { SessionProvider } from "next-auth/react";
 import { Suspense } from "react";
 import { WelcomeTour } from "@/components/welcome-tour";
+import { DashboardClientInit } from "@/components/dashboard-client-init";
+import { ReleaseNotesModal } from "@/components/release-notes-modal";
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
   const session = await auth();
@@ -20,6 +22,8 @@ export default async function DashboardLayout({ children }: { children: React.Re
         </main>
       </div>
       <WelcomeTour />
+      <DashboardClientInit />
+      <ReleaseNotesModal />
     </SessionProvider>
   );
 }

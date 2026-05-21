@@ -6,7 +6,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { CheckIcon, PencilIcon, Trash2Icon } from "lucide-react";
+import { CheckIcon, PencilIcon, Trash2Icon, TrendingUpIcon, TrendingDownIcon } from "lucide-react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -31,12 +31,14 @@ export function CardRow({
   selected = false,
   onToggle,
   layout = "grid",
+  showPriceBadges = true,
 }: {
   card: Card;
   selectable?: boolean;
   selected?: boolean;
   onToggle?: (id: string) => void;
   layout?: "grid" | "list" | "compact";
+  showPriceBadges?: boolean;
 }) {
   const [currentValue, setCurrentValue] = useState<number | null>(null);
   const [priceChange7d, setPriceChange7d] = useState<number | null>(null);
@@ -76,6 +78,7 @@ export function CardRow({
   const rowProps: RowLayoutProps = {
     card, setLine, selectable, selected, onToggle, isPending,
     loading, currentValue, priceChange7d, priceChange30d, handleDelete,
+    showPriceBadges,
   };
   if (layout === "list") return <CardListLayout {...rowProps} />;
   if (layout === "compact") return <CardCompactLayout {...rowProps} />;
@@ -145,7 +148,7 @@ export function CardRow({
           >
             {selected && <CheckIcon className="h-3 w-3 text-primary-foreground" />}
           </div>
-          <CardInner card={card} setLine={setLine} isPending={isPending} />
+          <CardInner card={card} setLine={setLine} isPending={isPending} showPriceBadges={showPriceBadges} />
         </button>
       ) : (
         <Link href={`/cards/${card.id}`} className="block">
@@ -154,7 +157,7 @@ export function CardRow({
             "border-border/60 hover:border-primary/60 hover:shadow-2xl hover:shadow-black/60 hover:-translate-y-1",
             isPending && "opacity-40 pointer-events-none"
           )}>
-            <CardInner card={card} setLine={setLine} isPending={isPending} loading={loading} currentValue={currentValue} priceChange7d={priceChange7d} priceChange30d={priceChange30d} />
+            <CardInner card={card} setLine={setLine} isPending={isPending} loading={loading} currentValue={currentValue} priceChange7d={priceChange7d} priceChange30d={priceChange30d} showPriceBadges={showPriceBadges} />
           </div>
         </Link>
       )}
@@ -182,6 +185,7 @@ function CardInner({
   currentValue = null,
   priceChange7d = null,
   priceChange30d = null,
+  showPriceBadges = true,
 }: {
   card: Card;
   setLine: string;
@@ -190,6 +194,7 @@ function CardInner({
   currentValue?: number | null;
   priceChange7d?: number | null;
   priceChange30d?: number | null;
+  showPriceBadges?: boolean;
 }) {
   return (
     <>
@@ -217,6 +222,21 @@ function CardInner({
             gradeColor(card.gradeCompany)
           )}>
             {card.gradeCompany} {card.gradeValue}
+          </div>
+        )}
+        {/* Price trend badge */}
+        {showPriceBadges && !loading && priceChange7d !== null && priceChange7d !== 0 && (
+          <div className={cn(
+            "absolute bottom-2 left-2 flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-bold shadow-md backdrop-blur-sm ring-1",
+            priceChange7d > 0
+              ? "bg-gradient-to-r from-emerald-500/90 to-emerald-400/80 text-white ring-emerald-400/40"
+              : "bg-gradient-to-r from-red-500/90 to-red-400/80 text-white ring-red-400/40"
+          )}>
+            {priceChange7d > 0
+              ? <TrendingUpIcon className="h-2.5 w-2.5" />
+              : <TrendingDownIcon className="h-2.5 w-2.5" />
+            }
+            {Math.abs(priceChange7d).toFixed(0)}%
           </div>
         )}
       </div>
@@ -296,6 +316,7 @@ type RowLayoutProps = {
   priceChange7d: number | null;
   priceChange30d: number | null;
   handleDelete: () => void;
+  showPriceBadges: boolean;
 };
 
 // ─── List layout (horizontal row with thumbnail) ───────────────────────────

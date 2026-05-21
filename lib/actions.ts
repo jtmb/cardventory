@@ -296,7 +296,7 @@ export async function getDashboardStats() {
       genre,
       ...stats,
     })),
-    recentCards: allCards.slice(0, 8),
+    recentCards: allCards.slice(0, 20),
   };
 }
 

@@ -63,4 +63,44 @@ export function migrate(sqlite: InstanceType<typeof Database>) {
 
   // Additional indexes for new columns
   try { sqlite.exec("CREATE INDEX IF NOT EXISTS idx_cards_status ON cards(status)"); } catch {}
+
+  // Banned users table
+  try {
+    sqlite.exec(`
+      CREATE TABLE IF NOT EXISTS banned_users (
+        id TEXT PRIMARY KEY,
+        email TEXT NOT NULL,
+        ip_address TEXT,
+        banned_at INTEGER NOT NULL,
+        banned_by_user_id TEXT,
+        reason TEXT
+      );
+      CREATE INDEX IF NOT EXISTS idx_banned_users_email ON banned_users(email);
+      CREATE INDEX IF NOT EXISTS idx_banned_users_ip ON banned_users(ip_address);
+    `);
+  } catch {}
+
+  // New tables: notifications and user_login_logs
+  try {
+    sqlite.exec(`
+      CREATE TABLE IF NOT EXISTS notifications (
+        id TEXT PRIMARY KEY,
+        user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        message TEXT NOT NULL,
+        card_id TEXT REFERENCES cards(id) ON DELETE CASCADE,
+        type TEXT NOT NULL,
+        read INTEGER NOT NULL DEFAULT 0,
+        created_at INTEGER NOT NULL
+      );
+      CREATE TABLE IF NOT EXISTS user_login_logs (
+        id TEXT PRIMARY KEY,
+        user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        ip_address TEXT NOT NULL,
+        login_at INTEGER NOT NULL
+      );
+      CREATE INDEX IF NOT EXISTS idx_notifications_user_id ON notifications(user_id);
+      CREATE INDEX IF NOT EXISTS idx_notifications_read ON notifications(user_id, read);
+      CREATE INDEX IF NOT EXISTS idx_user_login_logs_user_id ON user_login_logs(user_id);
+    `);
+  } catch {}
 }

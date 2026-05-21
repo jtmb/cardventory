@@ -10,6 +10,7 @@ import {
   BUTTON_STYLE_LS_KEY, applyButtonStyle, type ButtonStyleKey,
   SLEEVE_LS_KEY, applySleeve,
   PRESET_LS_KEY, PRESET_THEMES, applyPresetTheme,
+  ZOOM_SCALE_LS_KEY, applyZoomScale, type ZoomScaleKey,
 } from "@/lib/theme";
 
 /**
@@ -57,6 +58,11 @@ export default function ThemeApplicator() {
     try {
       const sleeve = localStorage.getItem(SLEEVE_LS_KEY);
       if (sleeve !== null) applySleeve(sleeve === "true");
+    } catch {}
+
+    try {
+      const zoom = (localStorage.getItem(ZOOM_SCALE_LS_KEY) ?? "natural") as ZoomScaleKey;
+      applyZoomScale(zoom);
     } catch {}
   }, []);
 

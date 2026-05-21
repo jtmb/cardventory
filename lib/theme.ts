@@ -447,6 +447,35 @@ export function applyButtonStyle(key: ButtonStyleKey) {
   document.documentElement.setAttribute("data-btn-style", key);
 }
 
+// ─── Desktop Zoom Scale ───────────────────────────────────────────────────────
+
+export const ZOOM_SCALE_LS_KEY = "cv_zoom";
+export type ZoomScaleKey = "natural" | "comfort" | "big" | "boomer";
+
+export const ZOOM_SCALE_OPTIONS: Array<{
+  key: ZoomScaleKey;
+  label: string;
+  desc: string;
+  value: number;
+}> = [
+  { key: "natural", label: "Natural", desc: "100% — browser default",     value: 1.0  },
+  { key: "comfort", label: "Comfort", desc: "110% — comfortable desktop",  value: 1.1  },
+  { key: "big",     label: "Big",     desc: "125% — easier reading",       value: 1.25 },
+  { key: "boomer",  label: "Boomer",  desc: "140% — large & clear",        value: 1.4  },
+];
+
+export function applyZoomScale(key: ZoomScaleKey) {
+  if (typeof window === "undefined") return;
+  const opt = ZOOM_SCALE_OPTIONS.find((o) => o.key === key);
+  if (!opt) return;
+  // Only apply on desktop (≥ 1024 px wide)
+  if (window.innerWidth >= 1024) {
+    document.documentElement.style.zoom = opt.value === 1 ? "" : String(opt.value);
+  } else {
+    document.documentElement.style.zoom = "";
+  }
+}
+
 // ─── Card Sleeve Effect ───────────────────────────────────────────────────────
 
 export const SLEEVE_LS_KEY = "cv_sleeve";
@@ -518,5 +547,15 @@ export const THEME_INIT_SCRIPT = `(function(){
     var ch = localStorage.getItem('cv_chip_style'); if (ch) e.setAttribute('data-chip-style', ch);
     var bs = localStorage.getItem('cv_btn_style');  if (bs) e.setAttribute('data-btn-style',  bs);
     var sl = localStorage.getItem('cv_sleeve');      if (sl) e.setAttribute('data-sleeve',      sl);
+  } catch(err) {}
+})();
+// Desktop zoom scale — applied before first paint
+(function(){
+  try {
+    var z = localStorage.getItem('cv_zoom') || 'natural';
+    var map = { natural: '', comfort: '1.1', big: '1.25', boomer: '1.4' };
+    if (window.innerWidth >= 1024) {
+      var v = map[z]; if (v) document.documentElement.style.zoom = v;
+    }
   } catch(err) {}
 })();`;

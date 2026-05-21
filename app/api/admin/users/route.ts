@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { db } from "@/lib/db";
-import { users } from "@/lib/db/schema";
-import { eq } from "drizzle-orm";
+import { users, userLoginLogs } from "@/lib/db/schema";
+import { eq, desc } from "drizzle-orm";
 
 async function requireAdmin() {
   const session = await auth();
@@ -29,5 +29,24 @@ export async function GET() {
     .from(users)
     .all();
 
-  return NextResponse.json(allUsers);
+  // Fetch last login for each user
+  const result = await Promise.all(
+    allUsers.map(async (u) => {
+      const lastLog = await db
+        .select()
+        .from(userLoginLogs)
+        .where(eq(userLoginLogs.userId, u.id))
+        .orderBy(desc(userLoginLogs.loginAt))
+        .limit(1)
+        .get();
+
+      return {
+        ...u,
+        lastIp: lastLog?.ipAddress ?? null,
+        lastLoginAt: lastLog?.loginAt ?? null,
+      };
+    })
+  );
+
+  return NextResponse.json(result);
 }

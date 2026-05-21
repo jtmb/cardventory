@@ -44,11 +44,17 @@ export function CardGrid({ cards, exportHref }: { cards: Card[]; exportHref?: st
   const [isPending, startTransition] = useTransition();
   const [view, setView] = useState<ViewMode>("grid");
   const [genrePickerOpen, setGenrePickerOpen] = useState(false);
+  const [showPriceBadges, setShowPriceBadges] = useState(true);
   const router = useRouter();
 
   useEffect(() => {
     const stored = localStorage.getItem(VIEW_LS_KEY) as ViewMode | null;
     if (stored) setView(stored);
+    // Load price badge preference
+    fetch("/api/settings")
+      .then((r) => r.ok ? r.json() : null)
+      .then((d) => { if (d?.price_badges !== undefined) setShowPriceBadges(d.price_badges !== "false"); })
+      .catch(() => {});
   }, []);
 
   function setViewMode(v: ViewMode) {
@@ -280,7 +286,7 @@ export function CardGrid({ cards, exportHref }: { cards: Card[]; exportHref?: st
         view === "grid" ? (
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
             {cards.map((card) => (
-              <CardRow key={card.id} card={card} layout="grid" selectable={selectMode} selected={selectedIds.has(card.id)} onToggle={toggleCard} />
+              <CardRow key={card.id} card={card} layout="grid" selectable={selectMode} selected={selectedIds.has(card.id)} onToggle={toggleCard} showPriceBadges={showPriceBadges} />
             ))}
           </div>
         ) : (
