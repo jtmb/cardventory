@@ -57,14 +57,22 @@ jobs:
         run: terraform init
 
       - name: Seed state for existing resources (cache miss)
-        if: steps.cache-restore.outputs.cache-hit != 'true'
         run: |
           INSTANCE_ID="${{ vars.TF_INSTANCE_ID }}"
           FIREWALL_ID="${{ vars.TF_FIREWALL_ID }}"
           if [[ -n "$INSTANCE_ID" && -n "$FIREWALL_ID" ]]; then
-            echo "Cache miss — importing existing resources into state..."
-            terraform import linode_instance.cardventory "$INSTANCE_ID" || true
-            terraform import linode_firewall.cardventory "$FIREWALL_ID" || true
+            if ! terraform state list 2>/dev/null | grep -q "linode_instance.cardventory"; then
+              echo "Importing linode_instance.cardventory..."
+              terraform import linode_instance.cardventory "$INSTANCE_ID" || true
+            else
+              echo "linode_instance.cardventory already in state — skipping import"
+            fi
+            if ! terraform state list 2>/dev/null | grep -q "linode_firewall.cardventory"; then
+              echo "Importing linode_firewall.cardventory..."
+              terraform import linode_firewall.cardventory "$FIREWALL_ID" || true
+            else
+              echo "linode_firewall.cardventory already in state — skipping import"
+            fi
           fi
 
       - name: Terraform Plan
