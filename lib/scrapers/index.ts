@@ -1,13 +1,11 @@
 import { ebayScraper } from "./ebay";
 import { sportsCardInvestorScraper } from "./sportscardinvestor";
-import { cardLadderScraper } from "./cardladder";
 import { sportsCardsProScraper } from "./sportscardspro";
 import type { CardQuery, PriceResult } from "./types";
 
 export const scrapers = [
   ebayScraper,
   sportsCardInvestorScraper,
-  cardLadderScraper,
   sportsCardsProScraper,
 ];
 

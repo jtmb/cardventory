@@ -10,6 +10,7 @@ export const users = sqliteTable("users", {
   role: text("role", { enum: ["admin", "user"] })
     .notNull()
     .default("user"),
+  lockedAt: integer("locked_at", { mode: "timestamp" }),
   createdAt: integer("created_at", { mode: "timestamp" })
     .notNull()
     .$defaultFn(() => new Date()),

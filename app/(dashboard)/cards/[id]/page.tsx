@@ -124,7 +124,7 @@ export default async function CardDetailPage({
           <Separator />
 
           {/* Price summary */}
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+          <div data-tour-id="tour-card-price-summary" className="grid grid-cols-2 md:grid-cols-3 gap-4">
             <div>
               <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Highest Market Value</p>
               <p className="text-3xl font-bold">{fmt(highestPrice)}</p>
@@ -151,7 +151,7 @@ export default async function CardDetailPage({
           <Separator />
 
           {/* Per-site pricing */}
-          <div>
+          <div data-tour-id="tour-card-sources">
             <h3 className="text-sm font-semibold text-muted-foreground mb-3 uppercase tracking-wide">Pricing by Source</h3>
             {pricesWithValues.length === 0 ? (
               <p className="text-sm text-muted-foreground px-1">
@@ -213,7 +213,7 @@ export default async function CardDetailPage({
 
       {/* Price History Chart */}
       {history.length > 0 && (
-        <Card>
+        <Card data-tour-id="tour-card-chart">
           <CardContent className="p-6">
             <h3 className="text-base font-semibold mb-4">Price History</h3>
             <PriceChart history={history} />

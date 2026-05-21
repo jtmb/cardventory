@@ -1,12 +1,13 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState, useEffect, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { CheckSquare2Icon, Trash2Icon, XIcon } from "lucide-react";
+import { CheckSquare2Icon, Trash2Icon, XIcon, LayoutGridIcon, LayoutListIcon, ListIcon } from "lucide-react";
 import { CardRow, CardRowSkeleton } from "./card-row";
 import type { Card } from "@/lib/db/schema";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { ButtonLink } from "@/components/ui/button-link";
+import { cn } from "@/lib/utils";
 import { PlusCircleIcon } from "lucide-react";
 import {
   AlertDialog,
@@ -21,11 +22,25 @@ import {
 } from "@/components/ui/alert-dialog";
 import { deleteCards } from "@/lib/actions";
 
+type ViewMode = "grid" | "list" | "compact";
+const VIEW_LS_KEY = "cv_cards_view";
+
 export function CardGrid({ cards }: { cards: Card[] }) {
   const [selectMode, setSelectMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [isPending, startTransition] = useTransition();
+  const [view, setView] = useState<ViewMode>("grid");
   const router = useRouter();
+
+  useEffect(() => {
+    const stored = localStorage.getItem(VIEW_LS_KEY) as ViewMode | null;
+    if (stored) setView(stored);
+  }, []);
+
+  function setViewMode(v: ViewMode) {
+    setView(v);
+    localStorage.setItem(VIEW_LS_KEY, v);
+  }
 
   function toggleCard(id: string) {
     setSelectedIds((prev) => {
@@ -59,9 +74,9 @@ export function CardGrid({ cards }: { cards: Card[] }) {
     <>
       {/* Select mode toolbar */}
       <div className="flex items-center justify-between min-h-[2rem]">
-        {selectMode ? (
-          <>
-            <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2">
+          {selectMode ? (
+            <>
               <button
                 onClick={exitSelectMode}
                 className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
@@ -72,25 +87,52 @@ export function CardGrid({ cards }: { cards: Card[] }) {
                 {count === 0 ? "No cards selected" : `${count} ${count === 1 ? "card" : "cards"} selected`}
               </span>
               {count < cards.length && (
-                <button
-                  onClick={selectAll}
-                  className="text-sm text-primary hover:underline"
-                >
+                <button onClick={selectAll} className="text-sm text-primary hover:underline">
                   Select all
                 </button>
               )}
-            </div>
+            </>
+          ) : (
+            <button
+              onClick={() => setSelectMode(true)}
+              className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
+            >
+              <CheckSquare2Icon className="h-4 w-4" /> Select
+            </button>
+          )}
+        </div>
+
+        <div className="flex items-center gap-2">
+          {/* View mode toggle */}
+          <div className="flex items-center gap-0.5 bg-muted rounded-md p-0.5">
+            {([
+              { v: "grid" as const,    icon: <LayoutGridIcon className="h-3.5 w-3.5" />, title: "Grid view" },
+              { v: "list" as const,    icon: <LayoutListIcon className="h-3.5 w-3.5" />, title: "List view" },
+              { v: "compact" as const, icon: <ListIcon className="h-3.5 w-3.5" />,       title: "Compact view" },
+            ] as const).map(({ v, icon, title }) => (
+              <button
+                key={v}
+                onClick={() => setViewMode(v)}
+                title={title}
+                className={`flex items-center justify-center h-6 w-6 rounded transition-colors ${
+                  view === v
+                    ? "bg-background text-foreground shadow-sm"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                {icon}
+              </button>
+            ))}
+          </div>
+
+          {selectMode && (
             <AlertDialog>
-              <AlertDialogTrigger asChild>
-                <Button
-                  variant="destructive"
-                  size="sm"
-                  disabled={count === 0 || isPending}
-                  className="gap-1.5"
-                >
-                  <Trash2Icon className="h-3.5 w-3.5" />
-                  Delete {count > 0 ? count : ""}
-                </Button>
+              <AlertDialogTrigger
+                disabled={count === 0 || isPending}
+                className={cn(buttonVariants({ variant: "destructive", size: "sm" }), "gap-1.5")}
+              >
+                <Trash2Icon className="h-3.5 w-3.5" />
+                Delete {count > 0 ? count : ""}
               </AlertDialogTrigger>
               <AlertDialogContent>
                 <AlertDialogHeader>
@@ -110,31 +152,25 @@ export function CardGrid({ cards }: { cards: Card[] }) {
                 </AlertDialogFooter>
               </AlertDialogContent>
             </AlertDialog>
-          </>
-        ) : (
-          <button
-            onClick={() => setSelectMode(true)}
-            className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors ml-auto"
-          >
-            <CheckSquare2Icon className="h-4 w-4" />
-            Select
-          </button>
-        )}
+          )}
+        </div>
       </div>
 
-      {/* Cards grid */}
+      {/* Cards */}
       {cards.length > 0 ? (
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
-          {cards.map((card) => (
-            <CardRow
-              key={card.id}
-              card={card}
-              selectable={selectMode}
-              selected={selectedIds.has(card.id)}
-              onToggle={toggleCard}
-            />
-          ))}
-        </div>
+        view === "grid" ? (
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
+            {cards.map((card) => (
+              <CardRow key={card.id} card={card} layout="grid" selectable={selectMode} selected={selectedIds.has(card.id)} onToggle={toggleCard} />
+            ))}
+          </div>
+        ) : (
+          <div className="rounded-lg border border-border bg-card overflow-hidden divide-y divide-border/60">
+            {cards.map((card) => (
+              <CardRow key={card.id} card={card} layout={view} selectable={selectMode} selected={selectedIds.has(card.id)} onToggle={toggleCard} />
+            ))}
+          </div>
+        )
       ) : (
         <div className="flex flex-col items-center justify-center py-24 text-center">
           <p className="text-muted-foreground text-lg">No cards in this category</p>

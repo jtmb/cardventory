@@ -25,13 +25,16 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
 
         if (!user) return null;
 
+        // Reject locked accounts
+        if (user.lockedAt) return null;
+
         const valid = await bcrypt.compare(
           credentials.password as string,
           user.passwordHash
         );
         if (!valid) return null;
 
-        return { id: user.id, name: user.name, email: user.email };
+        return { id: user.id, name: user.name, email: user.email, role: user.role };
       },
     }),
   ],

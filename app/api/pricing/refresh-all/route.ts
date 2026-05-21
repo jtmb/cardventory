@@ -1,15 +1,40 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { db } from "@/lib/db";
-import { cards, priceHistory } from "@/lib/db/schema";
-import { eq } from "drizzle-orm";
+import { cards, priceHistory, settings } from "@/lib/db/schema";
+import { eq, and } from "drizzle-orm";
 import { fetchAllPrices } from "@/lib/scrapers";
+
+const REFRESH_COOLDOWN_MS = 24 * 60 * 60 * 1000; // 24 hours
 
 // Bulk refresh all cards for the current user
 export async function POST(_req: NextRequest) {
   const session = await auth();
   if (!session?.user?.id) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const userId = session.user.id;
+  const isAdmin = session.user.role === "admin";
+
+  // Rate-limit non-admin users to one manual refresh per 24 hours
+  if (!isAdmin) {
+    const lastRow = await db
+      .select()
+      .from(settings)
+      .where(and(eq(settings.userId, userId), eq(settings.key, "manual_refresh_last")))
+      .get();
+
+    if (lastRow) {
+      const lastMs = new Date(lastRow.value).getTime();
+      const nextAllowedMs = lastMs + REFRESH_COOLDOWN_MS;
+      if (Date.now() < nextAllowedMs) {
+        return NextResponse.json(
+          { error: "Rate limited", nextAllowedAt: new Date(nextAllowedMs).toISOString() },
+          { status: 429 }
+        );
+      }
+    }
   }
 
   const allCards = await db
@@ -60,6 +85,22 @@ export async function POST(_req: NextRequest) {
       refreshed++;
     } catch {
       // Continue on individual card failure
+    }
+  }
+
+  // Record timestamp for non-admin rate limiting
+  if (!isAdmin) {
+    const nowIso = new Date().toISOString();
+    const existing = await db
+      .select()
+      .from(settings)
+      .where(and(eq(settings.userId, userId), eq(settings.key, "manual_refresh_last")))
+      .get();
+    if (existing) {
+      await db.update(settings).set({ value: nowIso })
+        .where(and(eq(settings.userId, userId), eq(settings.key, "manual_refresh_last")));
+    } else {
+      await db.insert(settings).values({ userId, key: "manual_refresh_last", value: nowIso });
     }
   }
 

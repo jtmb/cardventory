@@ -95,9 +95,9 @@
   /* Popover/dropdown */
   --popover: oklch(0.265 0.015 260);
   --popover-foreground: oklch(0.82 0 0);
-  /* Primary: Sonarr orange (#f5a623) */
-  --primary: oklch(0.73 0.18 65);
-  --primary-foreground: oklch(0.12 0.01 250);
+  /* Primary: lavender (#d6d2e0) */
+  --primary: oklch(0.876 0.036 350);
+  --primary-foreground: oklch(0.18 0.01 280);
   /* Secondary/muted surfaces */
   --secondary: oklch(0.265 0.015 260);
   --secondary-foreground: oklch(0.82 0 0);
@@ -108,10 +108,10 @@
   --destructive: oklch(0.6 0.22 27);
   --border: oklch(1 0 0 / 8%);
   --input: oklch(1 0 0 / 10%);
-  /* Ring: orange focus */
-  --ring: oklch(0.73 0.18 65);
-  /* Charts: orange, green, purple, red, yellow */
-  --chart-1: oklch(0.73 0.18 65);
+  /* Ring: lavender focus */
+  --ring: oklch(0.876 0.036 350);
+  /* Charts: lavender, green, purple, red, yellow */
+  --chart-1: oklch(0.876 0.036 350);
   --chart-2: oklch(0.65 0.15 155);
   --chart-3: oklch(0.62 0.18 275);
   --chart-4: oklch(0.62 0.22 27);
@@ -119,12 +119,12 @@
   /* Sidebar: darker than main bg (#111318) */
   --sidebar: oklch(0.16 0.012 260);
   --sidebar-foreground: oklch(0.82 0 0);
-  --sidebar-primary: oklch(0.73 0.18 65);
-  --sidebar-primary-foreground: oklch(0.12 0.01 250);
+  --sidebar-primary: oklch(0.876 0.036 350);
+  --sidebar-primary-foreground: oklch(0.18 0.01 280);
   --sidebar-accent: oklch(0.21 0.012 260);
   --sidebar-accent-foreground: oklch(0.82 0 0);
   --sidebar-border: oklch(1 0 0 / 6%);
-  --sidebar-ring: oklch(0.73 0.18 65);
+  --sidebar-ring: oklch(0.876 0.036 350);
 }
 
 @layer base {
@@ -137,4 +137,203 @@
   html {
     @apply font-sans;
   }
+}
+
+/* ── M3 Type Scale ───────────────────────────────────────────────────────────
+   --type-density scales all type tokens uniformly.
+   Compact = 0.875, Default = 1, Comfortable = 1.125
+   ─────────────────────────────────────────────────────────────────────────── */
+:root {
+  --type-density: 1;
+}
+
+.type-display-large {
+  font-size: calc(3.5625rem * var(--type-density));
+  line-height: calc(4rem * var(--type-density));
+  letter-spacing: -0.015625rem;
+  font-weight: 400;
+}
+.type-display-medium {
+  font-size: calc(2.8125rem * var(--type-density));
+  line-height: calc(3.25rem * var(--type-density));
+  letter-spacing: 0;
+  font-weight: 400;
+}
+.type-display-small {
+  font-size: calc(2.25rem * var(--type-density));
+  line-height: calc(2.75rem * var(--type-density));
+  letter-spacing: 0;
+  font-weight: 400;
+}
+.type-headline-large {
+  font-size: calc(2rem * var(--type-density));
+  line-height: calc(2.5rem * var(--type-density));
+  letter-spacing: 0;
+  font-weight: 400;
+}
+.type-headline-medium {
+  font-size: calc(1.75rem * var(--type-density));
+  line-height: calc(2.25rem * var(--type-density));
+  letter-spacing: 0;
+  font-weight: 400;
+}
+.type-headline-small {
+  font-size: calc(1.5rem * var(--type-density));
+  line-height: calc(2rem * var(--type-density));
+  letter-spacing: 0;
+  font-weight: 400;
+}
+.type-title-large {
+  font-size: calc(1.375rem * var(--type-density));
+  line-height: calc(1.75rem * var(--type-density));
+  letter-spacing: 0;
+  font-weight: 400;
+}
+.type-title-medium {
+  font-size: calc(1rem * var(--type-density));
+  line-height: calc(1.5rem * var(--type-density));
+  letter-spacing: 0.009375em;
+  font-weight: 500;
+}
+.type-title-small {
+  font-size: calc(0.875rem * var(--type-density));
+  line-height: calc(1.25rem * var(--type-density));
+  letter-spacing: 0.00625em;
+  font-weight: 500;
+}
+.type-body-large {
+  font-size: calc(1rem * var(--type-density));
+  line-height: calc(1.5rem * var(--type-density));
+  letter-spacing: 0.03125em;
+  font-weight: 400;
+}
+.type-body-medium {
+  font-size: calc(0.875rem * var(--type-density));
+  line-height: calc(1.25rem * var(--type-density));
+  letter-spacing: 0.015625em;
+  font-weight: 400;
+}
+.type-body-small {
+  font-size: calc(0.75rem * var(--type-density));
+  line-height: calc(1rem * var(--type-density));
+  letter-spacing: 0.025em;
+  font-weight: 400;
+}
+.type-label-large {
+  font-size: calc(0.875rem * var(--type-density));
+  line-height: calc(1.25rem * var(--type-density));
+  letter-spacing: 0.00625em;
+  font-weight: 500;
+}
+.type-label-medium {
+  font-size: calc(0.75rem * var(--type-density));
+  line-height: calc(1rem * var(--type-density));
+  letter-spacing: 0.03125em;
+  font-weight: 500;
+}
+.type-label-small {
+  font-size: calc(0.6875rem * var(--type-density));
+  line-height: calc(1rem * var(--type-density));
+  letter-spacing: 0.03125em;
+  font-weight: 500;
+}
+/* ── M3 Card Styles ─────────────────────────────────────────────────────────
+   .cv-card is added to card tile wrappers in card-row.tsx.
+   The data-card-style attribute is set on <html> by lib/theme.ts.
+   Default (no attribute or "outlined") = border, no shadow.
+   ─────────────────────────────────────────────────────────────────────────── */
+[data-card-style="elevated"] .cv-card {
+  border-color: transparent !important;
+  box-shadow: 0 1px 3px oklch(0 0 0 / 25%), 0 4px 12px oklch(0 0 0 / 18%);
+  background: color-mix(in oklch, var(--card) 93%, var(--primary) 7%);
+}
+[data-card-style="filled"] .cv-card {
+  border-color: transparent !important;
+  box-shadow: none;
+}
+
+/* ── M3 Chip Styles ─────────────────────────────────────────────────────────
+   .cv-chip is added to genre filter links in genre-tabs.tsx.
+   .cv-chip-active is also added to the active chip.
+   Default (no attribute or "assist") = rounded-lg (current style).
+   ─────────────────────────────────────────────────────────────────────────── */
+[data-chip-style="filter"] .cv-chip {
+  border-radius: 9999px;
+}
+[data-chip-style="input"] .cv-chip {
+  border-radius: 0.375rem;
+  border: 1px solid var(--border);
+}
+[data-chip-style="suggestion"] .cv-chip {
+  border-radius: 9999px;
+  border: 1px solid var(--border);
+  background: transparent !important;
+  color: var(--foreground) !important;
+}
+[data-chip-style="suggestion"] .cv-chip.cv-chip-active {
+  background: var(--primary) !important;
+  color: var(--primary-foreground) !important;
+  border-color: var(--primary);
+}
+
+/* ── M3 Button Styles ───────────────────────────────────────────────────────
+   Targets [data-slot="button"][data-variant="default"] (the default variant).
+   data-btn-style is set on <html>.
+   "filled" (default) = current solid primary — no override needed.
+   ─────────────────────────────────────────────────────────────────────────── */
+[data-btn-style="filled-tonal"] [data-slot="button"][data-variant="default"] {
+  background: color-mix(in oklch, var(--primary) 18%, var(--card) 82%) !important;
+  color: var(--primary) !important;
+  border-color: transparent !important;
+}
+[data-btn-style="outlined"] [data-slot="button"][data-variant="default"] {
+  background: transparent !important;
+  color: var(--primary) !important;
+  border-color: var(--primary) !important;
+  border-width: 1px;
+}
+[data-btn-style="elevated"] [data-slot="button"][data-variant="default"] {
+  background: color-mix(in oklch, var(--card) 94%, var(--primary) 6%) !important;
+  color: var(--primary) !important;
+  border-color: transparent !important;
+  box-shadow: 0 1px 2px oklch(0 0 0 / 30%), 0 2px 6px oklch(0 0 0 / 18%);
+}
+[data-btn-style="text"] [data-slot="button"][data-variant="default"] {
+  background: transparent !important;
+  color: var(--primary) !important;
+  border-color: transparent !important;
+  box-shadow: none;
+}
+
+/* ── Card Sleeve Effect ─────────────────────────────────────────────────────
+   .cv-card-image is added to the image container in card-row.tsx.
+   data-sleeve="true" on <html> activates the translucent overlay.
+   Simulates a card inside a protective sleeve or card book page.
+   ─────────────────────────────────────────────────────────────────────────── */
+[data-sleeve="true"] .cv-card-image::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    135deg,
+    rgba(255, 255, 255, 0.24) 0%,
+    rgba(255, 255, 255, 0.08) 30%,
+    rgba(255, 255, 255, 0.02) 55%,
+    rgba(0, 0, 0, 0.03) 80%,
+    rgba(255, 255, 255, 0.07) 100%
+  );
+  pointer-events: none;
+  z-index: 2;
+}
+[data-sleeve="true"] .cv-card-image::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    to bottom right,
+    rgba(255, 255, 255, 0.14) 0%,
+    transparent 45%
+  );
+  pointer-events: none;
+  z-index: 3;
 }

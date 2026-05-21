@@ -4,7 +4,7 @@ import { auth } from "@/auth";
 import type { Session } from "next-auth";
 import { db } from "@/lib/db";
 import { cards, priceHistory, settings } from "@/lib/db/schema";
-import { eq, and, desc, sql, isNotNull, inArray } from "drizzle-orm";
+import { eq, and, desc, asc, sql, isNotNull, inArray, like } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import type { NewCard } from "@/lib/db/schema";
 const DDG_UA =
@@ -40,21 +40,36 @@ function requireAuth(session: Session | null) {
 
 // ─── Cards ─────────────────────────────────────────────────────────────────
 
-export async function getCards(genre?: string) {
+export async function getCards(genre?: string, search?: string, sort?: string) {
   const session = await auth();
   const userId = requireAuth(session);
 
-  const query = db
+  const conditions = [eq(cards.userId, userId)] as ReturnType<typeof eq>[];
+  if (genre && genre !== "all") conditions.push(eq(cards.sportGenre, genre));
+  if (search) conditions.push(like(cards.name, `%${search}%`));
+
+  // Correlated subquery: latest maximum price from price_history for each card.
+  // In SQLite, NULLs sort last when using DESC (NULL < any value), so cards with
+  // no price data naturally fall to the bottom for value/gain sorts.
+  const maxPriceSql = sql`(SELECT MAX(ph.price) FROM price_history ph WHERE ph.card_id = ${cards.id})`;
+  const gainSql = sql`((SELECT MAX(ph.price) FROM price_history ph WHERE ph.card_id = ${cards.id}) - ${cards.purchasePrice})`;
+
+  const orderClause =
+    sort === "oldest"     ? asc(cards.createdAt) :
+    sort === "value_high" ? desc(maxPriceSql) :
+    sort === "value_low"  ? asc(maxPriceSql) :
+    sort === "paid_high"  ? desc(cards.purchasePrice) :
+    sort === "paid_low"   ? asc(cards.purchasePrice) :
+    sort === "gain_high"  ? desc(gainSql) :
+    sort === "gain_low"   ? asc(gainSql) :
+    desc(cards.createdAt); // default: newest
+
+  return db
     .select()
     .from(cards)
-    .where(
-      genre && genre !== "all"
-        ? and(eq(cards.userId, userId), eq(cards.sportGenre, genre))
-        : eq(cards.userId, userId)
-    )
-    .orderBy(desc(cards.createdAt));
-
-  return query.all();
+    .where(and(...conditions))
+    .orderBy(orderClause)
+    .all();
 }
 
 export async function getCard(id: string) {
@@ -66,6 +81,20 @@ export async function getCard(id: string) {
     .from(cards)
     .where(and(eq(cards.id, id), eq(cards.userId, userId)))
     .get();
+}
+
+export async function getActiveGenres(): Promise<string[]> {
+  const session = await auth();
+  const userId = requireAuth(session);
+
+  const rows = await db
+    .selectDistinct({ genre: cards.sportGenre })
+    .from(cards)
+    .where(eq(cards.userId, userId))
+    .orderBy(asc(cards.sportGenre))
+    .all();
+
+  return rows.map((r) => r.genre);
 }
 
 export async function createCard(data: Omit<NewCard, "id" | "userId" | "createdAt" | "updatedAt">) {
@@ -388,6 +417,63 @@ export async function seedTestData() {
       notes: "Rookie Card",
       photoUrl: "https://storage.googleapis.com/images.pricecharting.com/dj2q7bbl72tmpjec/1600.jpg",
     },
+    // ── All-3-source cards (eBay + SCI + SCP) ─────────────────────────────────
+    {
+      name: "Kobe Bryant",
+      setName: "Topps Chrome",
+      year: 2003,
+      sportGenre: "basketball",
+      cardNumber: "113",
+      variant: null,
+      gradeCompany: null,
+      gradeValue: null,
+      condition: "near_mint",
+      purchasePrice: 25,
+      notes: null,
+      photoUrl: null,
+    },
+    {
+      name: "Tom Brady",
+      setName: "Panini Prizm",
+      year: 2020,
+      sportGenre: "football",
+      cardNumber: "101",
+      variant: null,
+      gradeCompany: null,
+      gradeValue: null,
+      condition: "near_mint",
+      purchasePrice: 10,
+      notes: null,
+      photoUrl: null,
+    },
+    {
+      name: "Fernando Tatis Jr",
+      setName: "Topps Chrome",
+      year: 2020,
+      sportGenre: "baseball",
+      cardNumber: "16",
+      variant: null,
+      gradeCompany: null,
+      gradeValue: null,
+      condition: "near_mint",
+      purchasePrice: 15,
+      notes: null,
+      photoUrl: null,
+    },
+    {
+      name: "Caitlin Clark",
+      setName: "Panini Prizm",
+      year: 2024,
+      sportGenre: "basketball",
+      cardNumber: "1",
+      variant: null,
+      gradeCompany: null,
+      gradeValue: null,
+      condition: "near_mint",
+      purchasePrice: 65,
+      notes: "Rookie Card",
+      photoUrl: null,
+    },
   ];
 
   const inserted = await db
@@ -396,24 +482,28 @@ export async function seedTestData() {
     .returning();
 
   // Seed eBay prices for sports cards only — these are representative values
-  // based on recent sold listings. Other sources (SportsCardInvestor, CardLadder,
-  // SportscardsPro) are not seeded because those sites do not expose data without
-  // authentication or from non-residential IPs. Their prices will populate once a
-  // live refresh runs.
-  const ebayPrices: (number | null)[] = [650, 420, 315, 850, 920, 310, null, null];
-  // SCI prices: seeded for Bulbasaur (Pokémon — no eBay sold data; SCI is the
-  // primary source). Price is the Last Sale from SportsCardInvestor.
-  const sciPrices: (number | null)[] = [null, null, null, null, null, null, 46.25, null];
+  // based on recent sold listings.
+  const ebayPrices: (number | null)[] = [650, 420, 315, 850, 920, 310, null, null, 38, 16, 25, 90];
+  // SCI prices: seeded for Bulbasaur + the 4 all-source cards.
+  const sciPrices: (number | null)[] = [null, null, null, null, null, null, 46.25, null, 32, 12, 20, 75];
   const sciUrls: (string | null)[] = [
     null, null, null, null, null, null,
     "https://www.sportscardinvestor.com/cards/bulbasaur-pokemon/2026-mega-evolution-black-star-promo-holo-first-partner-collection-037",
     null,
+    "https://www.sportscardinvestor.com/cards/kobe-bryant-basketball/2003-topps-chrome-113",
+    "https://www.sportscardinvestor.com/cards/tom-brady-football/2020-panini-prizm-101",
+    "https://www.sportscardinvestor.com/cards/fernando-tatis-jr-baseball/2020-topps-chrome-16",
+    "https://www.sportscardinvestor.com/cards/caitlin-clark-basketball/2024-panini-prizm-1",
   ];
-  // SCP prices: seeded for Roman Anthony (ungraded market value from SportsCardsPro).
-  const scpPrices: (number | null)[] = [null, null, null, null, null, null, null, 1.75];
+  // SCP prices: seeded for Roman Anthony + the 4 all-source cards.
+  const scpPrices: (number | null)[] = [null, null, null, null, null, null, null, 1.75, 24, 9, 16, 58];
   const scpUrls: (string | null)[] = [
     null, null, null, null, null, null, null,
     "https://www.sportscardspro.com/game/baseball-cards-2026-topps/roman-anthony-189",
+    "https://www.sportscardspro.com/game/basketball-cards-2003-topps-chrome/kobe-bryant-113",
+    "https://www.sportscardspro.com/game/football-cards-2020-panini-prizm/tom-brady-101",
+    "https://www.sportscardspro.com/game/baseball-cards-2020-topps-chrome/fernando-tatis-jr-16",
+    "https://www.sportscardspro.com/game/basketball-cards-2024-panini-prizm/caitlin-clark-1",
   ];
 
   const now = new Date();

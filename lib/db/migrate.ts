@@ -63,5 +63,8 @@ export function migrate() {
     CREATE INDEX IF NOT EXISTS idx_settings_user_key ON settings(user_id, key);
   `);
 
+  // Additive migrations: ALTER TABLE is safe to retry (ignored if column exists)
+  try { sqlite.exec("ALTER TABLE users ADD COLUMN locked_at INTEGER"); } catch {}
+
   sqlite.close();
 }

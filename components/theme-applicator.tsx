@@ -1,11 +1,20 @@
 "use client";
 
 import { useEffect } from "react";
-import { THEME_LS_KEY, applyThemeColors, FONT_LS_KEY, applyFontTheme, type FontThemeKey } from "@/lib/theme";
+import {
+  THEME_LS_KEY, applyThemeColors,
+  FONT_LS_KEY, applyFontTheme, type FontThemeKey,
+  TYPE_DENSITY_LS_KEY, applyTypeDensity, type TypeDensityKey,
+  CARD_STYLE_LS_KEY, applyCardStyle, type CardStyleKey,
+  CHIP_STYLE_LS_KEY, applyChipStyle, type ChipStyleKey,
+  BUTTON_STYLE_LS_KEY, applyButtonStyle, type ButtonStyleKey,
+  SLEEVE_LS_KEY, applySleeve,
+} from "@/lib/theme";
 
 /**
- * Reads theme color + font overrides from localStorage and applies them on
- * mount. Works in tandem with the inline <head> script for FOUC prevention.
+ * Reads theme color, font, and type-density overrides from localStorage and
+ * applies them on mount. Works in tandem with the inline <head> script for
+ * FOUC prevention.
  */
 export default function ThemeApplicator() {
   useEffect(() => {
@@ -17,6 +26,31 @@ export default function ThemeApplicator() {
     try {
       const font = localStorage.getItem(FONT_LS_KEY) as FontThemeKey | null;
       if (font) applyFontTheme(font);
+    } catch {}
+
+    try {
+      const density = localStorage.getItem(TYPE_DENSITY_LS_KEY) as TypeDensityKey | null;
+      if (density) applyTypeDensity(density);
+    } catch {}
+
+    try {
+      const cardStyle = localStorage.getItem(CARD_STYLE_LS_KEY) as CardStyleKey | null;
+      if (cardStyle) applyCardStyle(cardStyle);
+    } catch {}
+
+    try {
+      const chipStyle = localStorage.getItem(CHIP_STYLE_LS_KEY) as ChipStyleKey | null;
+      if (chipStyle) applyChipStyle(chipStyle);
+    } catch {}
+
+    try {
+      const btnStyle = localStorage.getItem(BUTTON_STYLE_LS_KEY) as ButtonStyleKey | null;
+      if (btnStyle) applyButtonStyle(btnStyle);
+    } catch {}
+
+    try {
+      const sleeve = localStorage.getItem(SLEEVE_LS_KEY);
+      if (sleeve !== null) applySleeve(sleeve === "true");
     } catch {}
   }, []);
 

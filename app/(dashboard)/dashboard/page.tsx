@@ -1,13 +1,12 @@
 import { getDashboardStats } from "@/lib/actions";
 import { auth } from "@/auth";
 import Link from "next/link";
-import { TrendingUpIcon, TrendingDownIcon, LayersIcon, DollarSignIcon, PlusCircleIcon, RefreshCwIcon } from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
+import { TrendingUpIcon, TrendingDownIcon, LayersIcon, DollarSignIcon, PlusCircleIcon } from "lucide-react";
+import { Card, CardContent } from "@/components/ui/card";
 import { ButtonLink } from "@/components/ui/button-link";
 import { Badge } from "@/components/ui/badge";
 import { RefreshAllButton } from "@/components/cards/refresh-all-button";
-import { MiniCardRow } from "@/components/cards/mini-card-row";
+import { RecentCardsSection } from "@/components/cards/recent-cards-section";
 
 const GENRE_LABELS: Record<string, string> = {
   basketball: "Basketball", baseball: "Baseball", football: "Football",
@@ -101,17 +100,7 @@ export default async function DashboardPage() {
 
       {/* Recent Cards */}
       {stats.recentCards.length > 0 && (
-        <section>
-          <div className="flex items-center justify-between mb-3">
-            <h2 className="text-lg font-semibold">Recently Added</h2>
-            <Link href="/cards" className="text-sm text-primary hover:underline">View all</Link>
-          </div>
-          <div className="space-y-2">
-            {stats.recentCards.map((card) => (
-              <MiniCardRow key={card.id} card={card} />
-            ))}
-          </div>
-        </section>
+        <RecentCardsSection cards={stats.recentCards} />
       )}
 
       {stats.totalCards === 0 && (
