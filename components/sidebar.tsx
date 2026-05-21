@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { usePathname, useSearchParams } from "next/navigation";
 import { signOut, useSession } from "next-auth/react";
 import {
@@ -42,6 +42,7 @@ const settingsSubItems = [
 
 const adminSubItems = [
   { key: "user-management", label: "User Management", icon: UsersIcon  },
+  { key: "authentication",  label: "Authentication",  icon: ShieldIcon },
   { key: "system",          label: "System",          icon: ServerIcon },
 ];
 
@@ -53,6 +54,15 @@ function NavContent({ onNavigate }: { onNavigate?: () => void }) {
   const activeSubSection = onSettings ? (searchParams.get("s") ?? "general") : null;
   const { data: session } = useSession();
   const isAdmin = session?.user?.role === "admin";
+  const [pendingCount, setPendingCount] = useState(0);
+
+  useEffect(() => {
+    if (!isAdmin) return;
+    fetch("/api/admin/pending-count")
+      .then((r) => r.ok ? r.json() : null)
+      .then((data) => { if (data) setPendingCount(data.count); })
+      .catch(() => {});
+  }, [isAdmin]);
 
   return (
     <>
@@ -116,7 +126,12 @@ function NavContent({ onNavigate }: { onNavigate?: () => void }) {
                           )}
                         >
                           <SubIcon className="h-3.5 w-3.5 shrink-0" />
-                          {subLabel}
+                          <span className="flex-1">{subLabel}</span>
+                          {pendingCount > 0 && (key === "user-management" || key === "authentication") && (
+                            <span className="inline-flex items-center justify-center h-4 min-w-4 px-1 rounded-full bg-amber-400/20 text-amber-400 text-[10px] font-bold leading-none">
+                              {pendingCount}
+                            </span>
+                          )}
                         </Link>
                       ))}
                     </>

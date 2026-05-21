@@ -49,6 +49,9 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         // Reject locked accounts
         if (user.lockedAt) return null;
 
+        // Reject pending accounts
+        if (user.status === "pending") return null;
+
         // OAuth users have empty passwordHash — cannot sign in with credentials
         if (!user.passwordHash) return null;
 
@@ -78,14 +81,26 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       if (!user.email) return false;
 
       const existing = await db
-        .select({ id: users.id, lockedAt: users.lockedAt })
+        .select({ id: users.id, lockedAt: users.lockedAt, status: users.status })
         .from(users)
         .where(eq(users.email, user.email))
         .get();
 
       if (existing?.lockedAt) return false;
+      if (existing?.status === "pending") return false;
 
       if (!existing) {
+        // Check if registration is allowed
+        const allowReg = rawSqlite
+          .prepare("SELECT value FROM settings WHERE user_id IS NULL AND key = ? LIMIT 1")
+          .get("allow_registration") as { value: string } | undefined;
+        if (allowReg?.value === "false") return false;
+
+        const requireApproval = rawSqlite
+          .prepare("SELECT value FROM settings WHERE user_id IS NULL AND key = ? LIMIT 1")
+          .get("require_approval") as { value: string } | undefined;
+        const status: "active" | "pending" = requireApproval?.value === "true" ? "pending" : "active";
+
         // Create a new user for first-time OAuth sign-in
         const newId = crypto.randomUUID();
         await db.insert(users).values({
@@ -94,7 +109,10 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           email: user.email,
           passwordHash: "", // OAuth users cannot use credentials login
           role: "user",
+          status,
         });
+
+        if (status === "pending") return false; // Don't sign in until approved
         user.id = newId;
       } else {
         user.id = existing.id;

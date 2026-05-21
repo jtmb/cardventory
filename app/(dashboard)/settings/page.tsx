@@ -72,6 +72,7 @@ const SECTION_LABELS: Record<string, string> = {
   data: "Data",
   notifications: "Notifications",
   "user-management": "User Management",
+  authentication: "Authentication",
   system: "System",
 };
 
@@ -122,6 +123,9 @@ function SettingsContent() {
   const [oauthGithubId, setOauthGithubId] = useState("");
   const [oauthGithubSecret, setOauthGithubSecret] = useState("");
   const [showSecrets, setShowSecrets] = useState(false);
+  const [allowRegistration, setAllowRegistration] = useState(true);
+  const [requireApproval, setRequireApproval] = useState(false);
+  const [autoDenyHours, setAutoDenyHours] = useState("");
   // Test notification loading
   const [testingEmail, setTestingEmail] = useState(false);
   const [testingDiscord, setTestingDiscord] = useState(false);
@@ -246,6 +250,9 @@ function SettingsContent() {
         if (data.oauth_github_client_secret) setOauthGithubSecret(data.oauth_github_client_secret);
         if (data.auto_backup_interval_hours) setAutoBackupHours(data.auto_backup_interval_hours);
         if (data.auto_backup_max_count) setAutoBackupMax(data.auto_backup_max_count);
+        if (data.allow_registration !== undefined) setAllowRegistration(data.allow_registration !== "false");
+        if (data.require_approval !== undefined) setRequireApproval(data.require_approval === "true");
+        if (data.auto_deny_after_hours !== undefined) setAutoDenyHours(data.auto_deny_after_hours);
       })
       .catch(() => {});
   }, []);
@@ -447,6 +454,9 @@ function SettingsContent() {
           oauth_github_client_secret: oauthGithubSecret,
           auto_backup_interval_hours: autoBackupHours,
           auto_backup_max_count: autoBackupMax,
+          allow_registration: String(allowRegistration),
+          require_approval: String(requireApproval),
+          auto_deny_after_hours: autoDenyHours,
         }),
       }).catch(() => {});
     }
@@ -1108,6 +1118,121 @@ function SettingsContent() {
         </div>
       )}
 
+      {/* ── Authentication ────────────────────────────────────────────────── */}
+      {activeSection === "authentication" && isAdmin && (
+        <div className="space-y-4">
+          {/* Registration Controls */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">Registration</CardTitle>
+              <CardDescription>Control how new users can create accounts.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex items-center justify-between gap-4">
+                <div>
+                  <p className="text-sm font-medium">Allow new registrations</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">When disabled, new users cannot create accounts. Existing accounts are not affected.</p>
+                </div>
+                <label className="relative inline-flex items-center cursor-pointer shrink-0">
+                  <input
+                    type="checkbox"
+                    checked={allowRegistration}
+                    onChange={(e) => setAllowRegistration(e.target.checked)}
+                    className="sr-only peer"
+                  />
+                  <div className="w-10 h-5.5 bg-muted border border-border rounded-full peer peer-checked:bg-primary transition-colors after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:bg-white after:rounded-full after:h-4.5 after:w-4.5 after:transition-all peer-checked:after:translate-x-4.5" />
+                </label>
+              </div>
+              <div className="border-t border-border" />
+              <div className="flex items-center justify-between gap-4">
+                <div>
+                  <p className="text-sm font-medium">Require admin approval</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">New registrations (including OAuth) are placed in a pending queue. Accounts cannot sign in until an admin approves them in User Management.</p>
+                </div>
+                <label className="relative inline-flex items-center cursor-pointer shrink-0">
+                  <input
+                    type="checkbox"
+                    checked={requireApproval}
+                    onChange={(e) => setRequireApproval(e.target.checked)}
+                    className="sr-only peer"
+                  />
+                  <div className="w-10 h-5.5 bg-muted border border-border rounded-full peer peer-checked:bg-primary transition-colors after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:bg-white after:rounded-full after:h-4.5 after:w-4.5 after:transition-all peer-checked:after:translate-x-4.5" />
+                </label>
+              </div>
+              <div className="border-t border-border" />
+              <div className="flex items-center justify-between gap-4">
+                <div>
+                  <p className="text-sm font-medium">Auto-deny after (hours)</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">Automatically deny and delete pending requests after this many hours. Leave blank or set to 0 to never auto-deny.</p>
+                </div>
+                <input
+                  type="number"
+                  min="0"
+                  value={autoDenyHours}
+                  onChange={(e) => setAutoDenyHours(e.target.value)}
+                  placeholder="0"
+                  className="w-20 h-9 rounded-md border border-border bg-background px-3 text-sm text-right shrink-0"
+                />
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* OAuth Providers */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">OAuth Providers</CardTitle>
+              <CardDescription>
+                Configure Google and GitHub sign-in. Changes take effect after the next server restart.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-5">
+              <div className="space-y-3">
+                <p className="type-label-large font-semibold text-muted-foreground">Google</p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="space-y-1.5">
+                    <Label>Client ID</Label>
+                    <input value={oauthGoogleId} onChange={e => setOauthGoogleId(e.target.value)} placeholder="123456-abc.apps.googleusercontent.com" className="w-full h-9 rounded-md border border-border bg-background px-3 text-sm" />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label>Client Secret</Label>
+                    <div className="relative">
+                      <input type={showSecrets ? "text" : "password"} value={oauthGoogleSecret} onChange={e => setOauthGoogleSecret(e.target.value)} placeholder="GOCSPX-…" className="w-full h-9 rounded-md border border-border bg-background px-3 pr-9 text-sm" />
+                      <button type="button" onClick={() => setShowSecrets(s => !s)} className="absolute right-2 top-2 text-muted-foreground hover:text-foreground">
+                        {showSecrets ? <EyeOffIcon className="h-4 w-4" /> : <EyeIcon className="h-4 w-4" />}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div className="space-y-3">
+                <p className="type-label-large font-semibold text-muted-foreground">GitHub</p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="space-y-1.5">
+                    <Label>Client ID</Label>
+                    <input value={oauthGithubId} onChange={e => setOauthGithubId(e.target.value)} placeholder="Ov23li…" className="w-full h-9 rounded-md border border-border bg-background px-3 text-sm" />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label>Client Secret</Label>
+                    <div className="relative">
+                      <input type={showSecrets ? "text" : "password"} value={oauthGithubSecret} onChange={e => setOauthGithubSecret(e.target.value)} placeholder="github_pat_…" className="w-full h-9 rounded-md border border-border bg-background px-3 pr-9 text-sm" />
+                      <button type="button" onClick={() => setShowSecrets(s => !s)} className="absolute right-2 top-2 text-muted-foreground hover:text-foreground">
+                        {showSecrets ? <EyeOffIcon className="h-4 w-4" /> : <EyeIcon className="h-4 w-4" />}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <p className="type-label-small text-muted-foreground">
+                Callback URLs to register:
+                <code className="ml-1 bg-muted px-1 rounded">[domain]/api/auth/callback/google</code>
+                {" · "}
+                <code className="bg-muted px-1 rounded">[domain]/api/auth/callback/github</code>
+              </p>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
       {/* ── System ────────────────────────────────────────────────────────── */}
       {activeSection === "system" && (
         <div className="space-y-4">
@@ -1281,59 +1406,6 @@ function SettingsContent() {
           </CardContent>
         </Card>
 
-        {/* OAuth */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">OAuth Providers</CardTitle>
-            <CardDescription>
-              Configure Google and GitHub sign-in. Changes take effect after the next server restart.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-5">
-            <div className="space-y-3">
-              <p className="type-label-large font-semibold text-muted-foreground">Google</p>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div className="space-y-1.5">
-                  <Label>Client ID</Label>
-                  <input value={oauthGoogleId} onChange={e => setOauthGoogleId(e.target.value)} placeholder="123456-abc.apps.googleusercontent.com" className="w-full h-9 rounded-md border border-border bg-background px-3 text-sm" />
-                </div>
-                <div className="space-y-1.5">
-                  <Label>Client Secret</Label>
-                  <div className="relative">
-                    <input type={showSecrets ? "text" : "password"} value={oauthGoogleSecret} onChange={e => setOauthGoogleSecret(e.target.value)} placeholder="GOCSPX-…" className="w-full h-9 rounded-md border border-border bg-background px-3 pr-9 text-sm" />
-                    <button type="button" onClick={() => setShowSecrets(s => !s)} className="absolute right-2 top-2 text-muted-foreground hover:text-foreground">
-                      {showSecrets ? <EyeOffIcon className="h-4 w-4" /> : <EyeIcon className="h-4 w-4" />}
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </div>
-            <div className="space-y-3">
-              <p className="type-label-large font-semibold text-muted-foreground">GitHub</p>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div className="space-y-1.5">
-                  <Label>Client ID</Label>
-                  <input value={oauthGithubId} onChange={e => setOauthGithubId(e.target.value)} placeholder="Ov23li…" className="w-full h-9 rounded-md border border-border bg-background px-3 text-sm" />
-                </div>
-                <div className="space-y-1.5">
-                  <Label>Client Secret</Label>
-                  <div className="relative">
-                    <input type={showSecrets ? "text" : "password"} value={oauthGithubSecret} onChange={e => setOauthGithubSecret(e.target.value)} placeholder="github_pat_…" className="w-full h-9 rounded-md border border-border bg-background px-3 pr-9 text-sm" />
-                    <button type="button" onClick={() => setShowSecrets(s => !s)} className="absolute right-2 top-2 text-muted-foreground hover:text-foreground">
-                      {showSecrets ? <EyeOffIcon className="h-4 w-4" /> : <EyeIcon className="h-4 w-4" />}
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </div>
-            <p className="type-label-small text-muted-foreground">
-              Callback URLs to register:
-              <code className="ml-1 bg-muted px-1 rounded">[domain]/api/auth/callback/google</code>
-              {" · "}
-              <code className="bg-muted px-1 rounded">[domain]/api/auth/callback/github</code>
-            </p>
-          </CardContent>
-        </Card>
         </div>
       )}
       </div>{/* end p-6 wrapper */}

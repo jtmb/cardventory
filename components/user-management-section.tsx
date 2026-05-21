@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { toast } from "sonner";
-import { LockIcon, LockOpenIcon, KeyIcon, TrashIcon, ChevronDownIcon, UserIcon } from "lucide-react";
+import { LockIcon, LockOpenIcon, KeyIcon, TrashIcon, ChevronDownIcon, UserIcon, CheckIcon, XIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -18,6 +18,7 @@ type UserRow = {
   name: string;
   email: string;
   role: "admin" | "user";
+  status: "active" | "pending";
   lockedAt: string | null;
   createdAt: string;
 };
@@ -125,6 +126,22 @@ export function UserManagementSection() {
     }
   }
 
+  async function approveUser(user: UserRow) {
+    try {
+      const res = await fetch(`/api/admin/users/${user.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "approve" }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+      toast.success(`${user.name} approved`);
+      loadUsers();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Failed");
+    }
+  }
+
   async function deleteUser(userId: string, name: string) {
     try {
       const res = await fetch(`/api/admin/users/${userId}`, { method: "DELETE" });
@@ -137,6 +154,14 @@ export function UserManagementSection() {
     }
   }
 
+  const pending = users.filter((u) => u.status === "pending");
+  const active = users.filter((u) => u.status !== "pending");
+
+  const PENDING_PAGE_SIZE = 4;
+  const [pendingPage, setPendingPage] = useState(1);
+  const pendingPageCount = Math.max(1, Math.ceil(pending.length / PENDING_PAGE_SIZE));
+  const pendingSlice = pending.slice((pendingPage - 1) * PENDING_PAGE_SIZE, pendingPage * PENDING_PAGE_SIZE);
+
   return (
     <>
       {passwordModalUser && (
@@ -145,6 +170,100 @@ export function UserManagementSection() {
           userName={passwordModalUser.name}
           onClose={() => setPasswordModalUser(null)}
         />
+      )}
+
+      {/* Pending approvals */}
+      {!loading && pending.length > 0 && (
+        <Card className="border-amber-500/30">
+          <CardHeader>
+            <CardTitle className="text-base flex items-center gap-2">
+              <span className="inline-flex items-center justify-center h-5 w-5 rounded-full bg-amber-400/20 text-amber-400 text-xs font-bold">{pending.length}</span>
+              Pending Approval
+            </CardTitle>
+            <CardDescription>These accounts are awaiting admin approval before they can sign in.</CardDescription>
+          </CardHeader>
+          <CardContent className="p-0">
+            <div className="overflow-hidden">
+              {pendingSlice.map((user) => (
+                <div
+                  key={user.id}
+                  className="flex items-center gap-3 px-4 py-3 border-b border-border/60 last:border-0 hover:bg-muted/20 transition-colors"
+                >
+                  <div className="w-8 h-8 rounded-full bg-amber-400/10 flex items-center justify-center shrink-0">
+                    <UserIcon className="h-4 w-4 text-amber-400" />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="font-medium text-sm truncate">{user.name}</p>
+                    <p className="text-xs text-muted-foreground truncate">{user.email}</p>
+                  </div>
+                  <span className="text-xs text-muted-foreground hidden sm:block">
+                    {new Date(user.createdAt).toLocaleDateString()}
+                  </span>
+                  <div className="flex items-center gap-1">
+                    <button
+                      onClick={() => approveUser(user)}
+                      className="flex items-center gap-1.5 h-7 px-2.5 rounded-md text-xs font-medium bg-emerald-500/15 text-emerald-500 hover:bg-emerald-500/25 transition-colors"
+                      title="Approve"
+                    >
+                      <CheckIcon className="h-3.5 w-3.5" />
+                      Approve
+                    </button>
+                    <AlertDialog>
+                      <AlertDialogTrigger
+                        className="flex items-center gap-1.5 h-7 px-2.5 rounded-md text-xs font-medium bg-destructive/10 text-destructive hover:bg-destructive/20 transition-colors"
+                        title="Deny"
+                      >
+                        <XIcon className="h-3.5 w-3.5" />
+                        Deny
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>Deny and delete?</AlertDialogTitle>
+                          <AlertDialogDescription>
+                            <span className="font-medium text-foreground">{user.name}</span> ({user.email}) will be permanently removed. They will need to register again.
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Cancel</AlertDialogCancel>
+                          <AlertDialogAction
+                            onClick={() => deleteUser(user.id, user.name)}
+                            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                          >
+                            Deny &amp; Delete
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
+                  </div>
+                </div>
+              ))}
+            </div>
+            {pendingPageCount > 1 && (
+              <div className="flex items-center justify-between px-4 py-2.5 border-t border-border/60 bg-muted/20">
+                <span className="text-xs text-muted-foreground">
+                  {(pendingPage - 1) * PENDING_PAGE_SIZE + 1}–{Math.min(pendingPage * PENDING_PAGE_SIZE, pending.length)} of {pending.length}
+                </span>
+                <div className="flex items-center gap-1">
+                  <button
+                    onClick={() => setPendingPage((p) => Math.max(1, p - 1))}
+                    disabled={pendingPage === 1}
+                    className="h-6 px-2 rounded text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                  >
+                    Prev
+                  </button>
+                  <span className="text-xs text-muted-foreground px-1">{pendingPage} / {pendingPageCount}</span>
+                  <button
+                    onClick={() => setPendingPage((p) => Math.min(pendingPageCount, p + 1))}
+                    disabled={pendingPage === pendingPageCount}
+                    className="h-6 px-2 rounded text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                  >
+                    Next
+                  </button>
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
       )}
 
       <Card>
@@ -169,11 +288,11 @@ export function UserManagementSection() {
                 <span>Actions</span>
               </div>
 
-              {users.length === 0 && (
+              {active.length === 0 && (
                 <div className="py-12 text-center text-muted-foreground text-sm">No users found</div>
               )}
 
-              {users.map((user) => {
+              {active.map((user) => {
                 const isMe = user.id === myId;
                 const isLocked = !!user.lockedAt;
                 return (

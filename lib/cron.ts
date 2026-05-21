@@ -1,7 +1,7 @@
 import cron from "node-cron";
 import { db } from "@/lib/db";
-import { cards, priceHistory, settings } from "@/lib/db/schema";
-import { eq } from "drizzle-orm";
+import { cards, priceHistory, settings, users } from "@/lib/db/schema";
+import { eq, and, isNull, lt } from "drizzle-orm";
 import { fetchAllPrices } from "@/lib/scrapers";
 
 let cronJob: ReturnType<typeof cron.schedule> | null = null;
@@ -65,6 +65,36 @@ async function refreshAllCards() {
   console.log(`[cron] Refreshed ${allCards.length} cards`);
 }
 
+async function autoDenyPendingUsers() {
+  try {
+    const row = await db
+      .select()
+      .from(settings)
+      .where(and(isNull(settings.userId), eq(settings.key, "auto_deny_after_hours")))
+      .get();
+
+    const hours = row ? parseInt(row.value, 10) : 0;
+    if (!hours || hours <= 0) return;
+
+    const cutoffDate = new Date(Date.now() - hours * 60 * 60 * 1000);
+
+    const expired = await db
+      .select({ id: users.id, name: users.name })
+      .from(users)
+      .where(and(eq(users.status, "pending"), lt(users.createdAt, cutoffDate)))
+      .all();
+
+    if (expired.length === 0) return;
+
+    for (const u of expired) {
+      await db.delete(users).where(eq(users.id, u.id));
+    }
+    console.log(`[cron] Auto-denied ${expired.length} pending user(s) older than ${hours}h`);
+  } catch (err) {
+    console.error("[cron] Auto-deny failed:", err);
+  }
+}
+
 export async function startCron() {
   const intervalMinutes = await getRefreshIntervalMinutes();
 
@@ -88,4 +118,9 @@ export async function startCron() {
 
   cronJob = cron.schedule(cronExpression, refreshAllCards);
   console.log(`[cron] Scheduled price refresh every ${intervalMinutes} minutes (${cronExpression})`);
+
+  // Auto-deny check: runs every hour, reads setting each time
+  cron.schedule("0 * * * *", autoDenyPendingUsers);
+  // Run once on startup to catch any already-expired pending users
+  autoDenyPendingUsers().catch(() => {});
 }

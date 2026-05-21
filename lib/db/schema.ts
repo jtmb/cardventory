@@ -11,6 +11,7 @@ export const users = sqliteTable("users", {
     .notNull()
     .default("user"),
   lockedAt: integer("locked_at", { mode: "timestamp" }),
+  status: text("status", { enum: ["active", "pending"] }).notNull().default("active"),
   createdAt: integer("created_at", { mode: "timestamp" })
     .notNull()
     .$defaultFn(() => new Date()),

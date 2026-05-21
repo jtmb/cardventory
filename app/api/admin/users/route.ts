@@ -22,6 +22,7 @@ export async function GET() {
       name: users.name,
       email: users.email,
       role: users.role,
+      status: users.status,
       lockedAt: users.lockedAt,
       createdAt: users.createdAt,
     })

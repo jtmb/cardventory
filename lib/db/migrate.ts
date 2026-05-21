@@ -58,6 +58,7 @@ export function migrate(sqlite: InstanceType<typeof Database>) {
 
   // Additive migrations: ALTER TABLE is safe to retry (ignored if column exists)
   try { sqlite.exec("ALTER TABLE users ADD COLUMN locked_at INTEGER"); } catch {}
+  try { sqlite.exec("ALTER TABLE users ADD COLUMN status TEXT NOT NULL DEFAULT 'active'"); } catch {}
   try { sqlite.exec("ALTER TABLE cards ADD COLUMN status TEXT NOT NULL DEFAULT 'owned'"); } catch {}
 
   // Additional indexes for new columns

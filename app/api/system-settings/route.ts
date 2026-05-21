@@ -12,6 +12,9 @@ export const SYSTEM_SETTING_KEYS = [
   "oauth_github_client_secret",
   "auto_backup_interval_hours",
   "auto_backup_max_count",
+  "allow_registration",
+  "require_approval",
+  "auto_deny_after_hours",
 ] as const;
 
 export async function GET(_req: NextRequest) {

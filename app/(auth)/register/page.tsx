@@ -12,6 +12,7 @@ import { LayersIcon } from "lucide-react";
 export default function RegisterPage() {
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
+  const [pending, setPending] = useState(false);
   const [loading, setLoading] = useState(false);
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
@@ -35,8 +36,36 @@ export default function RegisterPage() {
       setError(data.error ?? "Registration failed");
       setLoading(false);
     } else {
-      router.push("/login");
+      const data = await res.json();
+      if (data.pending) {
+        setPending(true);
+        setLoading(false);
+      } else {
+        router.push("/login");
+      }
     }
+  }
+
+  if (pending) {
+    return (
+      <Card>
+        <CardHeader className="text-center">
+          <div className="flex justify-center mb-2">
+            <LayersIcon className="h-10 w-10 text-primary" />
+          </div>
+          <CardTitle className="text-2xl">Account Pending</CardTitle>
+          <CardDescription>Your account is awaiting approval</CardDescription>
+        </CardHeader>
+        <CardContent className="text-center space-y-4">
+          <p className="text-sm text-muted-foreground">
+            An admin must approve your account before you can sign in. You'll be able to log in once it's approved.
+          </p>
+          <Link href="/login" className="text-primary hover:underline text-sm">
+            Back to sign in
+          </Link>
+        </CardContent>
+      </Card>
+    );
   }
 
   return (

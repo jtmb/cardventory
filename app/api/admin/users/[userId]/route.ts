@@ -22,13 +22,18 @@ export async function PATCH(
 
   const { userId } = await params;
   const body = await req.json() as {
-    action: "set_password" | "toggle_lock" | "set_role";
+    action: "set_password" | "toggle_lock" | "set_role" | "approve";
     password?: string;
     role?: "admin" | "user";
   };
 
   const target = await db.select().from(users).where(eq(users.id, userId)).get();
   if (!target) return NextResponse.json({ error: "User not found" }, { status: 404 });
+
+  if (body.action === "approve") {
+    await db.update(users).set({ status: "active" }).where(eq(users.id, userId));
+    return NextResponse.json({ success: true });
+  }
 
   if (body.action === "set_password") {
     if (!body.password || body.password.length < 8) {
