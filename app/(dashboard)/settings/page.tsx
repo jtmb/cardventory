@@ -1067,6 +1067,15 @@ function SettingsContent() {
         <div className="space-y-4">
         <Card>
           <CardHeader>
+            <CardTitle className="text-base">Release Version</CardTitle>
+            <CardDescription>The currently running build of Cardventory.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <p className="font-mono text-sm">v{process.env.NEXT_PUBLIC_APP_VERSION ?? "unknown"}</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader>
             <CardTitle className="text-base">Docker Volume Mounts</CardTitle>
             <CardDescription>
               Configure storage paths via environment variables in docker-compose.yml.
