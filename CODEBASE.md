@@ -485,6 +485,39 @@ const filtered = cards
     : (a[sortField] < b[sortField] ? 1 : -1))
 ```
 
+### Dropdown / Select (custom — use for all form selects)
+
+Use `CustomSelect` from `components/cards/custom-select.tsx` for form-field dropdowns. Matches the visual style of the cards-screen sort/filter buttons (SortSelect, GradeFilter).
+
+```tsx
+import { CustomSelect } from "@/components/cards/custom-select"
+
+// Options shape
+const OPTIONS = [
+  { value: "none", label: "None" },
+  { value: "psa",  label: "PSA" },
+]
+
+// Usage (needs controlled state + hidden input for form submission)
+const [value, setValue] = useState("none")
+<CustomSelect name="gradeCompany" value={value} onChange={setValue} options={OPTIONS} />
+```
+
+**Visual rules (matching cards-screen filters):**
+- Trigger: `h-9 w-full px-3 rounded-md border border-border bg-background`, chevron indicator
+- Panel: `bg-card border border-border rounded-lg shadow-xl p-1.5`
+- Active item: `bg-primary text-primary-foreground` + `CheckIcon`
+- Inactive item: `text-muted-foreground hover:bg-muted hover:text-foreground`
+
+**Do NOT use shadcn `<Select>` in new forms** — use `CustomSelect` for consistency.
+
+Source components using this pattern:
+- `components/cards/sort-select.tsx` — navigation dropdown (uses Link)
+- `components/cards/grade-filter.tsx` — navigation dropdown (uses Link)
+- `components/cards/custom-select.tsx` — form field dropdown (uses hidden input)
+
+---
+
 ### Settings picker button group
 ```tsx
 {OPTIONS.map(opt => (

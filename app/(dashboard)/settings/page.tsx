@@ -18,7 +18,7 @@ import {
 import { seedTestData } from "@/lib/actions";
 import { UserManagementSection } from "@/components/user-management-section";
 import {
-  THEME_VARS, type ThemeColors, THEME_LS_KEY, applyThemeColors, resetThemeColors,
+  THEME_VARS, type ThemeColors, THEME_LS_KEY, applyThemeColors,
   FONT_THEMES, type FontThemeKey, FONT_LS_KEY, applyFontTheme,
   PRESET_THEMES, PRESET_LS_KEY, applyPresetTheme, type PresetThemeKey,
   TYPE_DENSITY_OPTIONS, TYPE_DENSITY_LS_KEY, applyTypeDensity, type TypeDensityKey,
@@ -99,7 +99,7 @@ function SettingsContent() {
   const [seeding, setSeeding] = useState(false);
   const [themeColors, setThemeColors] = useState<Partial<ThemeColors>>({});
   const [fontTheme, setFontTheme] = useState<FontThemeKey>("system");
-  const [activePreset, setActivePreset] = useState<PresetThemeKey | null>(null);
+  const [activePreset, setActivePreset] = useState<PresetThemeKey | null>("default");
   const [typeDensity, setTypeDensity] = useState<TypeDensityKey>("default");
   const [chipStyle, setChipStyle] = useState<ChipStyleKey>("assist");
   const [btnStyle, setBtnStyle] = useState<ButtonStyleKey>("filled");
@@ -355,11 +355,12 @@ function SettingsContent() {
   }
 
   function handleResetTheme() {
-    setThemeColors({});
-    setActivePreset(null);
-    localStorage.removeItem(THEME_LS_KEY);
-    localStorage.removeItem(PRESET_LS_KEY);
-    resetThemeColors();
+    const dp = PRESET_THEMES.find((p) => p.key === "default")!;
+    setThemeColors(dp.colors);
+    setActivePreset("default");
+    applyPresetTheme("default");
+    localStorage.setItem(THEME_LS_KEY, JSON.stringify(dp.colors));
+    localStorage.setItem(PRESET_LS_KEY, "default");
   }
 
   function handleTypeDensity(key: TypeDensityKey) {
@@ -400,6 +401,65 @@ function SettingsContent() {
   function handleSettingsArrangement(key: SettingsArrangementKey) {
     setSettingsArrangement(key);
     localStorage.setItem(SETTINGS_ARRANGEMENT_LS_KEY, key);
+  }
+
+  async function handleResetAllAppearance() {
+    const dp = PRESET_THEMES.find((p) => p.key === "default")!;
+    // Reset state
+    setThemeColors(dp.colors);
+    setActivePreset("default");
+    setFontTheme("system");
+    setTypeDensity("default");
+    setChipStyle("assist");
+    setBtnStyle("filled");
+    setSleeveEffect(true);
+    setZoomScale("natural");
+    setPriceBadges(true);
+    setSettingsLayout("centered");
+    setSettingsArrangement("single");
+    // Apply CSS immediately
+    applyPresetTheme("default");
+    applyFontTheme("system");
+    applyTypeDensity("default");
+    applyChipStyle("assist");
+    applyButtonStyle("filled");
+    applySleeve(true);
+    applyZoomScale("natural");
+    // Sync localStorage
+    localStorage.setItem(THEME_LS_KEY, JSON.stringify(dp.colors));
+    localStorage.setItem(PRESET_LS_KEY, "default");
+    localStorage.setItem(FONT_LS_KEY, "system");
+    const defDensity = TYPE_DENSITY_OPTIONS.find((o) => o.key === "default");
+    if (defDensity) localStorage.setItem(TYPE_DENSITY_LS_KEY, defDensity.value);
+    localStorage.setItem(CHIP_STYLE_LS_KEY, "assist");
+    localStorage.setItem(BUTTON_STYLE_LS_KEY, "filled");
+    localStorage.setItem(SLEEVE_LS_KEY, "true");
+    localStorage.setItem(ZOOM_SCALE_LS_KEY, "natural");
+    localStorage.setItem(SETTINGS_LAYOUT_LS_KEY, "centered");
+    localStorage.setItem(SETTINGS_ARRANGEMENT_LS_KEY, "single");
+    // Persist to API
+    try {
+      await fetch("/api/settings", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          theme_colors: dp.colors,
+          preset_theme: "default",
+          font_theme: "system",
+          type_density: "default",
+          chip_style: "assist",
+          btn_style: "filled",
+          sleeve_effect: true,
+          zoom_scale: "natural",
+          price_badges: true,
+          settings_layout: "centered",
+          settings_arrangement: "single",
+        }),
+      });
+      toast.success("Appearance reset to defaults");
+    } catch {
+      toast.error("Failed to save reset");
+    }
   }
 
   /** Single source of truth for all exportable / saveable settings. */
@@ -619,10 +679,12 @@ function SettingsContent() {
   return (
     <div className="min-h-full flex flex-col">
       <div className={`p-6 pb-20 ${settingsLayoutWrapperClass(settingsLayout)}`}>
+      {activeSection !== "appearance" && (
       <div className="mb-4">
         <h1 className="type-headline-large font-bold">{SECTION_LABELS[activeSection] ?? "Settings"}</h1>
         <p className="type-body-medium text-muted-foreground mt-1">Configure Cardventory to your preferences</p>
       </div>
+      )}
 
       {/* ── Account ────────────────────────────────────────────────────────── */}
       {activeSection === "account" && (
@@ -749,6 +811,21 @@ function SettingsContent() {
 
       {/* ── Appearance ─────────────────────────────────────────────────────── */}
       {activeSection === "appearance" && (
+        <>
+        <div className="flex items-center justify-end">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={handleResetAllAppearance}
+            className="h-8 gap-1.5 text-muted-foreground hover:text-foreground"
+          >
+            <RotateCcwIcon className="h-3.5 w-3.5" /> Reset all to defaults
+          </Button>
+        </div>
+        <div className="mb-4">
+          <h1 className="type-headline-large font-bold">Appearance</h1>
+          <p className="type-body-medium text-muted-foreground mt-1">Configure Cardventory to your preferences</p>
+        </div>
         <div className={settingsArrangementClass(settingsArrangement)}>
         {/* Preset Themes */}
         <Card>
@@ -1119,6 +1196,7 @@ function SettingsContent() {
           </CardContent>
         </Card>
         </div>
+        </>
       )}
 
       {/* ── Data ───────────────────────────────────────────────────────────── */}

@@ -165,15 +165,27 @@ export function CardRow({
   );
 }
 
-function gradeColor(company: string | null | undefined): string {
+function gradeLabel(company: string | null | undefined, value: string | null | undefined) {
+  if (!company || !value) return null;
+  return `${company} ${value}`;
+}
+
+function gradeCompanyColor(company: string | null | undefined): string {
   switch (company?.toUpperCase()) {
-    case "PSA":     return "bg-blue-700 text-white";
+    case "PSA":     return "text-blue-400";
     case "BGS":
-    case "BECKETT": return "bg-amber-500 text-black";
-    case "SGC":     return "bg-red-700 text-white";
-    case "CSG":     return "bg-emerald-700 text-white";
-    default:        return "bg-zinc-600 text-white";
+    case "BECKETT": return "text-amber-400";
+    case "SGC":     return "text-red-400";
+    case "CGC":
+    case "CSG":     return "text-teal-400";
+    case "HGA":     return "text-orange-400";
+    default:        return "text-muted-foreground";
   }
+}
+
+function conditionLabel(condition: string | null | undefined) {
+  if (!condition || condition === "none") return null;
+  return condition.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
 /** Shared card visual — used in both normal and selectable modes */
@@ -217,11 +229,9 @@ function CardInner({
         <div className="absolute inset-0 bg-gradient-to-br from-white/[0.05] via-transparent to-transparent pointer-events-none" />
         {/* Grade badge */}
         {card.gradeCompany && card.gradeValue && (
-          <div className={cn(
-            "absolute top-2 right-2 text-xs font-bold px-2 py-0.5 rounded-md leading-tight shadow-lg ring-1 ring-white/20",
-            gradeColor(card.gradeCompany)
-          )}>
-            {card.gradeCompany} {card.gradeValue}
+          <div className="absolute top-2 right-2 flex items-center gap-1 bg-black/65 backdrop-blur-sm shadow-md rounded-md px-2 py-0.5">
+            <span className={`text-[10px] font-semibold uppercase tracking-wide ${gradeCompanyColor(card.gradeCompany)}`}>{card.gradeCompany}</span>
+            <span className="text-xs font-bold text-white leading-tight">{card.gradeValue}</span>
           </div>
         )}
         {/* Price trend badge */}
@@ -246,6 +256,12 @@ function CardInner({
         <p className="type-title-small font-semibold leading-tight line-clamp-1 tracking-tight">{card.name}</p>
         {setLine && (
           <p className="text-xs text-muted-foreground line-clamp-2 leading-snug">{setLine}</p>
+        )}
+        {/* Condition chip — only shown when not graded */}
+        {!card.gradeCompany && conditionLabel(card.condition) && (
+          <span className="inline-flex self-start text-[10px] font-medium text-muted-foreground bg-muted/70 rounded px-1.5 py-0.5 leading-tight">
+            {conditionLabel(card.condition)}
+          </span>
         )}
         <div className="pt-1 min-h-[1.25rem]">
           {loading ? (
@@ -346,8 +362,14 @@ function CardListLayout({
         {setLine && <p className="text-xs text-muted-foreground truncate mt-0.5">{setLine}</p>}
       </Link>
       {card.gradeCompany && card.gradeValue && (
-        <span className="shrink-0 hidden sm:inline-flex text-xs font-bold px-1.5 py-0.5 rounded-md bg-amber-500/20 text-amber-400">
-          {card.gradeCompany} {card.gradeValue}
+        <span className="shrink-0 hidden sm:inline-flex items-center gap-1 rounded-md bg-muted px-2 py-0.5">
+          <span className={`text-[10px] font-semibold uppercase tracking-wide ${gradeCompanyColor(card.gradeCompany)}`}>{card.gradeCompany}</span>
+          <span className="text-xs font-bold text-foreground">{card.gradeValue}</span>
+        </span>
+      )}
+      {!card.gradeCompany && conditionLabel(card.condition) && (
+        <span className="shrink-0 hidden sm:inline-flex text-[10px] font-medium text-muted-foreground bg-muted/70 rounded px-1.5 py-0.5">
+          {conditionLabel(card.condition)}
         </span>
       )}
       <div className="shrink-0 flex items-center gap-2.5">
@@ -420,8 +442,13 @@ function CardCompactLayout({
       <Link href={`/cards/${card.id}`} className="flex-1 min-w-0 font-medium truncate">{card.name}</Link>
       <span className="hidden md:block shrink-0 text-xs text-muted-foreground w-48 truncate text-right">{setLine}</span>
       {card.gradeCompany && card.gradeValue ? (
-        <span className="shrink-0 hidden sm:inline text-[10px] font-bold px-1 py-0.5 rounded bg-amber-500/20 text-amber-400">
-          {card.gradeCompany} {card.gradeValue}
+        <span className="shrink-0 hidden sm:inline-flex items-center gap-1 rounded-md bg-muted px-1.5 py-0.5">
+          <span className={`text-[10px] font-semibold uppercase tracking-wide ${gradeCompanyColor(card.gradeCompany)}`}>{card.gradeCompany}</span>
+          <span className="text-xs font-bold text-foreground">{card.gradeValue}</span>
+        </span>
+      ) : conditionLabel(card.condition) ? (
+        <span className="shrink-0 hidden sm:inline-flex text-[10px] font-medium text-muted-foreground bg-muted/70 rounded px-1.5 py-0.5">
+          {conditionLabel(card.condition)}
         </span>
       ) : (
         <span className="shrink-0 hidden sm:inline w-10" />

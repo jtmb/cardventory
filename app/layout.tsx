@@ -4,6 +4,9 @@ import "./globals.css";
 import { Toaster } from "@/components/ui/sonner";
 import ThemeApplicator from "@/components/theme-applicator";
 import { preinit } from "react-dom";
+import { db } from "@/lib/db";
+import { settings } from "@/lib/db/schema";
+import { isNull, eq, and } from "drizzle-orm";
 
 const jakartaSans = Plus_Jakarta_Sans({
   variable: "--font-jakarta",
@@ -36,10 +39,24 @@ const nunito = Nunito({
   weight: ["400", "500", "600", "700"],
 });
 
-export const metadata: Metadata = {
-  title: "Cardventory",
-  description: "Track your card collection value",
-};
+export async function generateMetadata(): Promise<Metadata> {
+  let iconUrl = "/logo.png";
+  try {
+    const row = await db
+      .select()
+      .from(settings)
+      .where(and(isNull(settings.userId), eq(settings.key, "app_logo_url")))
+      .get();
+    if (row?.value) iconUrl = row.value;
+  } catch {
+    // DB not ready on first boot — fall back to default
+  }
+  return {
+    title: "Cardventory",
+    description: "Track your card collection value",
+    icons: { icon: iconUrl },
+  };
+}
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   // Applies saved theme colors + font before first paint to prevent FOUC.

@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { CustomSelect } from "@/components/cards/custom-select";
 import { Card as UiCard, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { ArrowLeftIcon, UploadIcon, XIcon } from "lucide-react";
@@ -31,7 +32,15 @@ const GENRES = [
 ];
 
 const GRADE_COMPANIES = ["PSA", "BGS", "CGC", "SGC", "HGA"];
+const GRADE_COMPANY_OPTIONS = [
+  { value: "none", label: "None / Raw" },
+  ...GRADE_COMPANIES.map((g) => ({ value: g, label: g })),
+];
 const CONDITIONS = ["Mint", "Near Mint", "Excellent", "Very Good", "Good", "Poor"];
+const CONDITION_OPTIONS = [
+  { value: "none", label: "—" },
+  ...CONDITIONS.map((c) => ({ value: c.toLowerCase().replace(/ /g, "_"), label: c })),
+];
 
 export function EditCardForm({ card }: { card: Card }) {
   const router = useRouter();
@@ -40,6 +49,9 @@ export function EditCardForm({ card }: { card: Card }) {
   const [photoUrl, setPhotoUrl] = useState<string | null>(card.photoUrl);
   const [uploading, setUploading] = useState(false);
   const [status, setStatus] = useState<"owned" | "wanted">((card.status as "owned" | "wanted") ?? "owned");
+  const [genre, setGenre] = useState(card.sportGenre ?? "other");
+  const [gradeCompany, setGradeCompany] = useState(card.gradeCompany ?? "none");
+  const [condition, setCondition] = useState(card.condition ?? "none");
   const fileRef = useRef<HTMLInputElement>(null);
   const nameRef = useRef<HTMLInputElement>(null);
   const yearRef = useRef<HTMLInputElement>(null);
@@ -144,21 +156,23 @@ export function EditCardForm({ card }: { card: Card }) {
         <UiCard>
           <CardHeader><CardTitle className="text-base">Card Photo</CardTitle></CardHeader>
           <CardContent className="space-y-3">
-            {photoPreview ? (
-              <div className="relative w-40 h-56 rounded-lg overflow-hidden border border-border">
-                <Image src={photoPreview} alt="Preview" fill className="object-contain" unoptimized={photoPreview.startsWith("http")} />
-                <button type="button" onClick={() => { setPhotoPreview(null); setPhotoUrl(null); }}
-                  className="absolute top-1 right-1 bg-black/60 rounded-full p-1 hover:bg-black">
-                  <XIcon className="h-3.5 w-3.5 text-white" />
-                </button>
-              </div>
-            ) : (
-              <div onClick={() => fileRef.current?.click()}
-                className="flex flex-col items-center justify-center w-40 h-56 border-2 border-dashed border-border rounded-lg cursor-pointer hover:border-primary/50 transition-colors">
-                <UploadIcon className="h-6 w-6 text-muted-foreground/50 mb-2" />
-                <p className="text-xs text-muted-foreground text-center">Click to upload</p>
-              </div>
-            )}
+            <div className="flex justify-center">
+              {photoPreview ? (
+                <div className="relative w-full max-w-[220px] aspect-[5/7] rounded-lg overflow-hidden border border-border">
+                  <Image src={photoPreview} alt="Preview" fill className="object-contain" unoptimized={photoPreview.startsWith("http")} />
+                  <button type="button" onClick={() => { setPhotoPreview(null); setPhotoUrl(null); }}
+                    className="absolute top-1 right-1 bg-black/60 rounded-full p-1 hover:bg-black">
+                    <XIcon className="h-3.5 w-3.5 text-white" />
+                  </button>
+                </div>
+              ) : (
+                <div onClick={() => fileRef.current?.click()}
+                  className="flex flex-col items-center justify-center w-full max-w-[220px] aspect-[5/7] border-2 border-dashed border-border rounded-lg cursor-pointer hover:border-primary/50 transition-colors">
+                  <UploadIcon className="h-7 w-7 text-muted-foreground/50 mb-2" />
+                  <p className="text-xs text-muted-foreground text-center">Click to upload</p>
+                </div>
+              )}
+            </div>
             <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handlePhotoChange} />
             {uploading && <p className="text-xs text-muted-foreground">Uploading…</p>}
             <ImagePicker
@@ -176,12 +190,12 @@ export function EditCardForm({ card }: { card: Card }) {
             </Field>
             <div className="grid grid-cols-2 gap-4">
               <Field label="Sport / Category *">
-                <Select name="sportGenre" defaultValue={card.sportGenre}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    {GENRES.map(g => <SelectItem key={g.value} value={g.value}>{g.label}</SelectItem>)}
-                  </SelectContent>
-                </Select>
+                <CustomSelect
+                  name="sportGenre"
+                  value={genre}
+                  onChange={setGenre}
+                  options={GENRES}
+                />
               </Field>
               <Field label="Year">
                 <Input ref={yearRef} name="year" type="number" defaultValue={card.year ?? ""} min={1900} max={2099} />
@@ -206,26 +220,24 @@ export function EditCardForm({ card }: { card: Card }) {
           <CardContent className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
               <Field label="Grading Company">
-                <Select name="gradeCompany" defaultValue={card.gradeCompany ?? "none"}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="none">None / Raw</SelectItem>
-                    {GRADE_COMPANIES.map(g => <SelectItem key={g} value={g}>{g}</SelectItem>)}
-                  </SelectContent>
-                </Select>
+                <CustomSelect
+                  name="gradeCompany"
+                  value={gradeCompany}
+                  onChange={setGradeCompany}
+                  options={GRADE_COMPANY_OPTIONS}
+                />
               </Field>
               <Field label="Grade">
                 <Input name="gradeValue" defaultValue={card.gradeValue ?? ""} placeholder="e.g. 10, 9.5" />
               </Field>
             </div>
             <Field label="Condition">
-              <Select name="condition" defaultValue={card.condition ?? "none"}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">—</SelectItem>
-                  {CONDITIONS.map(c => <SelectItem key={c} value={c.toLowerCase().replace(/ /g, "_")}>{c}</SelectItem>)}
-                </SelectContent>
-              </Select>
+              <CustomSelect
+                name="condition"
+                value={condition}
+                onChange={setCondition}
+                options={CONDITION_OPTIONS}
+              />
             </Field>
           </CardContent>
         </UiCard>
