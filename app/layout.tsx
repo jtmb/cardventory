@@ -2,11 +2,8 @@ import type { Metadata } from "next";
 import { Plus_Jakarta_Sans, JetBrains_Mono, Oswald, Bebas_Neue, Inter, Nunito } from "next/font/google";
 import "./globals.css";
 import { Toaster } from "@/components/ui/sonner";
-import { migrate } from "@/lib/db/migrate";
 import ThemeApplicator from "@/components/theme-applicator";
 import { preinit } from "react-dom";
-
-try { migrate(); } catch (e) { console.error("Migration failed:", e); }
 
 const jakartaSans = Plus_Jakarta_Sans({
   variable: "--font-jakarta",
