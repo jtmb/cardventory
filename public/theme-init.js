@@ -1,6 +1,14 @@
 (function(){
   try {
-    var c = JSON.parse(localStorage.getItem('cv_theme') || '{}');
+    var stored = localStorage.getItem('cv_theme');
+    if (!stored) {
+      // No theme saved — seed the default dark preset
+      var defaults = {primary:'#b8b8c7',background:'#1a1919',card:'#1a1a1a',sidebar:'#111111',foreground:'#e5e5e5',mutedForeground:'#737373',destructive:'#ef4444'};
+      localStorage.setItem('cv_theme', JSON.stringify(defaults));
+      localStorage.setItem('cv_preset', 'default');
+      stored = JSON.stringify(defaults);
+    }
+    var c = JSON.parse(stored || '{}');
     var e = document.documentElement;
     var s = function(p, v) { e.style.setProperty(p, v); };
     if (c.primary) {

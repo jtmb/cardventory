@@ -9,6 +9,7 @@ import {
   CHIP_STYLE_LS_KEY, applyChipStyle, type ChipStyleKey,
   BUTTON_STYLE_LS_KEY, applyButtonStyle, type ButtonStyleKey,
   SLEEVE_LS_KEY, applySleeve,
+  PRESET_LS_KEY, PRESET_THEMES, applyPresetTheme,
 } from "@/lib/theme";
 
 /**
@@ -20,7 +21,12 @@ export default function ThemeApplicator() {
   useEffect(() => {
     try {
       const stored = localStorage.getItem(THEME_LS_KEY);
-      if (stored) applyThemeColors(JSON.parse(stored));
+      if (stored) {
+        applyThemeColors(JSON.parse(stored));
+      } else {
+        // No theme saved — apply and persist the default dark preset
+        applyPresetTheme("default");
+      }
     } catch {}
 
     try {
