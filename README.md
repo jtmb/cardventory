@@ -1,6 +1,8 @@
 <div align="center">
 
-<img src="public/banner.png" alt="Cardventory" width="100%" />
+<img src="public/image.png" alt="Cardventory" width="25%" />
+<br> </br>
+
 
 **Self-hosted trading card collection manager with live market pricing**
 
