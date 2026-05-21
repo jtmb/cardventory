@@ -38,6 +38,10 @@ resource "linode_instance" "cardventory" {
       app_hostname            = local.app_hostname
     }))
   }
+
+  lifecycle {
+    prevent_destroy = true
+  }
 }
 
 resource "linode_firewall" "cardventory" {
@@ -56,4 +60,8 @@ resource "linode_firewall" "cardventory" {
   }
 
   linodes = [linode_instance.cardventory.id]
+
+  lifecycle {
+    prevent_destroy = true
+  }
 }
