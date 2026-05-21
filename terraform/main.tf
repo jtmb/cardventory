@@ -5,21 +5,6 @@ terraform {
       version = "~> 2.0"
     }
   }
-
-  # Uncomment to store Terraform state in Linode Object Storage (recommended for CI/CD).
-  # Create the bucket manually in the Linode console first, then add the access/secret
-  # keys as environment variables AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY.
-  #
-  # backend "s3" {
-  #   bucket                      = "cardventory-tfstate"
-  #   key                         = "terraform.tfstate"
-  #   region                      = "us-east-1"
-  #   endpoint                    = "https://us-east-1.linodeobjects.com"
-  #   skip_credentials_validation = true
-  #   skip_metadata_api_check     = true
-  #   skip_region_validation      = true
-  #   force_path_style            = true
-  # }
 }
 
 provider "linode" {
