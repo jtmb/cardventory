@@ -58,9 +58,10 @@ jobs:
           fi
 
       - name: Trigger Release workflow
-        env:
-          GH_TOKEN: ${{ secrets.GH_PAT }}
         run: |
-          gh workflow run release.yml \
-            --repo ${{ github.repository }} \
-            --field tag=${{ steps.tagger.outputs.final_tag }}
+          curl -s -X POST \
+            -H "Accept: application/vnd.github+json" \
+            -H "Authorization: Bearer ${{ secrets.GH_PAT }}" \
+            "https://api.github.com/repos/${{ github.repository }}/actions/workflows/release.yml/dispatches" \
+            -d "{\"ref\":\"main\",\"inputs\":{\"tag\":\"${{ steps.tagger.outputs.final_tag }}\"}}"
+          echo "Dispatched release.yml for ${{ steps.tagger.outputs.final_tag }}"
