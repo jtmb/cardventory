@@ -476,6 +476,54 @@ export function applyZoomScale(key: ZoomScaleKey) {
   }
 }
 
+// ─── Settings Panel Layout ────────────────────────────────────────────────────
+
+export const SETTINGS_LAYOUT_LS_KEY = "cv_settings_layout";
+export type SettingsLayoutKey = "narrow" | "centered" | "wide" | "full";
+
+export const SETTINGS_LAYOUT_OPTIONS: Array<{
+  key: SettingsLayoutKey;
+  label: string;
+  desc: string;
+}> = [
+  { key: "centered", label: "Centered", desc: "672px — default" },
+  { key: "wide",     label: "Wide",     desc: "896px — roomier panels" },
+  { key: "full",     label: "Full",     desc: "Uses all available width" },
+];
+
+/** Returns a Tailwind class string for the settings content wrapper (desktop only). */
+export function settingsLayoutWrapperClass(key: SettingsLayoutKey): string {
+  switch (key) {
+    case "narrow":   return "mx-auto w-full lg:max-w-lg";
+    case "centered": return "mx-auto w-full lg:max-w-2xl";
+    case "wide":     return "mx-auto w-full lg:max-w-4xl";
+    case "full":     return "w-full";
+  }
+}
+
+// ─── Settings Card Arrangement ────────────────────────────────────────────────
+
+export const SETTINGS_ARRANGEMENT_LS_KEY = "cv_settings_arrangement";
+export type SettingsArrangementKey = "single" | "grid" | "dense";
+
+export const SETTINGS_ARRANGEMENT_OPTIONS: Array<{
+  key: SettingsArrangementKey;
+  label: string;
+  desc: string;
+}> = [
+  { key: "single", label: "Single",  desc: "Cards stacked one per row" },
+  { key: "grid",   label: "Grid",    desc: "Two cards side by side" },
+  { key: "dense",  label: "Dense",   desc: "Three cards per row" },
+];
+
+export function settingsArrangementClass(key: SettingsArrangementKey): string {
+  switch (key) {
+    case "single": return "space-y-4";
+    case "grid":   return "grid gap-4 [grid-template-columns:repeat(auto-fill,minmax(min(100%,380px),1fr))] [&>*]:min-w-0";
+    case "dense":  return "grid gap-4 [grid-template-columns:repeat(auto-fill,minmax(min(100%,300px),1fr))] [&>*]:min-w-0";
+  }
+}
+
 // ─── Card Sleeve Effect ───────────────────────────────────────────────────────
 
 export const SLEEVE_LS_KEY = "cv_sleeve";

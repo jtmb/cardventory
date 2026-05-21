@@ -26,6 +26,8 @@ import {
   BUTTON_STYLE_OPTIONS, BUTTON_STYLE_LS_KEY, applyButtonStyle, type ButtonStyleKey,
   SLEEVE_LS_KEY, applySleeve,
   ZOOM_SCALE_OPTIONS, ZOOM_SCALE_LS_KEY, applyZoomScale, type ZoomScaleKey,
+  SETTINGS_LAYOUT_OPTIONS, SETTINGS_LAYOUT_LS_KEY, settingsLayoutWrapperClass, type SettingsLayoutKey,
+  SETTINGS_ARRANGEMENT_OPTIONS, SETTINGS_ARRANGEMENT_LS_KEY, settingsArrangementClass, type SettingsArrangementKey,
 } from "@/lib/theme";
 
 const REFRESH_INTERVALS = [
@@ -139,6 +141,8 @@ function SettingsContent() {
   const [autoBackupHours, setAutoBackupHours] = useState("0");
   const [autoBackupMax, setAutoBackupMax] = useState("10");
   const [zoomScale, setZoomScale] = useState<ZoomScaleKey>("natural");
+  const [settingsLayout, setSettingsLayout] = useState<SettingsLayoutKey>("centered");
+  const [settingsArrangement, setSettingsArrangement] = useState<SettingsArrangementKey>("single");
   // Appearance extras
   const [priceBadges, setPriceBadges] = useState(true);
   // Logo state (admin)
@@ -193,6 +197,14 @@ function SettingsContent() {
       const z = localStorage.getItem(ZOOM_SCALE_LS_KEY) as ZoomScaleKey | null;
       if (z) setZoomScale(z);
     } catch {}
+    try {
+      const sl = localStorage.getItem(SETTINGS_LAYOUT_LS_KEY) as SettingsLayoutKey | null;
+      if (sl && SETTINGS_LAYOUT_OPTIONS.some((o) => o.key === sl)) setSettingsLayout(sl);
+    } catch {}
+    try {
+      const sa = localStorage.getItem(SETTINGS_ARRANGEMENT_LS_KEY) as SettingsArrangementKey | null;
+      if (sa) setSettingsArrangement(sa);
+    } catch {}
 
     fetch("/api/settings")
       .then((r) => r.json())
@@ -246,6 +258,16 @@ function SettingsContent() {
           setZoomScale(z);
           localStorage.setItem(ZOOM_SCALE_LS_KEY, z);
           applyZoomScale(z);
+        }
+        if (data.settings_layout && SETTINGS_LAYOUT_OPTIONS.some((o) => o.key === data.settings_layout)) {
+          const sl = data.settings_layout as SettingsLayoutKey;
+          setSettingsLayout(sl);
+          localStorage.setItem(SETTINGS_LAYOUT_LS_KEY, sl);
+        }
+        if (data.settings_arrangement) {
+          const sa = data.settings_arrangement as SettingsArrangementKey;
+          setSettingsArrangement(sa);
+          localStorage.setItem(SETTINGS_ARRANGEMENT_LS_KEY, sa);
         }
         if (data.price_badges !== undefined) setPriceBadges(data.price_badges !== "false");
         if (data.manual_refresh_last) {
@@ -370,6 +392,16 @@ function SettingsContent() {
     localStorage.setItem(ZOOM_SCALE_LS_KEY, key);
   }
 
+  function handleSettingsLayout(key: SettingsLayoutKey) {
+    setSettingsLayout(key);
+    localStorage.setItem(SETTINGS_LAYOUT_LS_KEY, key);
+  }
+
+  function handleSettingsArrangement(key: SettingsArrangementKey) {
+    setSettingsArrangement(key);
+    localStorage.setItem(SETTINGS_ARRANGEMENT_LS_KEY, key);
+  }
+
   /** Single source of truth for all exportable / saveable settings. */
   function buildSettingsPayload() {
     const defaultColors = Object.fromEntries(
@@ -384,6 +416,8 @@ function SettingsContent() {
       btn_style: btnStyle,
       sleeve_effect: sleeveEffect,
       zoom_scale: zoomScale,
+      settings_layout: settingsLayout,
+      settings_arrangement: settingsArrangement,
       price_badges: priceBadges,
       refresh_interval: refreshInterval,
       notif_email_enabled: notifEmailEnabled,
@@ -467,6 +501,9 @@ function SettingsContent() {
           chip_style: s.chip_style,
           btn_style: s.btn_style,
           sleeve_effect: String(s.sleeve_effect),
+          zoom_scale: s.zoom_scale,
+          settings_layout: s.settings_layout,
+          settings_arrangement: s.settings_arrangement,
           price_badges: String(s.price_badges),
           notif_email_enabled: String(s.notif_email_enabled),
           notif_smtp_host: s.notif_smtp_host,
@@ -581,7 +618,7 @@ function SettingsContent() {
 
   return (
     <div className="min-h-full flex flex-col">
-      <div className="p-6 max-w-2xl mx-auto w-full pb-20">
+      <div className={`p-6 pb-20 ${settingsLayoutWrapperClass(settingsLayout)}`}>
       <div className="mb-4">
         <h1 className="type-headline-large font-bold">{SECTION_LABELS[activeSection] ?? "Settings"}</h1>
         <p className="type-body-medium text-muted-foreground mt-1">Configure Cardventory to your preferences</p>
@@ -589,7 +626,7 @@ function SettingsContent() {
 
       {/* ── Account ────────────────────────────────────────────────────────── */}
       {activeSection === "account" && (
-        <div className="space-y-4">
+        <div className={settingsArrangementClass(settingsArrangement)}>
           {/* Profile */}
           <Card>
             <CardHeader>
@@ -712,7 +749,7 @@ function SettingsContent() {
 
       {/* ── Appearance ─────────────────────────────────────────────────────── */}
       {activeSection === "appearance" && (
-        <div className="space-y-4">
+        <div className={settingsArrangementClass(settingsArrangement)}>
         {/* Preset Themes */}
         <Card>
           <CardHeader>
@@ -951,6 +988,97 @@ function SettingsContent() {
           </CardContent>
         </Card>
 
+        {/* Settings Panel Layout */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Settings Panel Width</CardTitle>
+            <CardDescription>
+              Control how wide the settings content area is on desktop. Has no effect on mobile.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:opacity-100 opacity-50 pointer-events-none sm:pointer-events-auto">
+              {SETTINGS_LAYOUT_OPTIONS.map((opt) => {
+                const isDisabled = opt.key === "centered" && settingsArrangement !== "single";
+                return (
+                <button
+                  key={opt.key}
+                  type="button"
+                  onClick={() => !isDisabled && handleSettingsLayout(opt.key)}
+                  disabled={isDisabled}
+                  title={isDisabled ? "Centered is too narrow for multi-column layouts" : undefined}
+                  className={`text-left rounded-lg border-2 p-4 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
+                    isDisabled
+                      ? "border-border opacity-35 cursor-not-allowed"
+                      : settingsLayout === opt.key
+                        ? "border-primary bg-primary/5 hover:border-primary/60"
+                        : "border-border hover:border-primary/60"
+                  }`}
+                >
+                  <p className="type-label-large font-semibold">{opt.label}</p>
+                  <p className="type-label-small text-muted-foreground mt-0.5">{opt.desc}</p>
+                </button>
+                );
+              })}
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Card Arrangement */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Card Arrangement</CardTitle>
+            <CardDescription>
+              Choose how setting cards are arranged on desktop. Does not affect mobile.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-3 gap-3 sm:opacity-100 opacity-50 pointer-events-none sm:pointer-events-auto">
+              {SETTINGS_ARRANGEMENT_OPTIONS.map((opt) => {
+                const isDisabled = opt.key !== "single" && settingsLayout === "centered";
+                return (
+                <button
+                  key={opt.key}
+                  type="button"
+                  onClick={() => !isDisabled && handleSettingsArrangement(opt.key)}
+                  disabled={isDisabled}
+                  title={isDisabled ? "Switch to Wide or Full panel width to use this layout" : undefined}
+                  className={`relative text-left rounded-lg border-2 p-3 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
+                    isDisabled
+                      ? "border-border opacity-35 cursor-not-allowed"
+                      : settingsArrangement === opt.key
+                        ? "border-primary bg-primary/5 hover:border-primary/60"
+                        : "border-border hover:border-primary/60"
+                  }`}
+                >
+                  {/* Mini layout preview */}
+                  <div className="mb-2.5 flex gap-1 h-8">
+                    {opt.key === "single" && (
+                      <div className="flex-1 rounded bg-muted-foreground/20 border border-muted-foreground/30" />
+                    )}
+                    {opt.key === "grid" && (
+                      <>
+                        <div className="flex-1 rounded bg-muted-foreground/20 border border-muted-foreground/30" />
+                        <div className="flex-1 rounded bg-muted-foreground/20 border border-muted-foreground/30" />
+                      </>
+                    )}
+                    {opt.key === "dense" && (
+                      <>
+                        <div className="flex-1 rounded bg-muted-foreground/20 border border-muted-foreground/30" />
+                        <div className="flex-1 rounded bg-muted-foreground/20 border border-muted-foreground/30" />
+                        <div className="flex-1 rounded bg-muted-foreground/20 border border-muted-foreground/30" />
+                      </>
+                    )}
+                  </div>
+                  <p className="type-label-large font-semibold">{opt.label}</p>
+                  <p className="type-label-small text-muted-foreground mt-0.5">{opt.desc}</p>
+                </button>
+                );
+              })}
+            </div>
+          </CardContent>
+        </Card>
+
         {/* Custom Colours */}
         <Card>
           <CardHeader>
@@ -995,7 +1123,7 @@ function SettingsContent() {
 
       {/* ── Data ───────────────────────────────────────────────────────────── */}
       {activeSection === "data" && (
-        <div className="space-y-4">
+        <div className={settingsArrangementClass(settingsArrangement)}>
         <Card>
           <CardHeader>
             <CardTitle className="text-base">Test Data</CardTitle>
@@ -1018,7 +1146,7 @@ function SettingsContent() {
 
       {/* ── General ────────────────────────────────────────────────────────── */}
       {activeSection === "general" && (
-        <div className="space-y-4">
+        <div className={settingsArrangementClass(settingsArrangement)}>
         <Card>
           <CardHeader>
             <CardTitle className="text-base">Welcome Tour</CardTitle>
@@ -1176,7 +1304,7 @@ function SettingsContent() {
 
       {/* ── Notifications ───────────────────────────────────────────── */}
       {activeSection === "notifications" && (
-        <div className="space-y-4">
+        <div className={settingsArrangementClass(settingsArrangement)}>
         {/* Email */}
         <Card>
           <CardHeader>
@@ -1355,14 +1483,14 @@ function SettingsContent() {
 
       {/* ── User Management ───────────────────────────────────────────────── */}
       {activeSection === "user-management" && isAdmin && (
-        <div className="space-y-4">
+        <div className={settingsArrangementClass(settingsArrangement)}>
           <UserManagementSection />
         </div>
       )}
 
       {/* ── Authentication ────────────────────────────────────────────────── */}
       {activeSection === "authentication" && isAdmin && (
-        <div className="space-y-4">
+        <div className={settingsArrangementClass(settingsArrangement)}>
           {/* Registration Controls */}
           <Card>
             <CardHeader>
@@ -1480,7 +1608,7 @@ function SettingsContent() {
 
       {/* ── System ────────────────────────────────────────────────────────── */}
       {activeSection === "system" && (
-        <div className="space-y-4">
+        <div className={settingsArrangementClass(settingsArrangement)}>
         {/* App Logo */}
         {isAdmin && (
         <Card>
@@ -1771,7 +1899,7 @@ function SettingsContent() {
       </div>{/* end p-6 wrapper */}
 
       <div className="fixed bottom-0 left-0 md:left-60 right-0 z-10 border-t border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-        <div className="max-w-2xl mx-auto px-6 py-3 flex items-center gap-3">
+        <div className={`${settingsLayoutWrapperClass(settingsLayout)} px-6 py-3 flex items-center gap-3`}>
           {isActualAdmin && (
             <Button
               variant={previewRole === "user" ? "secondary" : "outline"}
