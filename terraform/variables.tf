@@ -32,9 +32,10 @@ variable "nextauth_url" {
   type        = string
 }
 
-variable "acme_email" {
-  description = "Email for Let's Encrypt certificate expiry notifications"
+variable "cloudflare_tunnel_token" {
+  description = "Cloudflare Tunnel token — generate in Zero Trust dashboard under Networks > Tunnels"
   type        = string
+  sensitive   = true
 }
 
 variable "ghcr_username" {

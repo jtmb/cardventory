@@ -43,14 +43,14 @@ resource "linode_instance" "cardventory" {
 
   metadata {
     user_data = base64encode(templatefile("${path.module}/cloud-init.tftpl", {
-      auth_secret        = var.auth_secret
-      nextauth_url       = var.nextauth_url
-      acme_email         = var.acme_email
-      ghcr_username      = var.ghcr_username
-      ghcr_token         = var.ghcr_token
-      ebay_client_id     = var.ebay_client_id
-      ebay_client_secret = var.ebay_client_secret
-      app_hostname       = local.app_hostname
+      auth_secret             = var.auth_secret
+      nextauth_url            = var.nextauth_url
+      cloudflare_tunnel_token = var.cloudflare_tunnel_token
+      ghcr_username           = var.ghcr_username
+      ghcr_token              = var.ghcr_token
+      ebay_client_id          = var.ebay_client_id
+      ebay_client_secret      = var.ebay_client_secret
+      app_hostname            = local.app_hostname
     }))
   }
 }
@@ -66,24 +66,6 @@ resource "linode_firewall" "cardventory" {
     action   = "ACCEPT"
     protocol = "TCP"
     ports    = "22"
-    ipv4     = ["0.0.0.0/0"]
-    ipv6     = ["::/0"]
-  }
-
-  inbound {
-    label    = "http"
-    action   = "ACCEPT"
-    protocol = "TCP"
-    ports    = "80"
-    ipv4     = ["0.0.0.0/0"]
-    ipv6     = ["::/0"]
-  }
-
-  inbound {
-    label    = "https"
-    action   = "ACCEPT"
-    protocol = "TCP"
-    ports    = "443"
     ipv4     = ["0.0.0.0/0"]
     ipv6     = ["::/0"]
   }

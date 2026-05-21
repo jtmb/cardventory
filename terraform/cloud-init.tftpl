@@ -90,9 +90,6 @@ write_files:
           internal: true
         web_net:
 
-      volumes:
-        traefik_certs:
-
       services:
         socket-proxy:
           image: tecnativa/docker-socket-proxy:edge
@@ -120,12 +117,8 @@ write_files:
           networks:
             - socket_net
             - web_net
-          ports:
-            - "80:80"
-            - "443:443"
           volumes:
             - /opt/cardventory/traefik:/traefik:ro
-            - traefik_certs:/letsencrypt
           tmpfs:
             - /tmp
           read_only: true
@@ -155,10 +148,24 @@ write_files:
           labels:
             - "traefik.enable=true"
             - "traefik.http.routers.cardventory.rule=Host(`${app_hostname}`)"
-            - "traefik.http.routers.cardventory.entrypoints=websecure"
-            - "traefik.http.routers.cardventory.tls.certresolver=letsencrypt"
+            - "traefik.http.routers.cardventory.entrypoints=web"
             - "traefik.http.routers.cardventory.middlewares=secureHeaders@file,rateLimit@file"
             - "traefik.http.services.cardventory.loadbalancer.server.port=3000"
+
+        cloudflared:
+          image: cloudflare/cloudflared:latest
+          container_name: cloudflared
+          restart: unless-stopped
+          command: tunnel --no-autoupdate run
+          environment:
+            - TUNNEL_TOKEN=${cloudflare_tunnel_token}
+          networks:
+            - web_net
+          mem_limit: 64m
+          cap_drop:
+            - ALL
+          security_opt:
+            - no-new-privileges:true
 
   # ---------------------------------------------------------------------------
   # Traefik static config
@@ -184,22 +191,6 @@ write_files:
       entryPoints:
         web:
           address: ":80"
-          http:
-            redirections:
-              entryPoint:
-                to: websecure
-                scheme: https
-                permanent: true
-        websecure:
-          address: ":443"
-
-      certificatesResolvers:
-        letsencrypt:
-          acme:
-            email: ${acme_email}
-            storage: /letsencrypt/acme.json
-            httpChallenge:
-              entryPoint: web
 
   # ---------------------------------------------------------------------------
   # Traefik dynamic config — security headers, rate limiting, TLS hardening
@@ -211,10 +202,6 @@ write_files:
         middlewares:
           secureHeaders:
             headers:
-              forceSTSHeader: true
-              stsSeconds: 31536000
-              stsIncludeSubdomains: true
-              stsPreload: true
               frameDeny: true
               contentTypeNosniff: true
               referrerPolicy: "no-referrer"
@@ -226,18 +213,6 @@ write_files:
             rateLimit:
               average: 100
               burst: 200
-
-      tls:
-        options:
-          default:
-            minVersion: VersionTLS12
-            cipherSuites:
-              - TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256
-              - TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256
-              - TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384
-              - TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384
-              - TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256
-              - TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256
 
 runcmd:
   # --- Swap file (critical: g6-nanode-1 has only 1GB RAM) ---

@@ -46,3 +46,11 @@ next-env.d.ts
 !/uploads/.gitkeep
 data
 uploads
+
+# terraform
+terraform/terraform.tfvars
+terraform/.terraform/
+terraform/.terraform.lock.hcl
+terraform/terraform.tfstate
+terraform/terraform.tfstate.backup
+terraform/tfplan

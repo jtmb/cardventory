@@ -24,7 +24,7 @@ jobs:
       TF_VAR_ssh_public_key: ${{ secrets.TF_VAR_SSH_PUBLIC_KEY }}
       TF_VAR_auth_secret: ${{ secrets.TF_VAR_AUTH_SECRET }}
       TF_VAR_nextauth_url: ${{ secrets.TF_VAR_NEXTAUTH_URL }}
-      TF_VAR_acme_email: ${{ secrets.TF_VAR_ACME_EMAIL }}
+      TF_VAR_cloudflare_tunnel_token: ${{ secrets.TF_VAR_CLOUDFLARE_TUNNEL_TOKEN }}
       TF_VAR_ghcr_username: ${{ secrets.TF_VAR_GHCR_USERNAME }}
       TF_VAR_ghcr_token: ${{ secrets.TF_VAR_GHCR_TOKEN }}
       TF_VAR_ebay_client_id: ${{ secrets.TF_VAR_EBAY_CLIENT_ID }}
