@@ -8,7 +8,6 @@ import {
   CARD_STYLE_LS_KEY, applyCardStyle, type CardStyleKey,
   CHIP_STYLE_LS_KEY, applyChipStyle, type ChipStyleKey,
   BUTTON_STYLE_LS_KEY, applyButtonStyle, type ButtonStyleKey,
-  SLEEVE_LS_KEY, applySleeve,
   PRESET_LS_KEY, PRESET_THEMES, applyPresetTheme,
   ZOOM_SCALE_LS_KEY, applyZoomScale, type ZoomScaleKey,
 } from "@/lib/theme";
@@ -53,11 +52,6 @@ export default function ThemeApplicator() {
     try {
       const btnStyle = localStorage.getItem(BUTTON_STYLE_LS_KEY) as ButtonStyleKey | null;
       if (btnStyle) applyButtonStyle(btnStyle);
-    } catch {}
-
-    try {
-      const sleeve = localStorage.getItem(SLEEVE_LS_KEY);
-      if (sleeve !== null) applySleeve(sleeve === "true");
     } catch {}
 
     try {

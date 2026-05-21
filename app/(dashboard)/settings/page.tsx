@@ -24,7 +24,6 @@ import {
   TYPE_DENSITY_OPTIONS, TYPE_DENSITY_LS_KEY, applyTypeDensity, type TypeDensityKey,
   CHIP_STYLE_OPTIONS, CHIP_STYLE_LS_KEY, applyChipStyle, type ChipStyleKey,
   BUTTON_STYLE_OPTIONS, BUTTON_STYLE_LS_KEY, applyButtonStyle, type ButtonStyleKey,
-  SLEEVE_LS_KEY, applySleeve,
   ZOOM_SCALE_OPTIONS, ZOOM_SCALE_LS_KEY, applyZoomScale, type ZoomScaleKey,
   SETTINGS_LAYOUT_OPTIONS, SETTINGS_LAYOUT_LS_KEY, settingsLayoutWrapperClass, type SettingsLayoutKey,
   SETTINGS_ARRANGEMENT_OPTIONS, SETTINGS_ARRANGEMENT_LS_KEY, settingsArrangementClass, type SettingsArrangementKey,
@@ -103,7 +102,6 @@ function SettingsContent() {
   const [typeDensity, setTypeDensity] = useState<TypeDensityKey>("default");
   const [chipStyle, setChipStyle] = useState<ChipStyleKey>("assist");
   const [btnStyle, setBtnStyle] = useState<ButtonStyleKey>("filled");
-  const [sleeveEffect, setSleeveEffect] = useState(true);
   const [refreshCooldownUntil, setRefreshCooldownUntil] = useState<Date | null>(null);
   // Notification state
   const [notifEmailEnabled, setNotifEmailEnabled] = useState(false);
@@ -190,10 +188,6 @@ function SettingsContent() {
       if (bs) setBtnStyle(bs);
     } catch {}
     try {
-      const sl = localStorage.getItem(SLEEVE_LS_KEY);
-      if (sl !== null) setSleeveEffect(sl === "true");
-    } catch {}
-    try {
       const z = localStorage.getItem(ZOOM_SCALE_LS_KEY) as ZoomScaleKey | null;
       if (z) setZoomScale(z);
     } catch {}
@@ -246,12 +240,6 @@ function SettingsContent() {
           setBtnStyle(bs);
           localStorage.setItem(BUTTON_STYLE_LS_KEY, bs);
           applyButtonStyle(bs);
-        }
-        if (data.sleeve_effect !== undefined) {
-          const sl = data.sleeve_effect === "true";
-          setSleeveEffect(sl);
-          localStorage.setItem(SLEEVE_LS_KEY, String(sl));
-          applySleeve(sl);
         }
         if (data.zoom_scale) {
           const z = data.zoom_scale as ZoomScaleKey;
@@ -381,12 +369,6 @@ function SettingsContent() {
     localStorage.setItem(BUTTON_STYLE_LS_KEY, key);
   }
 
-  function handleSleeve(on: boolean) {
-    setSleeveEffect(on);
-    applySleeve(on);
-    localStorage.setItem(SLEEVE_LS_KEY, String(on));
-  }
-
   function handleZoomScale(key: ZoomScaleKey) {
     setZoomScale(key);
     applyZoomScale(key);
@@ -412,7 +394,6 @@ function SettingsContent() {
     setTypeDensity("default");
     setChipStyle("assist");
     setBtnStyle("filled");
-    setSleeveEffect(true);
     setZoomScale("natural");
     setPriceBadges(true);
     setSettingsLayout("centered");
@@ -423,7 +404,6 @@ function SettingsContent() {
     applyTypeDensity("default");
     applyChipStyle("assist");
     applyButtonStyle("filled");
-    applySleeve(true);
     applyZoomScale("natural");
     // Sync localStorage
     localStorage.setItem(THEME_LS_KEY, JSON.stringify(dp.colors));
@@ -433,7 +413,6 @@ function SettingsContent() {
     if (defDensity) localStorage.setItem(TYPE_DENSITY_LS_KEY, defDensity.value);
     localStorage.setItem(CHIP_STYLE_LS_KEY, "assist");
     localStorage.setItem(BUTTON_STYLE_LS_KEY, "filled");
-    localStorage.setItem(SLEEVE_LS_KEY, "true");
     localStorage.setItem(ZOOM_SCALE_LS_KEY, "natural");
     localStorage.setItem(SETTINGS_LAYOUT_LS_KEY, "centered");
     localStorage.setItem(SETTINGS_ARRANGEMENT_LS_KEY, "single");
@@ -449,7 +428,6 @@ function SettingsContent() {
           type_density: "default",
           chip_style: "assist",
           btn_style: "filled",
-          sleeve_effect: true,
           zoom_scale: "natural",
           price_badges: true,
           settings_layout: "centered",
@@ -474,7 +452,6 @@ function SettingsContent() {
       type_density: typeDensity,
       chip_style: chipStyle,
       btn_style: btnStyle,
-      sleeve_effect: sleeveEffect,
       zoom_scale: zoomScale,
       settings_layout: settingsLayout,
       settings_arrangement: settingsArrangement,
@@ -520,7 +497,6 @@ function SettingsContent() {
         if (data.type_density) { setTypeDensity(data.type_density); applyTypeDensity(data.type_density); const opt = TYPE_DENSITY_OPTIONS.find((o) => o.key === data.type_density); if (opt) localStorage.setItem(TYPE_DENSITY_LS_KEY, opt.value); }
         if (data.chip_style) { setChipStyle(data.chip_style); applyChipStyle(data.chip_style); localStorage.setItem(CHIP_STYLE_LS_KEY, data.chip_style); }
         if (data.btn_style) { setBtnStyle(data.btn_style); applyButtonStyle(data.btn_style); localStorage.setItem(BUTTON_STYLE_LS_KEY, data.btn_style); }
-        if (data.sleeve_effect !== undefined) { const sv = Boolean(data.sleeve_effect); setSleeveEffect(sv); applySleeve(sv); localStorage.setItem(SLEEVE_LS_KEY, String(sv)); }
         if (data.refresh_interval) setRefreshInterval(data.refresh_interval);
         if (data.notif_email_enabled !== undefined) setNotifEmailEnabled(data.notif_email_enabled);
         if (data.notif_smtp_host) setNotifSmtpHost(data.notif_smtp_host);
@@ -560,7 +536,6 @@ function SettingsContent() {
           type_density: s.type_density,
           chip_style: s.chip_style,
           btn_style: s.btn_style,
-          sleeve_effect: String(s.sleeve_effect),
           zoom_scale: s.zoom_scale,
           settings_layout: s.settings_layout,
           settings_arrangement: s.settings_arrangement,
@@ -957,41 +932,6 @@ function SettingsContent() {
             {/* Live preview */}
             <div className="pt-1">
               <Button size="sm">Preview Button</Button>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Card Sleeve Effect */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Card Sleeve Effect</CardTitle>
-            <CardDescription>
-              Adds a translucent glare overlay to card images, simulating a protective sleeve or card book page.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="type-label-large font-medium">Sleeve overlay</p>
-                <p className="type-label-small text-muted-foreground mt-0.5">
-                  {sleeveEffect ? "On — cards show a sleeve glare" : "Off — cards show unobscured"}
-                </p>
-              </div>
-              <button
-                type="button"
-                role="switch"
-                aria-checked={sleeveEffect}
-                onClick={() => handleSleeve(!sleeveEffect)}
-                className={`relative inline-flex h-6 w-11 items-center rounded-full border-2 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
-                  sleeveEffect ? "bg-primary border-primary" : "bg-muted border-border"
-                }`}
-              >
-                <span
-                  className={`inline-block h-4 w-4 rounded-full bg-white shadow transition-transform ${
-                    sleeveEffect ? "translate-x-5" : "translate-x-0.5"
-                  }`}
-                />
-              </button>
             </div>
           </CardContent>
         </Card>

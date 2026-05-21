@@ -32,6 +32,7 @@ export function CardRow({
   onToggle,
   layout = "grid",
   showPriceBadges = true,
+  infoOverlay = false,
 }: {
   card: Card;
   selectable?: boolean;
@@ -39,10 +40,10 @@ export function CardRow({
   onToggle?: (id: string) => void;
   layout?: "grid" | "list" | "compact";
   showPriceBadges?: boolean;
+  infoOverlay?: boolean;
 }) {
   const [currentValue, setCurrentValue] = useState<number | null>(null);
   const [priceChange7d, setPriceChange7d] = useState<number | null>(null);
-  const [priceChange30d, setPriceChange30d] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const [isPending, startTransition] = useTransition();
   const router = useRouter();
@@ -53,7 +54,6 @@ export function CardRow({
       .then((data) => {
         setCurrentValue(data.highest ?? null);
         setPriceChange7d(data.change7d ?? null);
-        setPriceChange30d(data.change30d ?? null);
       })
       .catch(() => {})
       .finally(() => setLoading(false));
@@ -77,7 +77,7 @@ export function CardRow({
 
   const rowProps: RowLayoutProps = {
     card, setLine, selectable, selected, onToggle, isPending,
-    loading, currentValue, priceChange7d, priceChange30d, handleDelete,
+    loading, currentValue, handleDelete,
     showPriceBadges,
   };
   if (layout === "list") return <CardListLayout {...rowProps} />;
@@ -148,7 +148,7 @@ export function CardRow({
           >
             {selected && <CheckIcon className="h-3 w-3 text-primary-foreground" />}
           </div>
-          <CardInner card={card} setLine={setLine} isPending={isPending} showPriceBadges={showPriceBadges} />
+          <CardInner card={card} setLine={setLine} isPending={isPending} showPriceBadges={showPriceBadges} infoOverlay={infoOverlay} />
         </button>
       ) : (
         <Link href={`/cards/${card.id}`} className="block">
@@ -157,7 +157,7 @@ export function CardRow({
             "border-border/60 hover:border-primary/60 hover:shadow-2xl hover:shadow-black/60 hover:-translate-y-1",
             isPending && "opacity-40 pointer-events-none"
           )}>
-            <CardInner card={card} setLine={setLine} isPending={isPending} loading={loading} currentValue={currentValue} priceChange7d={priceChange7d} priceChange30d={priceChange30d} showPriceBadges={showPriceBadges} />
+            <CardInner card={card} setLine={setLine} isPending={isPending} loading={loading} currentValue={currentValue} priceChange7d={priceChange7d} showPriceBadges={showPriceBadges} infoOverlay={infoOverlay} />
           </div>
         </Link>
       )}
@@ -196,8 +196,8 @@ function CardInner({
   loading = false,
   currentValue = null,
   priceChange7d = null,
-  priceChange30d = null,
   showPriceBadges = true,
+  infoOverlay = false,
 }: {
   card: Card;
   setLine: string;
@@ -205,8 +205,8 @@ function CardInner({
   loading?: boolean;
   currentValue?: number | null;
   priceChange7d?: number | null;
-  priceChange30d?: number | null;
   showPriceBadges?: boolean;
+  infoOverlay?: boolean;
 }) {
   return (
     <>
@@ -234,59 +234,66 @@ function CardInner({
             <span className="text-xs font-bold text-white leading-tight">{card.gradeValue}</span>
           </div>
         )}
-        {/* Price trend badge */}
-        {showPriceBadges && !loading && priceChange7d !== null && priceChange7d !== 0 && (
-          <div className={cn(
-            "absolute bottom-2 left-2 flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-bold shadow-md backdrop-blur-sm ring-1",
-            priceChange7d > 0
-              ? "bg-gradient-to-r from-emerald-500/90 to-emerald-400/80 text-white ring-emerald-400/40"
-              : "bg-gradient-to-r from-red-500/90 to-red-400/80 text-white ring-red-400/40"
-          )}>
+        {/* 7-day price trend — top-left, same row as grade badge */}
+        {!loading && priceChange7d !== null && priceChange7d !== 0 && (
+          <div className="absolute top-2 left-2 flex items-center gap-0.5 bg-black/65 backdrop-blur-sm shadow-md rounded-md px-1.5 py-0.5">
             {priceChange7d > 0
-              ? <TrendingUpIcon className="h-2.5 w-2.5" />
-              : <TrendingDownIcon className="h-2.5 w-2.5" />
+              ? <TrendingUpIcon className="h-2.5 w-2.5 text-emerald-400" />
+              : <TrendingDownIcon className="h-2.5 w-2.5 text-red-400" />
             }
-            {Math.abs(priceChange7d).toFixed(0)}%
+            <span className={`text-[10px] font-bold leading-tight ${priceChange7d > 0 ? "text-emerald-400" : "text-red-400"}`}>
+              {Math.abs(priceChange7d).toFixed(0)}%
+            </span>
+          </div>
+        )}
+
+        {/* Bottom info overlay */}
+        {infoOverlay && (
+          <div className={cn(
+            "absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/90 via-black/55 to-transparent pt-8 px-2 pb-2",
+            isPending && "opacity-40"
+          )}>
+            <p className="text-[11px] font-semibold text-white leading-tight line-clamp-2">{card.name}</p>
+            {setLine && (
+              <p className="text-[10px] text-white/55 truncate mt-0.5">{setLine}</p>
+            )}
+            {showPriceBadges && !loading && currentValue !== null && (
+              <span className="mt-1 block text-[10px] font-bold text-white/90 tabular-nums">{fmt(currentValue)}</span>
+            )}
           </div>
         )}
       </div>
 
-      {/* Info area */}
-      <div className={cn("p-3 space-y-1 border-t border-border/50", isPending && "opacity-40")}>
-        <p className="type-title-small font-semibold leading-tight line-clamp-1 tracking-tight">{card.name}</p>
-        {setLine && (
-          <p className="text-xs text-muted-foreground line-clamp-2 leading-snug">{setLine}</p>
-        )}
-        {/* Condition chip — only shown when not graded */}
-        {!card.gradeCompany && conditionLabel(card.condition) && (
-          <span className="inline-flex self-start text-[10px] font-medium text-muted-foreground bg-muted/70 rounded px-1.5 py-0.5 leading-tight">
-            {conditionLabel(card.condition)}
-          </span>
-        )}
-        <div className="pt-1 min-h-[1.25rem]">
-          {loading ? (
-            <div className="h-3.5 w-4/5 bg-muted rounded animate-pulse" />
-          ) : (
-            <div className="flex items-baseline gap-2 flex-wrap">
-              {priceChange7d !== null && (
-                <PriceChange label="7 DAYS" value={priceChange7d} />
-              )}
-              {priceChange30d !== null && (
-                <PriceChange label="30 DAYS" value={priceChange30d} />
-              )}
-              {priceChange7d === null && priceChange30d === null && (
-                currentValue !== null ? (
+      {/* Info area — hidden when info overlay is active */}
+      {!infoOverlay && (
+        <div className={cn("p-3 space-y-1 border-t border-border/50", isPending && "opacity-40")}>
+          <p className="type-title-small font-semibold leading-tight line-clamp-1 tracking-tight">{card.name}</p>
+          {setLine && (
+            <p className="text-xs text-muted-foreground line-clamp-2 leading-snug">{setLine}</p>
+          )}
+          {/* Condition chip — only shown when not graded */}
+          {!card.gradeCompany && conditionLabel(card.condition) && (
+            <span className="inline-flex self-start text-[10px] font-medium text-muted-foreground bg-muted/70 rounded px-1.5 py-0.5 leading-tight">
+              {conditionLabel(card.condition)}
+            </span>
+          )}
+          <div className="pt-1">
+            {loading ? (
+              <div className="h-3.5 w-4/5 bg-muted rounded animate-pulse" />
+            ) : (
+              <div>
+                {currentValue !== null ? (
                   <span className="inline-flex items-baseline bg-primary/15 text-primary rounded-md px-2 py-0.5 text-sm font-bold tabular-nums leading-tight ring-1 ring-primary/20">
                     {fmt(currentValue)}
                   </span>
                 ) : (
                   <span className="text-xs text-muted-foreground/40">No price data</span>
-                )
-              )}
-            </div>
-          )}
+                )}
+              </div>
+            )}
+          </div>
         </div>
-      </div>
+      )}
     </>
   );
 }
@@ -305,19 +312,6 @@ export function CardRowSkeleton() {
   );
 }
 
-function PriceChange({ label, value }: { label: string; value: number }) {
-  const up = value >= 0;
-  return (
-    <span className={cn(
-      "inline-flex items-baseline gap-1 text-xs font-semibold tabular-nums px-1.5 py-0.5 rounded",
-      up ? "bg-emerald-500/15 text-emerald-400" : "bg-red-500/15 text-red-400"
-    )}>
-      {label && <span className="font-normal opacity-60">{label}</span>}
-      {up ? "▲" : "▼"} {Math.abs(value).toFixed(1)}%
-    </span>
-  );
-}
-
 // ─── Shared props type for list/compact layouts ────────────────────────────
 
 type RowLayoutProps = {
@@ -329,8 +323,6 @@ type RowLayoutProps = {
   isPending: boolean;
   loading: boolean;
   currentValue: number | null;
-  priceChange7d: number | null;
-  priceChange30d: number | null;
   handleDelete: () => void;
   showPriceBadges: boolean;
 };
@@ -339,7 +331,7 @@ type RowLayoutProps = {
 
 function CardListLayout({
   card, setLine, selectable, selected, onToggle,
-  isPending, loading, currentValue, priceChange7d, handleDelete,
+  isPending, loading, currentValue, handleDelete,
 }: RowLayoutProps) {
   return (
     <div className={`group flex items-center gap-3 px-4 py-2.5 transition-colors ${selected ? "bg-primary/5" : "hover:bg-muted/30"} ${isPending ? "opacity-40 pointer-events-none" : ""}`}>
@@ -376,16 +368,9 @@ function CardListLayout({
         {loading ? (
           <div className="h-3 w-16 bg-muted rounded animate-pulse" />
         ) : currentValue !== null ? (
-          <>
-            {priceChange7d !== null && (
-              <span className="hidden sm:inline">
-                <PriceChange label="" value={priceChange7d} />
-              </span>
-            )}
-            <span className="inline-flex items-baseline bg-primary/10 text-primary rounded px-1.5 py-0.5 text-sm font-bold tabular-nums leading-tight">
-              {fmt(currentValue)}
-            </span>
-          </>
+          <span className="inline-flex items-baseline bg-primary/10 text-primary rounded px-1.5 py-0.5 text-sm font-bold tabular-nums leading-tight">
+            {fmt(currentValue)}
+          </span>
         ) : (
           <span className="text-xs text-muted-foreground/40">No data</span>
         )}
@@ -428,7 +413,7 @@ function CardListLayout({
 
 function CardCompactLayout({
   card, setLine, selectable, selected, onToggle,
-  isPending, loading, currentValue, priceChange7d, handleDelete,
+  isPending, loading, currentValue, handleDelete,
 }: RowLayoutProps) {
   return (
     <div className={`group flex items-center gap-2 px-4 py-2 transition-colors text-sm ${selected ? "bg-primary/5" : "hover:bg-muted/30"} ${isPending ? "opacity-40 pointer-events-none" : ""}`}>
@@ -457,14 +442,7 @@ function CardCompactLayout({
         {loading ? (
           <div className="h-3 w-12 bg-muted rounded animate-pulse" />
         ) : currentValue !== null ? (
-          <>
-            {priceChange7d !== null && (
-              <span className={`text-xs tabular-nums ${priceChange7d >= 0 ? "text-emerald-400" : "text-red-400"}`}>
-                {priceChange7d >= 0 ? "+" : ""}{priceChange7d.toFixed(1)}%
-              </span>
-            )}
-            <span className="text-xs font-bold tabular-nums text-primary">{fmt(currentValue)}</span>
-          </>
+          <span className="text-xs font-bold tabular-nums text-primary">{fmt(currentValue)}</span>
         ) : (
           <span className="text-xs text-muted-foreground/40">—</span>
         )}

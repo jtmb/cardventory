@@ -524,14 +524,6 @@ export function settingsArrangementClass(key: SettingsArrangementKey): string {
   }
 }
 
-// ─── Card Sleeve Effect ───────────────────────────────────────────────────────
-
-export const SLEEVE_LS_KEY = "cv_sleeve";
-
-export function applySleeve(on: boolean) {
-  document.documentElement.setAttribute("data-sleeve", on ? "true" : "false");
-}
-
 /**
  * Inline script string for injecting into <head> to apply theme colors
  * from localStorage synchronously before first paint (prevents FOUC).
@@ -587,14 +579,13 @@ export const THEME_INIT_SCRIPT = `(function(){
     if (d) document.documentElement.style.setProperty('--type-density', d);
   } catch(err) {}
 })();
-// Card/chip/button style + sleeve — set data attributes before first paint
+// Card/chip/button style — set data attributes before first paint
 (function(){
   try {
     var e = document.documentElement;
     var cs = localStorage.getItem('cv_card_style') || 'elevated'; e.setAttribute('data-card-style', cs);
     var ch = localStorage.getItem('cv_chip_style'); if (ch) e.setAttribute('data-chip-style', ch);
     var bs = localStorage.getItem('cv_btn_style');  if (bs) e.setAttribute('data-btn-style',  bs);
-    var sl = localStorage.getItem('cv_sleeve');      if (sl) e.setAttribute('data-sleeve',      sl);
   } catch(err) {}
 })();
 // Desktop zoom scale — applied before first paint
