@@ -24,6 +24,7 @@ jobs:
       contents: write       # create GitHub release
       packages: write       # push to ghcr.io
       security-events: write # upload Trivy SARIF
+      actions: write        # dispatch deploy workflow
 
     steps:
       - name: Checkout
@@ -100,3 +101,13 @@ jobs:
             ```
             docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.version.outputs.version }}
             ```
+
+      - name: Trigger Deploy workflow
+        if: success()
+        run: |
+          curl -s -X POST \
+            -H "Accept: application/vnd.github+json" \
+            -H "Authorization: Bearer ${{ github.token }}" \
+            "https://api.github.com/repos/${{ github.repository }}/actions/workflows/deploy.yml/dispatches" \
+            -d '{"ref":"main"}'
+          echo "Dispatched deploy.yml"

@@ -1,11 +1,7 @@
 name: Deploy
 
 on:
-  # Auto-deploy after a successful Release workflow run
-  workflow_run:
-    workflows: ["Release"]
-    types: [completed]
-  # Manual re-deploy (e.g. to roll back or force-push latest)
+  # Triggered by release.yml after a successful build, or manually
   workflow_dispatch:
 
 permissions: {}
@@ -13,8 +9,6 @@ permissions: {}
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    # Skip if the triggering release workflow failed
-    if: ${{ github.event.workflow_run.conclusion == 'success' || github.event_name == 'workflow_dispatch' }}
 
     steps:
       - name: Deploy to Linode
