@@ -15,6 +15,7 @@ import {
   TagIcon,
   ServerIcon,
   ShieldIcon,
+  BellIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -27,10 +28,11 @@ const navItems = [
 ];
 
 const settingsSubItems = [
-  { key: "general",    label: "General",    icon: TagIcon },
-  { key: "appearance", label: "Appearance", icon: PaletteIcon },
-  { key: "data",       label: "Data",       icon: DatabaseIcon },
-  { key: "system",     label: "System",     icon: ServerIcon },
+  { key: "general",       label: "General",       icon: TagIcon,      adminOnly: false },
+  { key: "appearance",   label: "Appearance",   icon: PaletteIcon,  adminOnly: false },
+  { key: "data",         label: "Data",         icon: DatabaseIcon, adminOnly: false },
+  { key: "notifications",label: "Notifications",icon: BellIcon,     adminOnly: false },
+  { key: "system",       label: "System",       icon: ServerIcon,   adminOnly: true  },
 ];
 
 export function Sidebar() {
@@ -42,7 +44,7 @@ export function Sidebar() {
   const isAdmin = session?.user?.role === "admin";
 
   return (
-    <aside className="w-60 shrink-0 bg-sidebar border-r border-sidebar-border flex flex-col min-h-screen">
+    <aside className="w-60 shrink-0 bg-sidebar border-r border-sidebar-border flex flex-col sticky top-0 h-screen overflow-y-auto">
       {/* Logo */}
       <div className="flex items-center gap-2 px-5 py-5 border-b border-sidebar-border">
         <TrendingUpIcon className="h-6 w-6 text-primary" />
@@ -73,7 +75,7 @@ export function Sidebar() {
               {/* Settings sub-items — shown when on any /settings route */}
               {href === "/settings" && onSettings && (
                 <div className="mt-0.5 ml-3 pl-4 border-l border-sidebar-border space-y-0.5">
-                  {settingsSubItems.map(({ key, label: subLabel, icon: SubIcon }) => (
+                  {settingsSubItems.filter((i) => !i.adminOnly || isAdmin).map(({ key, label: subLabel, icon: SubIcon }) => (
                     <Link
                       key={key}
                       href={`/settings?s=${key}`}

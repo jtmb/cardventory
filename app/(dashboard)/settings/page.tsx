@@ -11,7 +11,8 @@ import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
 import {
   SaveIcon, RefreshCwIcon, FlaskConicalIcon, RotateCcwIcon,
-  CheckIcon, DownloadIcon, SparklesIcon, EyeIcon, ShieldIcon,
+  CheckIcon, DownloadIcon, UploadIcon, SparklesIcon, EyeIcon, ShieldIcon,
+  BellIcon, MailIcon, MessageSquareIcon, EyeOffIcon, SendIcon,
 } from "lucide-react";
 import { seedTestData } from "@/lib/actions";
 import {
@@ -68,6 +69,7 @@ const SECTION_LABELS: Record<string, string> = {
   general: "General",
   appearance: "Appearance",
   data: "Data",
+  notifications: "Notifications",
   system: "System",
 };
 
@@ -91,6 +93,31 @@ function SettingsContent() {
   const [btnStyle, setBtnStyle] = useState<ButtonStyleKey>("filled");
   const [sleeveEffect, setSleeveEffect] = useState(false);
   const [refreshCooldownUntil, setRefreshCooldownUntil] = useState<Date | null>(null);
+  // Notification state
+  const [notifEmailEnabled, setNotifEmailEnabled] = useState(false);
+  const [notifSmtpHost, setNotifSmtpHost] = useState("");
+  const [notifSmtpPort, setNotifSmtpPort] = useState("587");
+  const [notifSmtpSecure, setNotifSmtpSecure] = useState(false);
+  const [notifSmtpUser, setNotifSmtpUser] = useState("");
+  const [notifSmtpPass, setNotifSmtpPass] = useState("");
+  const [notifEmailFrom, setNotifEmailFrom] = useState("");
+  const [notifEmailTo, setNotifEmailTo] = useState("");
+  const [notifDiscordEnabled, setNotifDiscordEnabled] = useState(false);
+  const [notifDiscordWebhook, setNotifDiscordWebhook] = useState("");
+  const [notifDiscordMode, setNotifDiscordMode] = useState<"webhook" | "dm">("webhook");
+  const [notifDiscordBotToken, setNotifDiscordBotToken] = useState("");
+  const [notifDiscordUserId, setNotifDiscordUserId] = useState("");
+  const [notifOnNewHigh, setNotifOnNewHigh] = useState(true);
+  const [notifOnPriceChange, setNotifOnPriceChange] = useState(false);
+  // OAuth / system settings (admin only)
+  const [oauthGoogleId, setOauthGoogleId] = useState("");
+  const [oauthGoogleSecret, setOauthGoogleSecret] = useState("");
+  const [oauthGithubId, setOauthGithubId] = useState("");
+  const [oauthGithubSecret, setOauthGithubSecret] = useState("");
+  const [showSecrets, setShowSecrets] = useState(false);
+  // Test notification loading
+  const [testingEmail, setTestingEmail] = useState(false);
+  const [testingDiscord, setTestingDiscord] = useState(false);
 
   const refreshBlocked = !isActualAdmin && refreshCooldownUntil !== null && refreshCooldownUntil > new Date();
 
@@ -185,6 +212,34 @@ function SettingsContent() {
           const nextAllowed = new Date(new Date(data.manual_refresh_last).getTime() + 24 * 60 * 60 * 1000);
           setRefreshCooldownUntil(nextAllowed);
         }
+        // Notifications
+        if (data.notif_email_enabled) setNotifEmailEnabled(data.notif_email_enabled === "true");
+        if (data.notif_smtp_host) setNotifSmtpHost(data.notif_smtp_host);
+        if (data.notif_smtp_port) setNotifSmtpPort(data.notif_smtp_port);
+        if (data.notif_smtp_secure) setNotifSmtpSecure(data.notif_smtp_secure === "true");
+        if (data.notif_smtp_user) setNotifSmtpUser(data.notif_smtp_user);
+        if (data.notif_smtp_pass) setNotifSmtpPass(data.notif_smtp_pass);
+        if (data.notif_email_from) setNotifEmailFrom(data.notif_email_from);
+        if (data.notif_email_to) setNotifEmailTo(data.notif_email_to);
+        if (data.notif_discord_enabled) setNotifDiscordEnabled(data.notif_discord_enabled === "true");
+        if (data.notif_discord_webhook) setNotifDiscordWebhook(data.notif_discord_webhook);
+        if (data.notif_discord_mode === "dm" || data.notif_discord_mode === "webhook") setNotifDiscordMode(data.notif_discord_mode);
+        if (data.notif_discord_bot_token) setNotifDiscordBotToken(data.notif_discord_bot_token);
+        if (data.notif_discord_user_id) setNotifDiscordUserId(data.notif_discord_user_id);
+        if (data.notif_on_new_high !== undefined) setNotifOnNewHigh(data.notif_on_new_high === "true");
+        if (data.notif_on_price_change !== undefined) setNotifOnPriceChange(data.notif_on_price_change === "true");
+      })
+      .catch(() => {});
+
+    // Load system settings (admin only)
+    fetch("/api/system-settings")
+      .then((r) => r.ok ? r.json() : null)
+      .then((data) => {
+        if (!data) return;
+        if (data.oauth_google_client_id) setOauthGoogleId(data.oauth_google_client_id);
+        if (data.oauth_google_client_secret) setOauthGoogleSecret(data.oauth_google_client_secret);
+        if (data.oauth_github_client_id) setOauthGithubId(data.oauth_github_client_id);
+        if (data.oauth_github_client_secret) setOauthGithubSecret(data.oauth_github_client_secret);
       })
       .catch(() => {});
   }, []);
@@ -251,8 +306,6 @@ function SettingsContent() {
 
   /** Single source of truth for all exportable / saveable settings. */
   function buildSettingsPayload() {
-    // Merge THEME_VARS defaults so exported theme_colors always has all keys,
-    // even when no custom color overrides have been applied.
     const defaultColors = Object.fromEntries(
       THEME_VARS.map(({ key, default: def }) => [key, def])
     ) as ThemeColors;
@@ -266,15 +319,26 @@ function SettingsContent() {
       btn_style: btnStyle,
       sleeve_effect: sleeveEffect,
       refresh_interval: refreshInterval,
+      notif_email_enabled: notifEmailEnabled,
+      notif_smtp_host: notifSmtpHost,
+      notif_smtp_port: notifSmtpPort,
+      notif_smtp_secure: notifSmtpSecure,
+      notif_smtp_user: notifSmtpUser,
+      notif_smtp_pass: notifSmtpPass,
+      notif_email_from: notifEmailFrom,
+      notif_email_to: notifEmailTo,
+      notif_discord_enabled: notifDiscordEnabled,
+      notif_discord_webhook: notifDiscordWebhook,
+      notif_discord_mode: notifDiscordMode,
+      notif_discord_bot_token: notifDiscordBotToken,
+      notif_discord_user_id: notifDiscordUserId,
+      notif_on_new_high: notifOnNewHigh,
+      notif_on_price_change: notifOnPriceChange,
     };
   }
 
   function exportSettings() {
-    const payload = {
-      version: 1,
-      exported_at: new Date().toISOString(),
-      ...buildSettingsPayload(),
-    };
+    const payload = { version: 1, exported_at: new Date().toISOString(), ...buildSettingsPayload() };
     const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
@@ -282,6 +346,43 @@ function SettingsContent() {
     a.download = `cardventory-settings-${new Date().toISOString().slice(0, 10)}.json`;
     a.click();
     URL.revokeObjectURL(url);
+  }
+
+  function importSettings(file: File) {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const data = JSON.parse(e.target?.result as string);
+        if (data.theme_colors) { setThemeColors(data.theme_colors); applyThemeColors(data.theme_colors); localStorage.setItem(THEME_LS_KEY, JSON.stringify(data.theme_colors)); }
+        if (data.preset_theme) { setActivePreset(data.preset_theme); localStorage.setItem(PRESET_LS_KEY, data.preset_theme); }
+        if (data.font_theme) { setFontTheme(data.font_theme); applyFontTheme(data.font_theme); localStorage.setItem(FONT_LS_KEY, data.font_theme); }
+        if (data.type_density) { setTypeDensity(data.type_density); applyTypeDensity(data.type_density); }
+        if (data.card_style) { setCardStyle(data.card_style); applyCardStyle(data.card_style); }
+        if (data.chip_style) { setChipStyle(data.chip_style); applyChipStyle(data.chip_style); }
+        if (data.btn_style) { setBtnStyle(data.btn_style); applyButtonStyle(data.btn_style); }
+        if (data.sleeve_effect !== undefined) { setSleeveEffect(data.sleeve_effect); applySleeve(data.sleeve_effect); }
+        if (data.refresh_interval) setRefreshInterval(data.refresh_interval);
+        if (data.notif_email_enabled !== undefined) setNotifEmailEnabled(data.notif_email_enabled);
+        if (data.notif_smtp_host) setNotifSmtpHost(data.notif_smtp_host);
+        if (data.notif_smtp_port) setNotifSmtpPort(data.notif_smtp_port);
+        if (data.notif_smtp_secure !== undefined) setNotifSmtpSecure(data.notif_smtp_secure);
+        if (data.notif_smtp_user) setNotifSmtpUser(data.notif_smtp_user);
+        if (data.notif_smtp_pass) setNotifSmtpPass(data.notif_smtp_pass);
+        if (data.notif_email_from) setNotifEmailFrom(data.notif_email_from);
+        if (data.notif_email_to) setNotifEmailTo(data.notif_email_to);
+        if (data.notif_discord_enabled !== undefined) setNotifDiscordEnabled(data.notif_discord_enabled);
+        if (data.notif_discord_webhook) setNotifDiscordWebhook(data.notif_discord_webhook);
+        if (data.notif_discord_mode === "dm" || data.notif_discord_mode === "webhook") setNotifDiscordMode(data.notif_discord_mode);
+        if (data.notif_discord_bot_token) setNotifDiscordBotToken(data.notif_discord_bot_token);
+        if (data.notif_discord_user_id) setNotifDiscordUserId(data.notif_discord_user_id);
+        if (data.notif_on_new_high !== undefined) setNotifOnNewHigh(data.notif_on_new_high);
+        if (data.notif_on_price_change !== undefined) setNotifOnPriceChange(data.notif_on_price_change);
+        toast.success("Settings imported — click Save to apply");
+      } catch {
+        toast.error("Invalid settings file");
+      }
+    };
+    reader.readAsText(file);
   }
 
   async function saveSettings() {
@@ -301,6 +402,21 @@ function SettingsContent() {
           chip_style: s.chip_style,
           btn_style: s.btn_style,
           sleeve_effect: String(s.sleeve_effect),
+          notif_email_enabled: String(s.notif_email_enabled),
+          notif_smtp_host: s.notif_smtp_host,
+          notif_smtp_port: s.notif_smtp_port,
+          notif_smtp_secure: String(s.notif_smtp_secure),
+          notif_smtp_user: s.notif_smtp_user,
+          notif_smtp_pass: s.notif_smtp_pass,
+          notif_email_from: s.notif_email_from,
+          notif_email_to: s.notif_email_to,
+          notif_discord_enabled: String(s.notif_discord_enabled),
+          notif_discord_webhook: s.notif_discord_webhook,
+          notif_discord_mode: s.notif_discord_mode,
+          notif_discord_bot_token: s.notif_discord_bot_token,
+          notif_discord_user_id: s.notif_discord_user_id,
+          notif_on_new_high: String(s.notif_on_new_high),
+          notif_on_price_change: String(s.notif_on_price_change),
         }),
       });
       toast.success("Settings saved");
@@ -308,6 +424,54 @@ function SettingsContent() {
       toast.error("Save failed");
     } finally {
       setSaving(false);
+    }
+
+    // Save system settings (admin only) in parallel with main save
+    if (isActualAdmin) {
+      fetch("/api/system-settings", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          oauth_google_client_id: oauthGoogleId,
+          oauth_google_client_secret: oauthGoogleSecret,
+          oauth_github_client_id: oauthGithubId,
+          oauth_github_client_secret: oauthGithubSecret,
+        }),
+      }).catch(() => {});
+    }
+  }
+
+  async function sendTestNotification(type: "email" | "discord") {
+    const setter = type === "email" ? setTestingEmail : setTestingDiscord;
+    setter(true);
+    try {
+      const res = await fetch("/api/notifications/test", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          type,
+          config: {
+            smtp_host: notifSmtpHost,
+            smtp_port: notifSmtpPort,
+            smtp_secure: String(notifSmtpSecure),
+            smtp_user: notifSmtpUser,
+            smtp_pass: notifSmtpPass,
+            email_from: notifEmailFrom,
+            email_to: notifEmailTo,
+            discord_webhook: notifDiscordWebhook,
+            discord_mode: notifDiscordMode,
+            discord_bot_token: notifDiscordBotToken,
+            discord_user_id: notifDiscordUserId,
+          },
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Failed");
+      toast.success(`Test ${type === "email" ? "email" : "Discord message"} sent!`);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to send test notification");
+    } finally {
+      setter(false);
     }
   }
 
@@ -711,6 +875,207 @@ function SettingsContent() {
             </Button>
           </CardContent>
         </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Settings Backup</CardTitle>
+            <CardDescription>Export or import all settings as JSON — includes theme, pricing, and notification config.</CardDescription>
+          </CardHeader>
+          <CardContent className="flex flex-wrap gap-3">
+            <Button variant="outline" onClick={exportSettings} className="gap-2">
+              <DownloadIcon className="h-4 w-4" /> Export Settings
+            </Button>
+            <Button variant="outline" className="gap-2" onClick={() => document.getElementById("settings-import-input")?.click()}>
+              <UploadIcon className="h-4 w-4" /> Import Settings
+            </Button>
+            <input
+              id="settings-import-input"
+              type="file"
+              accept=".json,application/json"
+              className="hidden"
+              onChange={(e) => { const f = e.target.files?.[0]; if (f) importSettings(f); e.target.value = ""; }}
+            />
+          </CardContent>
+        </Card>
+        </div>
+      )}
+
+      {/* ── Notifications ───────────────────────────────────────────── */}
+      {activeSection === "notifications" && (
+        <div className="space-y-4">
+        {/* Email */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base flex items-center gap-2"><MailIcon className="h-4 w-4" /> Email (SMTP)</CardTitle>
+            <CardDescription>Send email notifications when card price events occur.</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex items-center gap-3">
+              <input type="checkbox" id="notif-email-enabled" checked={notifEmailEnabled} onChange={e => setNotifEmailEnabled(e.target.checked)} className="h-4 w-4 rounded border-border" />
+              <Label htmlFor="notif-email-enabled">Enable email notifications</Label>
+            </div>
+            {notifEmailEnabled && (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <Label>SMTP Host</Label>
+                  <input value={notifSmtpHost} onChange={e => setNotifSmtpHost(e.target.value)} placeholder="smtp.gmail.com" className="w-full h-9 rounded-md border border-border bg-background px-3 text-sm" />
+                </div>
+                <div className="space-y-1.5">
+                  <Label>Port</Label>
+                  <input value={notifSmtpPort} onChange={e => setNotifSmtpPort(e.target.value)} placeholder="587" className="w-full h-9 rounded-md border border-border bg-background px-3 text-sm" />
+                </div>
+                <div className="space-y-1.5">
+                  <Label>Username</Label>
+                  <input value={notifSmtpUser} onChange={e => setNotifSmtpUser(e.target.value)} placeholder="you@gmail.com" className="w-full h-9 rounded-md border border-border bg-background px-3 text-sm" />
+                </div>
+                <div className="space-y-1.5">
+                  <Label>Password / App Password</Label>
+                  <input type="password" value={notifSmtpPass} onChange={e => setNotifSmtpPass(e.target.value)} placeholder="••••••••" className="w-full h-9 rounded-md border border-border bg-background px-3 text-sm" />
+                </div>
+                <div className="space-y-1.5">
+                  <Label>From address</Label>
+                  <input value={notifEmailFrom} onChange={e => setNotifEmailFrom(e.target.value)} placeholder="Cardventory &lt;you@gmail.com&gt;" className="w-full h-9 rounded-md border border-border bg-background px-3 text-sm" />
+                </div>
+                <div className="space-y-1.5">
+                  <Label>Send to</Label>
+                  <input value={notifEmailTo} onChange={e => setNotifEmailTo(e.target.value)} placeholder="you@example.com" className="w-full h-9 rounded-md border border-border bg-background px-3 text-sm" />
+                </div>
+                <div className="flex items-center gap-3 sm:col-span-2">
+                  <input type="checkbox" id="notif-smtp-secure" checked={notifSmtpSecure} onChange={e => setNotifSmtpSecure(e.target.checked)} className="h-4 w-4 rounded border-border" />
+                  <Label htmlFor="notif-smtp-secure">Use SSL/TLS (port 465)</Label>
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Discord */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base flex items-center gap-2"><MessageSquareIcon className="h-4 w-4" /> Discord</CardTitle>
+            <CardDescription>Post alerts to a Discord channel via webhook, or send a DM via a bot.</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex items-center gap-3">
+              <input type="checkbox" id="notif-discord-enabled" checked={notifDiscordEnabled} onChange={e => setNotifDiscordEnabled(e.target.checked)} className="h-4 w-4 rounded border-border" />
+              <Label htmlFor="notif-discord-enabled">Enable Discord notifications</Label>
+            </div>
+            {notifDiscordEnabled && (
+              <>
+                {/* Mode toggle */}
+                <div className="flex rounded-md border border-border overflow-hidden w-fit">
+                  <button
+                    type="button"
+                    onClick={() => setNotifDiscordMode("webhook")}
+                    className={`px-4 py-1.5 text-sm transition-colors ${notifDiscordMode === "webhook" ? "bg-primary text-primary-foreground" : "bg-background text-muted-foreground hover:text-foreground"}`}
+                  >
+                    Channel webhook
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setNotifDiscordMode("dm")}
+                    className={`px-4 py-1.5 text-sm transition-colors border-l border-border ${notifDiscordMode === "dm" ? "bg-primary text-primary-foreground" : "bg-background text-muted-foreground hover:text-foreground"}`}
+                  >
+                    Direct message
+                  </button>
+                </div>
+
+                {notifDiscordMode === "webhook" ? (
+                  <div className="space-y-1.5">
+                    <Label>Webhook URL</Label>
+                    <input
+                      value={notifDiscordWebhook}
+                      onChange={e => setNotifDiscordWebhook(e.target.value)}
+                      placeholder="https://discord.com/api/webhooks/..."
+                      className="w-full h-9 rounded-md border border-border bg-background px-3 text-sm"
+                    />
+                    <p className="type-label-small text-muted-foreground">In Discord: channel settings → Integrations → Webhooks → New Webhook → Copy URL.</p>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    <div className="space-y-1.5">
+                      <Label>Bot token</Label>
+                      <input
+                        type="password"
+                        value={notifDiscordBotToken}
+                        onChange={e => setNotifDiscordBotToken(e.target.value)}
+                        placeholder="MTEx…"
+                        className="w-full h-9 rounded-md border border-border bg-background px-3 text-sm"
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label>Your Discord user ID</Label>
+                      <input
+                        value={notifDiscordUserId}
+                        onChange={e => setNotifDiscordUserId(e.target.value)}
+                        placeholder="123456789012345678"
+                        className="w-full h-9 rounded-md border border-border bg-background px-3 text-sm"
+                      />
+                    </div>
+                    <p className="type-label-small text-muted-foreground">
+                      Create a bot at <strong>discord.com/developers</strong>, add it to a shared server, then enable DMs from server members. Your user ID is in Settings → Advanced → Developer Mode → right-click your name → Copy User ID.
+                    </p>
+                  </div>
+                )}
+              </>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Events */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base flex items-center gap-2"><BellIcon className="h-4 w-4" /> Events</CardTitle>
+            <CardDescription>Choose which card price events trigger a notification.</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <div className="flex items-center gap-3">
+              <input type="checkbox" id="notif-new-high" checked={notifOnNewHigh} onChange={e => setNotifOnNewHigh(e.target.checked)} className="h-4 w-4 rounded border-border" />
+              <div>
+                <Label htmlFor="notif-new-high">New price high</Label>
+                <p className="type-label-small text-muted-foreground">Alert when a card hits a new all-time market value high.</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-3">
+              <input type="checkbox" id="notif-price-change" checked={notifOnPriceChange} onChange={e => setNotifOnPriceChange(e.target.checked)} className="h-4 w-4 rounded border-border" />
+              <div>
+                <Label htmlFor="notif-price-change">Any price change</Label>
+                <p className="type-label-small text-muted-foreground">Alert on every price refresh that returns new data.</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Test notifications */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base flex items-center gap-2"><SendIcon className="h-4 w-4" /> Test Notifications</CardTitle>
+            <CardDescription>Fire a test notification using your current (unsaved) settings.</CardDescription>
+          </CardHeader>
+          <CardContent className="flex flex-wrap gap-3">
+            <Button
+              variant="outline"
+              className="gap-2"
+              disabled={testingEmail || !notifEmailEnabled}
+              onClick={() => sendTestNotification("email")}
+            >
+              <MailIcon className="h-4 w-4" />
+              {testingEmail ? "Sending…" : "Send Test Email"}
+            </Button>
+            <Button
+              variant="outline"
+              className="gap-2"
+              disabled={testingDiscord || !notifDiscordEnabled}
+              onClick={() => sendTestNotification("discord")}
+            >
+              <MessageSquareIcon className="h-4 w-4" />
+              {testingDiscord ? "Sending…" : "Send Test Discord"}
+            </Button>
+            {(!notifEmailEnabled && !notifDiscordEnabled) && (
+              <p className="w-full type-label-small text-muted-foreground">Enable a notification channel above to test it.</p>
+            )}
+          </CardContent>
+        </Card>
         </div>
       )}
 
@@ -740,26 +1105,63 @@ function SettingsContent() {
           </CardContent>
         </Card>
 
+        {/* OAuth */}
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">Export Settings</CardTitle>
+            <CardTitle className="text-base">OAuth Providers</CardTitle>
             <CardDescription>
-              Download all current settings as a JSON file for backup or migration.
+              Configure Google and GitHub sign-in. Changes take effect after the next server restart.
             </CardDescription>
           </CardHeader>
-          <CardContent>
-            <Button variant="outline" onClick={exportSettings} className="gap-2">
-              <DownloadIcon className="h-4 w-4" />
-              Export Settings as JSON
-            </Button>
+          <CardContent className="space-y-5">
+            <div className="space-y-3">
+              <p className="type-label-large font-semibold text-muted-foreground">Google</p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <Label>Client ID</Label>
+                  <input value={oauthGoogleId} onChange={e => setOauthGoogleId(e.target.value)} placeholder="123456-abc.apps.googleusercontent.com" className="w-full h-9 rounded-md border border-border bg-background px-3 text-sm" />
+                </div>
+                <div className="space-y-1.5">
+                  <Label>Client Secret</Label>
+                  <div className="relative">
+                    <input type={showSecrets ? "text" : "password"} value={oauthGoogleSecret} onChange={e => setOauthGoogleSecret(e.target.value)} placeholder="GOCSPX-…" className="w-full h-9 rounded-md border border-border bg-background px-3 pr-9 text-sm" />
+                    <button type="button" onClick={() => setShowSecrets(s => !s)} className="absolute right-2 top-2 text-muted-foreground hover:text-foreground">
+                      {showSecrets ? <EyeOffIcon className="h-4 w-4" /> : <EyeIcon className="h-4 w-4" />}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div className="space-y-3">
+              <p className="type-label-large font-semibold text-muted-foreground">GitHub</p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <Label>Client ID</Label>
+                  <input value={oauthGithubId} onChange={e => setOauthGithubId(e.target.value)} placeholder="Ov23li…" className="w-full h-9 rounded-md border border-border bg-background px-3 text-sm" />
+                </div>
+                <div className="space-y-1.5">
+                  <Label>Client Secret</Label>
+                  <div className="relative">
+                    <input type={showSecrets ? "text" : "password"} value={oauthGithubSecret} onChange={e => setOauthGithubSecret(e.target.value)} placeholder="github_pat_…" className="w-full h-9 rounded-md border border-border bg-background px-3 pr-9 text-sm" />
+                    <button type="button" onClick={() => setShowSecrets(s => !s)} className="absolute right-2 top-2 text-muted-foreground hover:text-foreground">
+                      {showSecrets ? <EyeOffIcon className="h-4 w-4" /> : <EyeIcon className="h-4 w-4" />}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <p className="type-label-small text-muted-foreground">
+              Callback URLs to register:
+              <code className="ml-1 bg-muted px-1 rounded">[domain]/api/auth/callback/google</code>
+              {" · "}
+              <code className="bg-muted px-1 rounded">[domain]/api/auth/callback/github</code>
+            </p>
           </CardContent>
         </Card>
         </div>
       )}
+      </div>{/* end p-6 wrapper */}
 
-      </div>
-
-      {/* Fixed save bar — always visible at the bottom, offset past the sidebar */}
       <div className="fixed bottom-0 left-60 right-0 z-10 border-t border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
         <div className="max-w-2xl mx-auto px-6 py-3 flex items-center gap-3">
           {isActualAdmin && (
