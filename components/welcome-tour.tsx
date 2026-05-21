@@ -139,24 +139,35 @@ export function WelcomeTour() {
     }
 
     function tryPosition(attempts: number) {
+      const vw = window.innerWidth;
+      const vh = window.innerHeight;
+      const isMobile = vw < 640;
+
       const el = document.querySelector(`[data-tour-id="${s.targetId}"]`);
       if (!el) {
         if (attempts > 0) {
           setTimeout(() => tryPosition(attempts - 1), 200);
         } else {
+          // Element not found (e.g. sidebar collapsed on mobile) — use centred card
           setSpotlight(null);
           setTooltipPos(null);
         }
         return;
       }
-      const rect = el.getBoundingClientRect();
-      const pad = 8;
-      const TW = 320; // max tooltip width
-      const TH = 220; // approx max tooltip height
-      const vw = window.innerWidth;
-      const vh = window.innerHeight;
 
-      // Spotlight cutout — clamp to element bounds (may be taller than viewport)
+      const rect = el.getBoundingClientRect();
+      // Skip elements that are invisible or entirely outside the viewport
+      if (rect.width === 0 || rect.height === 0 || rect.bottom < 0 || rect.top > vh) {
+        setSpotlight(null);
+        setTooltipPos(null);
+        return;
+      }
+
+      const pad = 8;
+      const TW = 320;
+      const TH = 220;
+
+      // Spotlight cutout
       const spotTop = Math.max(0, rect.top - pad);
       const spotHeight = Math.min(rect.height + pad * 2, vh - spotTop);
       setSpotlight({
@@ -166,11 +177,19 @@ export function WelcomeTour() {
         height: spotHeight,
       });
 
-      const placement = s.placement ?? "right";
-      if (placement === "center") {
-        // Spotlight the element but render the card as a centred modal
+      // On mobile, always use the centred card — no room to anchor tooltips
+      if (isMobile || s.placement === "center") {
         setTooltipPos(null);
-      } else if (placement === "right") {
+        return;
+      }
+
+      // Auto-fallback: right → bottom → center when space is tight
+      let placement = s.placement ?? "right";
+      if (placement === "right" && rect.right + 12 + TW + 8 > vw) placement = "bottom";
+      if (placement === "bottom" && rect.bottom + 12 + TH + 8 > vh) placement = "center";
+      if (placement === "center") { setTooltipPos(null); return; }
+
+      if (placement === "right") {
         const rawTop = rect.top + rect.height / 2;
         setTooltipPos({
           top: Math.min(Math.max(rawTop, TH / 2 + 8), vh - TH / 2 - 8),
@@ -178,7 +197,6 @@ export function WelcomeTour() {
           placement,
         });
       } else if (placement === "bottom") {
-        // Use whichever is more visible: just below the element, or just above it if near the fold
         const belowTop = Math.min(rect.bottom + pad + 12, vh - TH - 8);
         setTooltipPos({
           top: Math.max(belowTop, pad + 8),
