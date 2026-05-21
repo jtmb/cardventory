@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="/home/brajam/repos/cardventory/public/favicon-v4-transparent.svg" alt="Cardventory" width="40%" />
+<img src="public/banner.png" alt="Cardventory" width="100%" />
 
 **Self-hosted trading card collection manager with live market pricing**
 

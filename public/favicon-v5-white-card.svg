@@ -1,9 +1,0 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
-  <!-- Playing card background -->
-  <rect x="6" y="3" width="52" height="58" rx="7" fill="white" stroke="#cbd5e1" stroke-width="1.5"/>
-  <!-- Diamond suit top-left -->
-  <path d="M13,11 L16.5,7 L20,11 L16.5,15 Z" fill="#2563eb"/>
-  <!-- Trending up arrow -->
-  <polyline points="13,47 26,32 36,40 51,20" fill="none" stroke="#2563eb" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
-  <polyline points="41,20 51,20 51,30" fill="none" stroke="#2563eb" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
-</svg>
