@@ -1,4 +1,4 @@
-import { getCards, getActiveGenres } from "@/lib/actions";
+import { getCards, getActiveGenres, countCards } from "@/lib/actions";
 import { ButtonLink } from "@/components/ui/button-link";
 import { PlusCircleIcon } from "lucide-react";
 import { CardGrid } from "@/components/cards/card-grid";
@@ -6,14 +6,30 @@ import { GenreTabs } from "@/components/cards/genre-tabs";
 import { RefreshAllButton } from "@/components/cards/refresh-all-button";
 import { SearchInput } from "@/components/cards/search-input";
 import { SortSelect } from "@/components/cards/sort-select";
+import { GradeFilter } from "@/components/cards/grade-filter";
+import { PaginationControls } from "@/components/cards/pagination-controls";
+import { CsvToolbar } from "@/components/cards/csv-toolbar";
+
+const DEFAULT_PAGE_SIZE = 48;
 
 export default async function CardsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ genre?: string; q?: string; sort?: string }>;
+  searchParams: Promise<{ genre?: string; q?: string; sort?: string; page?: string; pageSize?: string; grade?: string }>;
 }) {
-  const { genre, q, sort } = await searchParams;
-  const [cards, activeGenres] = await Promise.all([getCards(genre, q, sort), getActiveGenres()]);
+  const { genre, q, sort, page: pageStr, pageSize: pageSizeStr, grade } = await searchParams;
+  const page = Math.max(1, parseInt(pageStr ?? "1") || 1);
+  const pageSize = [24, 48, 96].includes(parseInt(pageSizeStr ?? "")) ? parseInt(pageSizeStr!) : DEFAULT_PAGE_SIZE;
+
+  const [cardsPage, total, activeGenres] = await Promise.all([
+    getCards(genre, q, sort, page, pageSize, grade, "owned"),
+    countCards(genre, q, grade, "owned"),
+    getActiveGenres(),
+  ]);
+
+  const totalPages = Math.max(1, Math.ceil(total / pageSize));
+
+  const exportHref = `/api/cards/export?status=owned${genre && genre !== "all" ? `&genre=${genre}` : ""}${q ? `&q=${encodeURIComponent(q)}` : ""}${grade && grade !== "all" ? `&grade=${grade}` : ""}`;
 
   return (
     <>
@@ -27,8 +43,10 @@ export default async function CardsPage({
           <div className="flex items-center gap-2 md:flex-1">
             <div className="hidden md:block w-px h-5 bg-border/60 shrink-0" />
             <SortSelect currentSort={sort} genre={genre} search={q} />
+            <GradeFilter activeGrade={grade} />
             <div className="hidden md:block w-px h-5 bg-border/60 shrink-0" />
             <RefreshAllButton />
+            <CsvToolbar exportHref={exportHref} />
             <ButtonLink href="/cards/add" data-tour-id="toolbar-add-card">
               <PlusCircleIcon className="h-4 w-4" />
               <span className="hidden sm:inline">Add Card</span>
@@ -42,7 +60,13 @@ export default async function CardsPage({
 
       {/* Content on the darker bg-background */}
       <div data-tour-id="tour-cards-grid" className="p-6 max-w-7xl mx-auto">
-        <CardGrid cards={cards} />
+        <CardGrid cards={cardsPage} exportHref={exportHref} />
+        <PaginationControls
+          page={page}
+          totalPages={totalPages}
+          totalItems={total}
+          pageSize={pageSize}
+        />
       </div>
     </>
   );

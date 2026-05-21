@@ -25,9 +25,11 @@ const GENRE_EMOJI: Record<string, string> = {
 export function SearchInput({
   defaultValue,
   genre,
+  basePath = "/cards",
 }: {
   defaultValue?: string;
   genre?: string;
+  basePath?: string;
 }) {
   const router = useRouter();
   const [value, setValue] = useState(defaultValue ?? "");
@@ -60,7 +62,7 @@ export function SearchInput({
     if (genre && genre !== "all") params.set("genre", genre);
     if (value.trim()) params.set("q", value.trim());
     const qs = params.toString();
-    router.push(`/cards${qs ? `?${qs}` : ""}`);
+    router.push(`${basePath}${qs ? `?${qs}` : ""}`);
   }
 
   function handleKeyDown(e: React.KeyboardEvent) {

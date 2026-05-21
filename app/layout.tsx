@@ -4,7 +4,7 @@ import "./globals.css";
 import { Toaster } from "@/components/ui/sonner";
 import { migrate } from "@/lib/db/migrate";
 import ThemeApplicator from "@/components/theme-applicator";
-import { THEME_INIT_SCRIPT } from "@/lib/theme";
+import { preinit } from "react-dom";
 
 try { migrate(); } catch (e) { console.error("Migration failed:", e); }
 
@@ -45,6 +45,11 @@ export const metadata: Metadata = {
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
+  // Applies saved theme colors + font before first paint to prevent FOUC.
+  // preinit injects a <script> into the SSR <head> without adding a React-managed
+  // script element to the component tree, so React 19 does not warn about it.
+  preinit("/theme-init.js", { as: "script" });
+
   // Font CSS variables must live on <html> so applyFontTheme (which sets
   // document.documentElement.style.fontFamily) can resolve var(--font-xxx).
   // CSS custom properties only cascade down, not up from <body>.
@@ -55,10 +60,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
 
   return (
     <html lang="en" className={`dark ${fontVars}`} suppressHydrationWarning>
-      <head>
-        {/* Applies saved theme colors + font before first paint to prevent flash */}
-        <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
-      </head>
       <body className="antialiased min-h-screen">
         <ThemeApplicator />
         {children}

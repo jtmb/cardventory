@@ -39,6 +39,7 @@ export function EditCardForm({ card }: { card: Card }) {
   const [photoPreview, setPhotoPreview] = useState<string | null>(card.photoUrl);
   const [photoUrl, setPhotoUrl] = useState<string | null>(card.photoUrl);
   const [uploading, setUploading] = useState(false);
+  const [status, setStatus] = useState<"owned" | "wanted">((card.status as "owned" | "wanted") ?? "owned");
   const fileRef = useRef<HTMLInputElement>(null);
   const nameRef = useRef<HTMLInputElement>(null);
   const yearRef = useRef<HTMLInputElement>(null);
@@ -92,9 +93,10 @@ export function EditCardForm({ card }: { card: Card }) {
         gradeCompany: gradeCompany && gradeCompany !== "none" ? gradeCompany : null,
         gradeValue: (form.get("gradeValue") as string) || null,
         condition: condition && condition !== "none" ? condition : null,
-        purchasePrice: parseFloat((form.get("purchasePrice") as string) || "0"),
+        purchasePrice: status === "wanted" ? 0 : parseFloat((form.get("purchasePrice") as string) || "0"),
         notes: (form.get("notes") as string) || null,
         photoUrl,
+        status,
       });
       toast.success("Card updated");
       router.push(`/cards/${card.id}`);
@@ -112,6 +114,31 @@ export function EditCardForm({ card }: { card: Card }) {
       <div>
         <h1 className="text-2xl font-bold">Edit Card</h1>
         <p className="text-muted-foreground text-sm mt-0.5">{card.name}</p>
+      </div>
+      {/* Status toggle */}
+      <div className="flex items-center gap-2">
+        <button
+          type="button"
+          onClick={() => setStatus("owned")}
+          className={`flex-1 py-2 rounded-lg text-sm font-medium border transition-colors ${
+            status === "owned"
+              ? "bg-primary/15 text-primary border-primary/30"
+              : "border-border text-muted-foreground hover:bg-muted"
+          }`}
+        >
+          Owned
+        </button>
+        <button
+          type="button"
+          onClick={() => setStatus("wanted")}
+          className={`flex-1 py-2 rounded-lg text-sm font-medium border transition-colors ${
+            status === "wanted"
+              ? "bg-amber-500/15 text-amber-500 border-amber-500/30"
+              : "border-border text-muted-foreground hover:bg-muted"
+          }`}
+        >
+          Wanted (Watchlist)
+        </button>
       </div>
       <form onSubmit={handleSubmit} className="space-y-6">
         <UiCard>
@@ -206,12 +233,14 @@ export function EditCardForm({ card }: { card: Card }) {
         <UiCard>
           <CardHeader><CardTitle className="text-base">Value</CardTitle></CardHeader>
           <CardContent className="space-y-4">
-            <Field label="Purchase Price (USD)">
-              <div className="relative">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">$</span>
-                <Input name="purchasePrice" type="number" step="0.01" min="0" defaultValue={card.purchasePrice} className="pl-7" />
-              </div>
-            </Field>
+            {status === "owned" && (
+              <Field label="Purchase Price (USD)">
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">$</span>
+                  <Input name="purchasePrice" type="number" step="0.01" min="0" defaultValue={card.purchasePrice} className="pl-7" />
+                </div>
+              </Field>
+            )}
             <Field label="Notes">
               <Textarea name="notes" defaultValue={card.notes ?? ""} rows={3} className="resize-none" />
             </Field>

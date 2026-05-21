@@ -2,11 +2,11 @@
 
 import { auth } from "@/auth";
 import type { Session } from "next-auth";
-import { db } from "@/lib/db";
+import { db, rawSqlite } from "@/lib/db";
 import { cards, priceHistory, settings } from "@/lib/db/schema";
 import { eq, and, desc, asc, sql, isNotNull, inArray, like } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
-import type { NewCard } from "@/lib/db/schema";
+import type { NewCard, Card } from "@/lib/db/schema";
 const DDG_UA =
   "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36";
 
@@ -40,13 +40,28 @@ function requireAuth(session: Session | null) {
 
 // ─── Cards ─────────────────────────────────────────────────────────────────
 
-export async function getCards(genre?: string, search?: string, sort?: string) {
+export async function getCards(
+  genre?: string,
+  search?: string,
+  sort?: string,
+  page?: number,
+  pageSize?: number,
+  gradeFilter?: string,
+  status = "owned"
+) {
   const session = await auth();
   const userId = requireAuth(session);
 
-  const conditions = [eq(cards.userId, userId)] as ReturnType<typeof eq>[];
+  const conditions = [eq(cards.userId, userId), eq(cards.status, status)] as ReturnType<typeof eq>[];
   if (genre && genre !== "all") conditions.push(eq(cards.sportGenre, genre));
   if (search) conditions.push(like(cards.name, `%${search}%`));
+  if (gradeFilter && gradeFilter !== "all") {
+    if (gradeFilter === "raw") {
+      conditions.push(sql`(${cards.gradeCompany} IS NULL OR ${cards.gradeCompany} = '')` as unknown as ReturnType<typeof eq>);
+    } else {
+      conditions.push(eq(cards.gradeCompany, gradeFilter));
+    }
+  }
 
   // Correlated subquery: latest maximum price from price_history for each card.
   // In SQLite, NULLs sort last when using DESC (NULL < any value), so cards with
@@ -64,12 +79,47 @@ export async function getCards(genre?: string, search?: string, sort?: string) {
     sort === "gain_low"   ? asc(gainSql) :
     desc(cards.createdAt); // default: newest
 
-  return db
+  const query = db
     .select()
     .from(cards)
     .where(and(...conditions))
-    .orderBy(orderClause)
-    .all();
+    .orderBy(orderClause);
+
+  if (page !== undefined && pageSize !== undefined) {
+    const offset = (page - 1) * pageSize;
+    return query.limit(pageSize).offset(offset).all();
+  }
+
+  return query.all();
+}
+
+export async function countCards(
+  genre?: string,
+  search?: string,
+  gradeFilter?: string,
+  status = "owned"
+) {
+  const session = await auth();
+  const userId = requireAuth(session);
+
+  const conditions = [eq(cards.userId, userId), eq(cards.status, status)] as ReturnType<typeof eq>[];
+  if (genre && genre !== "all") conditions.push(eq(cards.sportGenre, genre));
+  if (search) conditions.push(like(cards.name, `%${search}%`));
+  if (gradeFilter && gradeFilter !== "all") {
+    if (gradeFilter === "raw") {
+      conditions.push(sql`(${cards.gradeCompany} IS NULL OR ${cards.gradeCompany} = '')` as unknown as ReturnType<typeof eq>);
+    } else {
+      conditions.push(eq(cards.gradeCompany, gradeFilter));
+    }
+  }
+
+  const result = await db
+    .select({ count: sql<number>`count(*)` })
+    .from(cards)
+    .where(and(...conditions))
+    .get();
+
+  return result?.count ?? 0;
 }
 
 export async function getCard(id: string) {
@@ -200,7 +250,7 @@ export async function getDashboardStats() {
   const allCards = await db
     .select()
     .from(cards)
-    .where(eq(cards.userId, userId))
+    .where(and(eq(cards.userId, userId), eq(cards.status, "owned")))
     .all();
 
   const totalPurchaseValue = allCards.reduce((sum, c) => sum + (c.purchasePrice ?? 0), 0);
@@ -559,5 +609,197 @@ export async function seedTestData() {
   revalidatePath("/dashboard");
   revalidatePath("/cards");
   return { count: inserted.length };
+}
+
+// ─── Grade Stats ────────────────────────────────────────────────────────────
+
+export async function getGradeStats() {
+  const session = await auth();
+  const userId = requireAuth(session);
+
+  const rows = await db
+    .select({
+      gradeCompany: cards.gradeCompany,
+      gradeValue: cards.gradeValue,
+      count: sql<number>`count(*)`,
+      totalPurchase: sql<number>`sum(${cards.purchasePrice})`,
+    })
+    .from(cards)
+    .where(and(
+      eq(cards.userId, userId),
+      eq(cards.status, "owned"),
+      isNotNull(cards.gradeCompany),
+    ))
+    .groupBy(cards.gradeCompany, cards.gradeValue)
+    .orderBy(desc(sql`count(*)`))
+    .all();
+
+  return rows;
+}
+
+// ─── Portfolio History ───────────────────────────────────────────────────────
+
+export async function getPortfolioHistory() {
+  const session = await auth();
+  const userId = requireAuth(session);
+
+  // Use raw SQL to aggregate price_history by week for owned cards belonging to this user.
+  // Drizzle stores timestamps as Unix seconds (integer). We group by ISO week.
+  const rows = rawSqlite.prepare(`
+    SELECT
+      strftime('%Y-%m-%d', week_start) as date,
+      SUM(max_price) as total_value
+    FROM (
+      SELECT
+        ph.card_id,
+        -- Round down to start of the ISO week (Sunday)
+        date(ph.fetched_at, 'unixepoch', 'start of day',
+             '-' || CAST(strftime('%w', ph.fetched_at, 'unixepoch') AS INTEGER) || ' days') as week_start,
+        MAX(ph.price) as max_price
+      FROM price_history ph
+      JOIN cards c ON c.id = ph.card_id
+      WHERE c.user_id = ?
+        AND c.status = 'owned'
+        AND ph.price IS NOT NULL
+        AND ph.fetched_at > strftime('%s', 'now', '-180 days')
+      GROUP BY ph.card_id, week_start
+    )
+    GROUP BY week_start
+    ORDER BY week_start ASC
+  `).all(userId) as Array<{ date: string; total_value: number }>;
+
+  return rows.map((r) => ({ date: r.date, totalValue: r.total_value }));
+}
+
+// ─── Bulk Card Actions ──────────────────────────────────────────────────────
+
+export async function updateCardsGenre(ids: string[], genre: string) {
+  if (!ids.length) return;
+  const session = await auth();
+  const userId = requireAuth(session);
+
+  await db
+    .update(cards)
+    .set({ sportGenre: genre, updatedAt: new Date() })
+    .where(and(inArray(cards.id, ids), eq(cards.userId, userId)));
+
+  revalidatePath("/cards");
+  revalidatePath("/watchlist");
+}
+
+export async function updateCardsStatus(ids: string[], status: string) {
+  if (!ids.length) return;
+  const session = await auth();
+  const userId = requireAuth(session);
+
+  await db
+    .update(cards)
+    .set({ status, updatedAt: new Date() })
+    .where(and(inArray(cards.id, ids), eq(cards.userId, userId)));
+
+  revalidatePath("/cards");
+  revalidatePath("/watchlist");
+}
+
+// ─── Duplicate Detection ────────────────────────────────────────────────────
+
+export async function checkDuplicate(
+  name: string,
+  year: number | null,
+  setName: string | null,
+  gradeCompany: string | null,
+  gradeValue: string | null
+): Promise<Card | null> {
+  const session = await auth();
+  const userId = requireAuth(session);
+
+  const conditions = [
+    eq(cards.userId, userId),
+    like(cards.name, name),
+  ] as ReturnType<typeof eq>[];
+
+  if (year) conditions.push(eq(cards.year, year));
+  if (setName) conditions.push(like(cards.setName, setName));
+  if (gradeCompany) conditions.push(eq(cards.gradeCompany, gradeCompany));
+  if (gradeValue) conditions.push(eq(cards.gradeValue, gradeValue));
+
+  const existing = await db
+    .select()
+    .from(cards)
+    .where(and(...conditions))
+    .get();
+
+  return existing ?? null;
+}
+
+// ─── CSV Import ─────────────────────────────────────────────────────────────
+
+export type ImportRow = {
+  name: string;
+  year?: string;
+  setName?: string;
+  cardNumber?: string;
+  variant?: string;
+  sportGenre?: string;
+  gradeCompany?: string;
+  gradeValue?: string;
+  condition?: string;
+  purchasePrice?: string;
+  notes?: string;
+  status?: string;
+};
+
+export async function importCards(rows: ImportRow[]): Promise<{ imported: number; skipped: number; errors: number }> {
+  const session = await auth();
+  const userId = requireAuth(session);
+
+  let imported = 0;
+  let skipped = 0;
+  let errors = 0;
+
+  for (const row of rows) {
+    if (!row.name?.trim()) { errors++; continue; }
+
+    const name = row.name.trim();
+    const year = row.year ? parseInt(row.year) : null;
+    const setName = row.setName?.trim() || null;
+    const gradeCompany = row.gradeCompany?.trim() || null;
+    const gradeValue = row.gradeValue?.trim() || null;
+
+    // Check for duplicate
+    const conditions = [eq(cards.userId, userId), like(cards.name, name)] as ReturnType<typeof eq>[];
+    if (year) conditions.push(eq(cards.year, year));
+    if (setName) conditions.push(like(cards.setName, setName));
+    if (gradeCompany) conditions.push(eq(cards.gradeCompany, gradeCompany));
+
+    const existing = await db.select({ id: cards.id }).from(cards).where(and(...conditions)).get();
+    if (existing) { skipped++; continue; }
+
+    try {
+      await db.insert(cards).values({
+        userId,
+        name,
+        year: isNaN(year as number) ? null : year,
+        setName,
+        cardNumber: row.cardNumber?.trim() || null,
+        variant: row.variant?.trim() || null,
+        sportGenre: row.sportGenre?.trim() || "other",
+        gradeCompany,
+        gradeValue,
+        condition: row.condition?.trim() || null,
+        purchasePrice: row.purchasePrice ? parseFloat(row.purchasePrice) : 0,
+        notes: row.notes?.trim() || null,
+        status: row.status?.trim() === "wanted" ? "wanted" : "owned",
+        photoUrl: null,
+      });
+      imported++;
+    } catch {
+      errors++;
+    }
+  }
+
+  revalidatePath("/cards");
+  revalidatePath("/watchlist");
+  return { imported, skipped, errors };
 }
 

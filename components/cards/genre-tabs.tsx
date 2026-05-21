@@ -21,10 +21,12 @@ export function GenreTabs({
   activeGenre,
   currentSearch,
   activeGenres,
+  basePath = "/cards",
 }: {
   activeGenre: string;
   currentSearch?: string;
   activeGenres?: string[];
+  basePath?: string;
 }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
@@ -48,7 +50,7 @@ export function GenreTabs({
     if (value !== "all") params.set("genre", value);
     if (currentSearch) params.set("q", currentSearch);
     const qs = params.toString();
-    return `/cards${qs ? `?${qs}` : ""}`;
+    return `${basePath}${qs ? `?${qs}` : ""}`;
   }
 
   return (

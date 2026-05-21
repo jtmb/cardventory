@@ -2,7 +2,7 @@
 
 import { useState, useRef } from "react";
 import { useRouter } from "next/navigation";
-import { createCard } from "@/lib/actions";
+import { createCard, checkDuplicate } from "@/lib/actions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -10,12 +10,13 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import { ArrowLeftIcon, UploadIcon, XIcon } from "lucide-react";
+import { ArrowLeftIcon, UploadIcon, XIcon, AlertTriangleIcon } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
 import { toast } from "sonner";
 import { ButtonLink } from "@/components/ui/button-link";
 import { ImagePicker } from "@/components/cards/image-picker";
+import type { Card as CardType } from "@/lib/db/schema";
 
 const GENRES = [
   { value: "basketball", label: "Basketball" },
@@ -38,6 +39,9 @@ export default function AddCardPage() {
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
   const [photoUrl, setPhotoUrl] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
+  const [status, setStatus] = useState<"owned" | "wanted">("owned");
+  const [duplicate, setDuplicate] = useState<CardType | null>(null);
+  const [forceSubmit, setForceSubmit] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
   const nameRef = useRef<HTMLInputElement>(null);
   const yearRef = useRef<HTMLInputElement>(null);
@@ -81,29 +85,47 @@ export default function AddCardPage() {
 
     const form = new FormData(e.currentTarget);
     const gradeCompany = form.get("gradeCompany") as string;
+    const name = form.get("name") as string;
+    const year = form.get("year") ? parseInt(form.get("year") as string) : null;
+    const setName = (form.get("setName") as string) || null;
+    const gc = gradeCompany && gradeCompany !== "none" ? gradeCompany : null;
+    const gv = (form.get("gradeValue") as string) || null;
+
+    // Duplicate detection (unless already confirmed)
+    if (!forceSubmit) {
+      const dup = await checkDuplicate(name, year, setName, gc, gv);
+      if (dup) {
+        setDuplicate(dup);
+        setLoading(false);
+        return;
+      }
+    }
 
     try {
       const card = await createCard({
-        name: form.get("name") as string,
-        setName: (form.get("setName") as string) || null,
-        year: form.get("year") ? parseInt(form.get("year") as string) : null,
+        name,
+        setName,
+        year,
         sportGenre: (form.get("sportGenre") as string) || "other",
         cardNumber: (form.get("cardNumber") as string) || null,
         variant: (form.get("variant") as string) || null,
-        gradeCompany: gradeCompany && gradeCompany !== "none" ? gradeCompany : null,
-        gradeValue: (form.get("gradeValue") as string) || null,
+        gradeCompany: gc,
+        gradeValue: gv,
         condition: (form.get("condition") as string) || null,
-        purchasePrice: parseFloat((form.get("purchasePrice") as string) || "0"),
+        purchasePrice: status === "wanted" ? 0 : parseFloat((form.get("purchasePrice") as string) || "0"),
         notes: (form.get("notes") as string) || null,
         photoUrl: photoUrl,
+        status,
       });
 
       toast.success("Card added!");
 
-      // Auto-fetch prices
-      fetch(`/api/pricing/refresh/${card.id}`, { method: "POST" }).catch(() => {});
+      // Auto-fetch prices for owned cards
+      if (status === "owned") {
+        fetch(`/api/pricing/refresh/${card.id}`, { method: "POST" }).catch(() => {});
+      }
 
-      router.push(`/cards/${card.id}`);
+      router.push(status === "wanted" ? "/watchlist" : `/cards/${card.id}`);
     } catch (err) {
       toast.error("Failed to add card");
       setLoading(false);
@@ -120,6 +142,67 @@ export default function AddCardPage() {
         <h1 className="text-2xl font-bold">Add Card</h1>
         <p className="text-muted-foreground text-sm mt-0.5">Add a card to your collection</p>
       </div>
+
+      {/* Status toggle */}
+      <div className="flex items-center gap-2">
+        <button
+          type="button"
+          onClick={() => setStatus("owned")}
+          className={`flex-1 py-2 rounded-lg text-sm font-medium border transition-colors ${
+            status === "owned"
+              ? "bg-primary/15 text-primary border-primary/30"
+              : "border-border text-muted-foreground hover:bg-muted"
+          }`}
+        >
+          Owned
+        </button>
+        <button
+          type="button"
+          onClick={() => setStatus("wanted")}
+          className={`flex-1 py-2 rounded-lg text-sm font-medium border transition-colors ${
+            status === "wanted"
+              ? "bg-amber-500/15 text-amber-500 border-amber-500/30"
+              : "border-border text-muted-foreground hover:bg-muted"
+          }`}
+        >
+          Wanted (Watchlist)
+        </button>
+      </div>
+
+      {/* Duplicate warning */}
+      {duplicate && (
+        <div className="flex items-start gap-3 p-4 rounded-lg border border-amber-500/40 bg-amber-500/8">
+          <AlertTriangleIcon className="h-5 w-5 text-amber-500 shrink-0 mt-0.5" />
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-medium text-amber-500">Possible duplicate</p>
+            <p className="text-sm text-muted-foreground mt-0.5">
+              You already have{" "}
+              <Link href={`/cards/${duplicate.id}`} className="underline text-foreground hover:text-primary">
+                {duplicate.name}
+                {duplicate.year ? ` (${duplicate.year})` : ""}
+                {duplicate.setName ? ` — ${duplicate.setName}` : ""}
+              </Link>{" "}
+              in your collection.
+            </p>
+            <div className="flex gap-2 mt-3">
+              <button
+                type="button"
+                onClick={() => { setForceSubmit(true); setDuplicate(null); }}
+                className="text-xs px-3 py-1.5 rounded-md bg-amber-500/15 text-amber-500 hover:bg-amber-500/25 transition-colors font-medium"
+              >
+                Add anyway
+              </button>
+              <button
+                type="button"
+                onClick={() => setDuplicate(null)}
+                className="text-xs px-3 py-1.5 rounded-md border border-border text-muted-foreground hover:bg-muted transition-colors"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <form onSubmit={handleSubmit} className="space-y-6">
         {/* Photo */}
@@ -222,6 +305,7 @@ export default function AddCardPage() {
         </Card>
 
         {/* Value */}
+        {status === "owned" && (
         <Card>
           <CardHeader><CardTitle className="text-base">Value</CardTitle></CardHeader>
           <CardContent className="space-y-4">
@@ -237,9 +321,19 @@ export default function AddCardPage() {
             </Field>
           </CardContent>
         </Card>
+        )}
+        {status === "wanted" && (
+        <Card>
+          <CardContent className="space-y-4 pt-6">
+            <Field label="Notes">
+              <Textarea name="notes" placeholder="Why you want this card, target price, etc…" rows={3} className="resize-none" />
+            </Field>
+          </CardContent>
+        </Card>
+        )}
 
         <Button type="submit" disabled={loading || uploading} className="w-full h-11 text-base">
-          {loading ? "Adding card…" : "Add Card"}
+          {loading ? "Adding card…" : status === "wanted" ? "Add to Watchlist" : "Add Card"}
         </Button>
       </form>
     </div>

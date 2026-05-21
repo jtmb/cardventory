@@ -19,6 +19,7 @@ import {
   BellIcon,
   MenuIcon,
   XIcon,
+  BookmarkIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -26,6 +27,7 @@ import { Button } from "@/components/ui/button";
 const navItems = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboardIcon },
   { href: "/cards", label: "My Cards", icon: LayersIcon },
+  { href: "/watchlist", label: "Watchlist", icon: BookmarkIcon },
   { href: "/cards/add", label: "Add Card", icon: PlusCircleIcon },
   { href: "/settings", label: "Settings", icon: SettingsIcon },
 ];
@@ -51,7 +53,11 @@ function NavContent({ onNavigate }: { onNavigate?: () => void }) {
     <>
       <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
         {navItems.map(({ href, label, icon: Icon }) => {
-          const active = href === "/dashboard" ? pathname === "/dashboard" || pathname === "/" : pathname.startsWith(href);
+          const active =
+            href === "/dashboard" ? pathname === "/dashboard" || pathname === "/" :
+            href === "/cards"     ? pathname === "/cards" || (pathname.startsWith("/cards/") && !pathname.startsWith("/cards/add")) :
+            href === "/cards/add" ? pathname === "/cards/add" :
+            pathname.startsWith(href);
           const tourId = href === "/cards/add" ? "tour-add-card" : href === "/settings" ? "tour-settings" : undefined;
           return (
             <div key={href}>

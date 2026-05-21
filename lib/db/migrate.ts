@@ -65,6 +65,10 @@ export function migrate() {
 
   // Additive migrations: ALTER TABLE is safe to retry (ignored if column exists)
   try { sqlite.exec("ALTER TABLE users ADD COLUMN locked_at INTEGER"); } catch {}
+  try { sqlite.exec("ALTER TABLE cards ADD COLUMN status TEXT NOT NULL DEFAULT 'owned'"); } catch {}
+
+  // Additional indexes for new columns
+  try { sqlite.exec("CREATE INDEX IF NOT EXISTS idx_cards_status ON cards(status)"); } catch {}
 
   sqlite.close();
 }

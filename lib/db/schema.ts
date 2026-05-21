@@ -35,6 +35,7 @@ export const cards = sqliteTable("cards", {
   purchasePrice: real("purchase_price").notNull().default(0),
   notes: text("notes"),
   photoUrl: text("photo_url"),
+  status: text("status").notNull().default("owned"), // 'owned' | 'wanted'
   createdAt: integer("created_at", { mode: "timestamp" })
     .notNull()
     .$defaultFn(() => new Date()),

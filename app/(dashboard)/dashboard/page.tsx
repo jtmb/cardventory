@@ -1,12 +1,13 @@
-import { getDashboardStats } from "@/lib/actions";
+import { getDashboardStats, getGradeStats, getPortfolioHistory } from "@/lib/actions";
 import { auth } from "@/auth";
 import Link from "next/link";
-import { TrendingUpIcon, TrendingDownIcon, LayersIcon, DollarSignIcon, PlusCircleIcon } from "lucide-react";
+import { TrendingUpIcon, TrendingDownIcon, LayersIcon, DollarSignIcon, PlusCircleIcon, ShieldIcon, BarChart2Icon } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { ButtonLink } from "@/components/ui/button-link";
 import { Badge } from "@/components/ui/badge";
 import { RefreshAllButton } from "@/components/cards/refresh-all-button";
 import { RecentCardsSection } from "@/components/cards/recent-cards-section";
+import { PortfolioChart } from "@/components/cards/portfolio-chart";
 
 const GENRE_LABELS: Record<string, string> = {
   basketball: "Basketball", baseball: "Baseball", football: "Football",
@@ -20,7 +21,11 @@ function fmt(n: number) {
 
 export default async function DashboardPage() {
   const session = await auth();
-  const stats = await getDashboardStats();
+  const [stats, gradeStats, portfolioHistory] = await Promise.all([
+    getDashboardStats(),
+    getGradeStats(),
+    getPortfolioHistory(),
+  ]);
 
   return (
     <div className="p-6 space-y-8 max-w-7xl mx-auto">
@@ -101,6 +106,55 @@ export default async function DashboardPage() {
       {/* Recent Cards */}
       {stats.recentCards.length > 0 && (
         <RecentCardsSection cards={stats.recentCards} />
+      )}
+
+      {/* Grade Breakdown */}
+      {gradeStats.length > 0 && (
+        <section>
+          <h2 className="text-lg font-semibold mb-3 flex items-center gap-2">
+            <ShieldIcon className="h-5 w-5 text-primary" /> Grade Breakdown
+          </h2>
+          <Card>
+            <CardContent className="p-0">
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-border">
+                      <th className="px-4 py-3 text-left text-xs text-muted-foreground uppercase tracking-wide font-medium">Grader</th>
+                      <th className="px-4 py-3 text-left text-xs text-muted-foreground uppercase tracking-wide font-medium">Grade</th>
+                      <th className="px-4 py-3 text-right text-xs text-muted-foreground uppercase tracking-wide font-medium">Count</th>
+                      <th className="px-4 py-3 text-right text-xs text-muted-foreground uppercase tracking-wide font-medium">Total Cost</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-border/60">
+                    {gradeStats.map((row, i) => (
+                      <tr key={i} className="hover:bg-muted/40 transition-colors">
+                        <td className="px-4 py-2.5 font-medium">{row.gradeCompany ?? "—"}</td>
+                        <td className="px-4 py-2.5 text-muted-foreground">{row.gradeValue ?? "—"}</td>
+                        <td className="px-4 py-2.5 text-right tabular-nums">{row.count}</td>
+                        <td className="px-4 py-2.5 text-right tabular-nums">{fmt(row.totalPurchase ?? 0)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </CardContent>
+          </Card>
+        </section>
+      )}
+
+      {/* Portfolio Value Trend */}
+      {portfolioHistory.length >= 2 && (
+        <section>
+          <h2 className="text-lg font-semibold mb-3 flex items-center gap-2">
+            <BarChart2Icon className="h-5 w-5 text-primary" /> Portfolio Value Trend
+          </h2>
+          <Card>
+            <CardContent className="p-5">
+              <PortfolioChart data={portfolioHistory} />
+            </CardContent>
+          </Card>
+        </section>
       )}
 
       {stats.totalCards === 0 && (

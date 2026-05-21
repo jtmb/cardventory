@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { CheckSquare2Icon, Trash2Icon, XIcon, LayoutGridIcon, LayoutListIcon, ListIcon } from "lucide-react";
+import { CheckSquare2Icon, Trash2Icon, XIcon, LayoutGridIcon, LayoutListIcon, ListIcon, DownloadIcon, TagIcon, BookmarkIcon, BookmarkCheckIcon } from "lucide-react";
 import { CardRow, CardRowSkeleton } from "./card-row";
 import type { Card } from "@/lib/db/schema";
 import { Button, buttonVariants } from "@/components/ui/button";
@@ -20,16 +20,30 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { deleteCards } from "@/lib/actions";
+import { deleteCards, updateCardsGenre, updateCardsStatus } from "@/lib/actions";
+import { toast } from "sonner";
+
+const GENRES = [
+  { value: "basketball", label: "Basketball" },
+  { value: "baseball", label: "Baseball" },
+  { value: "football", label: "Football" },
+  { value: "soccer", label: "Soccer" },
+  { value: "hockey", label: "Hockey" },
+  { value: "pokemon", label: "Pokémon" },
+  { value: "yugioh", label: "Yu-Gi-Oh!" },
+  { value: "magic", label: "Magic: The Gathering" },
+  { value: "other", label: "Other" },
+];
 
 type ViewMode = "grid" | "list" | "compact";
 const VIEW_LS_KEY = "cv_cards_view";
 
-export function CardGrid({ cards }: { cards: Card[] }) {
+export function CardGrid({ cards, exportHref }: { cards: Card[]; exportHref?: string }) {
   const [selectMode, setSelectMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [isPending, startTransition] = useTransition();
   const [view, setView] = useState<ViewMode>("grid");
+  const [genrePickerOpen, setGenrePickerOpen] = useState(false);
   const router = useRouter();
 
   useEffect(() => {
@@ -58,6 +72,7 @@ export function CardGrid({ cards }: { cards: Card[] }) {
   function exitSelectMode() {
     setSelectMode(false);
     setSelectedIds(new Set());
+    setGenrePickerOpen(false);
   }
 
   function handleDeleteSelected() {
@@ -68,7 +83,47 @@ export function CardGrid({ cards }: { cards: Card[] }) {
     });
   }
 
+  function handleExportSelected() {
+    const ids = [...selectedIds].join(",");
+    window.location.href = `/api/cards/export?ids=${encodeURIComponent(ids)}`;
+  }
+
+  function handleGenreChange(genre: string) {
+    const ids = [...selectedIds];
+    startTransition(async () => {
+      await updateCardsGenre(ids, genre);
+      toast.success(`Genre updated for ${ids.length} ${ids.length === 1 ? "card" : "cards"}`);
+      setGenrePickerOpen(false);
+      exitSelectMode();
+      router.refresh();
+    });
+  }
+
+  function handleMarkWanted() {
+    const ids = [...selectedIds];
+    startTransition(async () => {
+      await updateCardsStatus(ids, "wanted");
+      toast.success(`${ids.length} ${ids.length === 1 ? "card" : "cards"} moved to Watchlist`);
+      exitSelectMode();
+      router.refresh();
+    });
+  }
+
+  function handleMarkOwned() {
+    const ids = [...selectedIds];
+    startTransition(async () => {
+      await updateCardsStatus(ids, "owned");
+      toast.success(`${ids.length} ${ids.length === 1 ? "card" : "cards"} marked as Owned`);
+      exitSelectMode();
+      router.refresh();
+    });
+  }
+
   const count = selectedIds.size;
+  // Determine if any selected card is "wanted" to decide toggle label
+  const selectedCards = cards.filter((c) => selectedIds.has(c.id));
+  const allOwned = selectedCards.every((c) => c.status === "owned");
+  const allWanted = selectedCards.every((c) => c.status === "wanted");
 
   return (
     <>
@@ -124,6 +179,70 @@ export function CardGrid({ cards }: { cards: Card[] }) {
               </button>
             ))}
           </div>
+
+          {selectMode && count > 0 && (
+            <>
+              {/* Export selected */}
+              <button
+                onClick={handleExportSelected}
+                disabled={isPending}
+                className={cn(buttonVariants({ variant: "outline", size: "sm" }), "gap-1.5")}
+                title="Export selected as CSV"
+              >
+                <DownloadIcon className="h-3.5 w-3.5" />
+                Export
+              </button>
+
+              {/* Change genre */}
+              <div className="relative">
+                <button
+                  onClick={() => setGenrePickerOpen((v) => !v)}
+                  disabled={isPending}
+                  className={cn(buttonVariants({ variant: "outline", size: "sm" }), "gap-1.5")}
+                >
+                  <TagIcon className="h-3.5 w-3.5" />
+                  Genre
+                </button>
+                {genrePickerOpen && (
+                  <div className="absolute right-0 top-full mt-1 z-50 w-44 rounded-lg border border-border bg-popover shadow-lg py-1">
+                    {GENRES.map(({ value, label }) => (
+                      <button
+                        key={value}
+                        onClick={() => handleGenreChange(value)}
+                        className="w-full text-left px-3 py-1.5 text-sm hover:bg-muted transition-colors"
+                      >
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Mark wanted / owned toggle */}
+              {allOwned && (
+                <button
+                  onClick={handleMarkWanted}
+                  disabled={isPending}
+                  className={cn(buttonVariants({ variant: "outline", size: "sm" }), "gap-1.5")}
+                  title="Move to Watchlist"
+                >
+                  <BookmarkIcon className="h-3.5 w-3.5" />
+                  Watchlist
+                </button>
+              )}
+              {allWanted && (
+                <button
+                  onClick={handleMarkOwned}
+                  disabled={isPending}
+                  className={cn(buttonVariants({ variant: "outline", size: "sm" }), "gap-1.5")}
+                  title="Mark as Owned"
+                >
+                  <BookmarkCheckIcon className="h-3.5 w-3.5" />
+                  Mark Owned
+                </button>
+              )}
+            </>
+          )}
 
           {selectMode && (
             <AlertDialog>

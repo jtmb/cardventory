@@ -19,10 +19,12 @@ export function SortSelect({
   currentSort = "newest",
   genre,
   search,
+  basePath = "/cards",
 }: {
   currentSort?: string;
   genre?: string;
   search?: string;
+  basePath?: string;
 }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
@@ -43,7 +45,7 @@ export function SortSelect({
     if (search) params.set("q", search);
     if (value !== "newest") params.set("sort", value);
     const qs = params.toString();
-    return `/cards${qs ? `?${qs}` : ""}`;
+    return `${basePath}${qs ? `?${qs}` : ""}`;
   }
 
   return (
