@@ -6,6 +6,7 @@ export type ThemeColors = {
   foreground: string;
   mutedForeground: string;
   destructive: string;
+  primaryForeground?: string;
 };
 
 export const THEME_VARS: Array<{
@@ -107,6 +108,10 @@ export function applyThemeColors(colors: Partial<ThemeColors>) {
     set("--sidebar-ring", colors.primary);
     set("--chart-1", colors.primary);
   }
+  if (colors.primaryForeground) {
+    set("--primary-foreground", colors.primaryForeground);
+    set("--sidebar-primary-foreground", colors.primaryForeground);
+  }
   if (colors.background) {
     set("--background", colors.background);
   }
@@ -143,6 +148,7 @@ export function resetThemeColors() {
   const el = document.documentElement;
   [
     "--primary", "--ring", "--sidebar-primary", "--sidebar-ring", "--chart-1",
+    "--primary-foreground", "--sidebar-primary-foreground",
     "--background",
     "--card", "--popover", "--secondary", "--muted", "--accent",
     "--sidebar", "--sidebar-accent",
@@ -160,21 +166,28 @@ export const PRESET_LS_KEY = "cv_preset";
 export type PresetThemeKey =
   | "default"
   | "midnight"
-  | "forest"
+  | "ivory"
   | "sunset"
-  | "ocean"
-  | "monochrome";
+  | "sky"
+  | "monochrome"
+  | "blurple"
+  | "nord"
+  | "neon"
+  | "rose"
+  | "slate";
 
 export const PRESET_THEMES: Array<{
   key: PresetThemeKey;
   label: string;
   desc: string;
+  mode: "light" | "dark";
   colors: ThemeColors;
 }> = [
   {
     key: "default",
     label: "Default",
     desc: "Near-black with muted lavender accent",
+    mode: "dark",
     colors: {
       primary: "#b8b8c7",
       background: "#1a1919",
@@ -189,8 +202,10 @@ export const PRESET_THEMES: Array<{
     key: "midnight",
     label: "Midnight",
     desc: "Pure black with indigo accent",
+    mode: "dark",
     colors: {
       primary: "#6366f1",
+      primaryForeground: "#ffffff",
       background: "#0d0d0d",
       card: "#1a1a1a",
       sidebar: "#111111",
@@ -200,16 +215,18 @@ export const PRESET_THEMES: Array<{
     },
   },
   {
-    key: "forest",
-    label: "Forest",
-    desc: "Dark green tones with emerald accent",
+    key: "ivory",
+    label: "Ivory",
+    desc: "Warm cream background with amber accent",
+    mode: "light",
     colors: {
-      primary: "#10b981",
-      background: "#1a2420",
-      card: "#1e2e28",
-      sidebar: "#141e1a",
-      foreground: "#d1fae5",
-      mutedForeground: "#6b7280",
+      primary: "#b45309",
+      primaryForeground: "#ffffff",
+      background: "#faf8f5",
+      card: "#f0ece4",
+      sidebar: "#e8e3d8",
+      foreground: "#1c1917",
+      mutedForeground: "#78716c",
       destructive: "#dc2626",
     },
   },
@@ -217,8 +234,10 @@ export const PRESET_THEMES: Array<{
     key: "sunset",
     label: "Sunset",
     desc: "Warm dark tones with rose accent",
+    mode: "dark",
     colors: {
       primary: "#f43f5e",
+      primaryForeground: "#ffffff",
       background: "#211820",
       card: "#2d1e28",
       sidebar: "#180e18",
@@ -228,23 +247,26 @@ export const PRESET_THEMES: Array<{
     },
   },
   {
-    key: "ocean",
-    label: "Ocean",
-    desc: "Deep navy with cyan accent",
+    key: "sky",
+    label: "Sky",
+    desc: "Light slate background with blue accent",
+    mode: "light",
     colors: {
-      primary: "#06b6d4",
-      background: "#0d1b2a",
-      card: "#1a2e40",
-      sidebar: "#091220",
-      foreground: "#e0f2fe",
-      mutedForeground: "#94a3b8",
-      destructive: "#ef4444",
+      primary: "#3b82f6",
+      primaryForeground: "#ffffff",
+      background: "#f1f5f9",
+      card: "#ffffff",
+      sidebar: "#e2e8f0",
+      foreground: "#0f172a",
+      mutedForeground: "#64748b",
+      destructive: "#dc2626",
     },
   },
   {
     key: "monochrome",
     label: "Monochrome",
     desc: "Dark charcoal with silver accent",
+    mode: "dark",
     colors: {
       primary: "#d4d4d4",
       background: "#1c1c1c",
@@ -252,6 +274,83 @@ export const PRESET_THEMES: Array<{
       sidebar: "#141414",
       foreground: "#f5f5f5",
       mutedForeground: "#737373",
+      destructive: "#ef4444",
+    },
+  },
+  {
+    key: "blurple",
+    label: "Blurple",
+    desc: "Dark gray panels with electric violet accent",
+    mode: "dark",
+    colors: {
+      primary: "#5865f2",
+      primaryForeground: "#ffffff",
+      background: "#313338",
+      card: "#2b2d31",
+      sidebar: "#1e1f22",
+      foreground: "#dbdee1",
+      mutedForeground: "#80848e",
+      destructive: "#ed4245",
+    },
+  },
+  {
+    key: "nord",
+    label: "Nord",
+    desc: "Arctic blue-gray tones with frost accent",
+    mode: "dark",
+    colors: {
+      primary: "#88c0d0",
+      background: "#2e3440",
+      card: "#3b4252",
+      sidebar: "#242831",
+      foreground: "#eceff4",
+      mutedForeground: "#616e88",
+      destructive: "#bf616a",
+    },
+  },
+  {
+    key: "neon",
+    label: "Neon",
+    desc: "Near-black with vivid green accent",
+    mode: "dark",
+    colors: {
+      primary: "#00cc6a",
+      background: "#0a0a0f",
+      card: "#111118",
+      sidebar: "#060609",
+      foreground: "#e0ffe8",
+      mutedForeground: "#3f4a5a",
+      destructive: "#ff3366",
+    },
+  },
+  {
+    key: "rose",
+    label: "Rose",
+    desc: "Soft pink background with crimson accent",
+    mode: "light",
+    colors: {
+      primary: "#e11d48",
+      primaryForeground: "#ffffff",
+      background: "#fff1f2",
+      card: "#ffe4e6",
+      sidebar: "#fecdd3",
+      foreground: "#1f0708",
+      mutedForeground: "#9f1239",
+      destructive: "#dc2626",
+    },
+  },
+  {
+    key: "slate",
+    label: "Slate",
+    desc: "Deep navy with electric sky accent",
+    mode: "dark",
+    colors: {
+      primary: "#38bdf8",
+      background: "#0f172a",
+      card: "#1e293b",
+      sidebar: "#0a1020",
+      foreground: "#f1f5f9",
+      mutedForeground: "#64748b",
       destructive: "#ef4444",
     },
   },
@@ -415,7 +514,7 @@ export const THEME_INIT_SCRIPT = `(function(){
 (function(){
   try {
     var e = document.documentElement;
-    var cs = localStorage.getItem('cv_card_style'); if (cs) e.setAttribute('data-card-style', cs);
+    var cs = localStorage.getItem('cv_card_style') || 'elevated'; e.setAttribute('data-card-style', cs);
     var ch = localStorage.getItem('cv_chip_style'); if (ch) e.setAttribute('data-chip-style', ch);
     var bs = localStorage.getItem('cv_btn_style');  if (bs) e.setAttribute('data-btn-style',  bs);
     var sl = localStorage.getItem('cv_sleeve');      if (sl) e.setAttribute('data-sleeve',      sl);

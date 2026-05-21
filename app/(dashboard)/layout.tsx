@@ -12,10 +12,10 @@ export default async function DashboardLayout({ children }: { children: React.Re
   return (
     <SessionProvider session={session}>
       <div className="flex min-h-screen bg-background">
-        <Suspense fallback={<div className="w-60 shrink-0 bg-sidebar border-r border-sidebar-border min-h-screen" />}>
+        <Suspense fallback={<div className="hidden md:block w-60 shrink-0 bg-sidebar border-r border-sidebar-border min-h-screen" />}>
           <Sidebar />
         </Suspense>
-        <main className="flex-1 overflow-auto">
+        <main className="flex-1 overflow-auto pt-14 md:pt-0">
           {children}
         </main>
       </div>

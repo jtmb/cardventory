@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { signIn } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
@@ -14,6 +14,22 @@ export default function LoginPage() {
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [oauthStatus, setOauthStatus] = useState<{ google: boolean; github: boolean } | null>(null);
+
+  useEffect(() => {
+    fetch("/api/oauth-status")
+      .then((r) => r.json())
+      .then(setOauthStatus)
+      .catch(() => setOauthStatus({ google: false, github: false }));
+  }, []);
+
+  function handleOAuthClick(provider: "google" | "github") {
+    if (!oauthStatus?.[provider]) {
+      setError(`${provider === "google" ? "Google" : "GitHub"} sign-in is not enabled for this instance.`);
+      return;
+    }
+    signIn(provider, { callbackUrl: "/" });
+  }
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -84,7 +100,7 @@ export default function LoginPage() {
             type="button"
             variant="outline"
             className="gap-2"
-            onClick={() => signIn("google", { callbackUrl: "/" })}
+            onClick={() => handleOAuthClick("google")}
           >
             {/* Google "G" icon */}
             <svg className="h-4 w-4" viewBox="0 0 24 24" aria-hidden="true">
@@ -99,7 +115,7 @@ export default function LoginPage() {
             type="button"
             variant="outline"
             className="gap-2"
-            onClick={() => signIn("github", { callbackUrl: "/" })}
+            onClick={() => handleOAuthClick("github")}
           >
             {/* GitHub icon */}
             <svg className="h-4 w-4 fill-current" viewBox="0 0 24 24" aria-hidden="true">

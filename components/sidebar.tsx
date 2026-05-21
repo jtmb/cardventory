@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useState } from "react";
 import { usePathname, useSearchParams } from "next/navigation";
 import { signOut, useSession } from "next-auth/react";
 import {
@@ -16,6 +17,8 @@ import {
   ServerIcon,
   ShieldIcon,
   BellIcon,
+  MenuIcon,
+  XIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -35,7 +38,8 @@ const settingsSubItems = [
   { key: "system",       label: "System",       icon: ServerIcon,   adminOnly: true  },
 ];
 
-export function Sidebar() {
+/** Nav links + sign-out — rendered in both desktop sidebar and mobile drawer. */
+function NavContent({ onNavigate }: { onNavigate?: () => void }) {
   const pathname = usePathname();
   const onSettings = pathname.startsWith("/settings");
   const searchParams = useSearchParams();
@@ -44,15 +48,8 @@ export function Sidebar() {
   const isAdmin = session?.user?.role === "admin";
 
   return (
-    <aside className="w-60 shrink-0 bg-sidebar border-r border-sidebar-border flex flex-col sticky top-0 h-screen overflow-y-auto">
-      {/* Logo */}
-      <div className="flex items-center gap-2 px-5 py-5 border-b border-sidebar-border">
-        <TrendingUpIcon className="h-6 w-6 text-primary" />
-        <span className="font-bold text-lg text-sidebar-foreground tracking-tight">Cardventory</span>
-      </div>
-
-      {/* Nav */}
-      <nav className="flex-1 px-3 py-4 space-y-1">
+    <>
+      <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
         {navItems.map(({ href, label, icon: Icon }) => {
           const active = href === "/dashboard" ? pathname === "/dashboard" || pathname === "/" : pathname.startsWith(href);
           const tourId = href === "/cards/add" ? "tour-add-card" : href === "/settings" ? "tour-settings" : undefined;
@@ -60,6 +57,7 @@ export function Sidebar() {
             <div key={href}>
               <Link
                 href={href}
+                onClick={onNavigate}
                 data-tour-id={tourId}
                 className={cn(
                   "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors",
@@ -72,13 +70,13 @@ export function Sidebar() {
                 {label}
               </Link>
 
-              {/* Settings sub-items — shown when on any /settings route */}
               {href === "/settings" && onSettings && (
                 <div className="mt-0.5 ml-3 pl-4 border-l border-sidebar-border space-y-0.5">
                   {settingsSubItems.filter((i) => !i.adminOnly || isAdmin).map(({ key, label: subLabel, icon: SubIcon }) => (
                     <Link
                       key={key}
                       href={`/settings?s=${key}`}
+                      onClick={onNavigate}
                       data-tour-id={key === "data" ? "tour-settings-data" : undefined}
                       className={cn(
                         "flex items-center gap-2.5 px-2.5 py-1.5 rounded-md text-xs font-medium transition-colors",
@@ -97,10 +95,10 @@ export function Sidebar() {
           );
         })}
 
-        {/* Admin link — visible to admins only */}
         {isAdmin && (
           <Link
             href="/admin"
+            onClick={onNavigate}
             className={cn(
               "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors",
               pathname.startsWith("/admin")
@@ -114,17 +112,80 @@ export function Sidebar() {
         )}
       </nav>
 
-      {/* Sign out */}
       <div className="px-3 py-4 border-t border-sidebar-border">
         <Button
           variant="ghost"
           className="w-full justify-start gap-3 text-sidebar-foreground/60 hover:text-sidebar-foreground hover:bg-sidebar-accent text-sm"
-          onClick={() => signOut({ callbackUrl: "/login" })}
+          onClick={() => { onNavigate?.(); signOut({ callbackUrl: "/login" }); }}
         >
           <LogOutIcon className="h-4 w-4" />
           Sign Out
         </Button>
       </div>
-    </aside>
+    </>
+  );
+}
+
+export function Sidebar() {
+  const [drawerOpen, setDrawerOpen] = useState(false);
+
+  return (
+    <>
+      {/* ── Desktop sidebar (md and up) ──────────────────────────────────── */}
+      <aside className="hidden md:flex w-60 shrink-0 bg-sidebar border-r border-sidebar-border flex-col sticky top-0 h-screen overflow-y-auto">
+        <div className="flex items-center gap-2 px-5 py-5 border-b border-sidebar-border">
+          <TrendingUpIcon className="h-6 w-6 text-primary" />
+          <span className="font-bold text-lg text-sidebar-foreground tracking-tight">Cardventory</span>
+        </div>
+        <NavContent />
+      </aside>
+
+      {/* ── Mobile top bar (below md) ─────────────────────────────────────── */}
+      <div className="md:hidden fixed top-0 left-0 right-0 z-40 h-14 bg-sidebar border-b border-sidebar-border flex items-center px-4 gap-3">
+        <button
+          type="button"
+          aria-label="Open menu"
+          onClick={() => setDrawerOpen(true)}
+          className="p-1.5 rounded-md text-sidebar-foreground/60 hover:text-sidebar-foreground hover:bg-sidebar-accent transition-colors"
+        >
+          <MenuIcon className="h-5 w-5" />
+        </button>
+        <TrendingUpIcon className="h-5 w-5 text-primary" />
+        <span className="font-bold text-base text-sidebar-foreground tracking-tight">Cardventory</span>
+      </div>
+
+      {/* ── Mobile backdrop ───────────────────────────────────────────────── */}
+      {drawerOpen && (
+        <div
+          className="md:hidden fixed inset-0 z-50 bg-black/50"
+          onClick={() => setDrawerOpen(false)}
+          aria-hidden="true"
+        />
+      )}
+
+      {/* ── Mobile drawer ─────────────────────────────────────────────────── */}
+      <div
+        className={cn(
+          "md:hidden fixed inset-y-0 left-0 z-50 w-72 bg-sidebar border-r border-sidebar-border flex flex-col transition-transform duration-200 ease-in-out",
+          drawerOpen ? "translate-x-0" : "-translate-x-full"
+        )}
+      >
+        <div className="flex items-center justify-between px-5 py-4 border-b border-sidebar-border">
+          <div className="flex items-center gap-2">
+            <TrendingUpIcon className="h-5 w-5 text-primary" />
+            <span className="font-bold text-base text-sidebar-foreground tracking-tight">Cardventory</span>
+          </div>
+          <button
+            type="button"
+            aria-label="Close menu"
+            onClick={() => setDrawerOpen(false)}
+            className="p-1 rounded-md text-sidebar-foreground/60 hover:text-sidebar-foreground transition-colors"
+          >
+            <XIcon className="h-4 w-4" />
+          </button>
+        </div>
+        <NavContent onNavigate={() => setDrawerOpen(false)} />
+      </div>
+    </>
   );
 }

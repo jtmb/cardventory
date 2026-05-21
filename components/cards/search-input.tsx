@@ -85,8 +85,8 @@ export function SearchInput({
   }, []);
 
   return (
-    <div className="relative" ref={containerRef}>
-      <form onSubmit={handleSubmit} className="relative flex items-center shrink-0">
+    <div className="relative w-full md:w-auto" ref={containerRef}>
+      <form onSubmit={handleSubmit} className="relative flex items-center w-full md:w-auto">
         {genre && genre !== "all" && <input type="hidden" name="genre" value={genre} />}
         <SearchIcon className="absolute left-2.5 h-4 w-4 text-muted-foreground pointer-events-none" />
         <input
@@ -98,7 +98,7 @@ export function SearchInput({
           onFocus={() => suggestions.length > 0 && setOpen(true)}
           placeholder="Search cards..."
           autoComplete="off"
-          className="h-8 w-52 rounded-md bg-background border border-border pl-8 pr-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+          className="h-8 w-full md:w-52 rounded-md bg-background border border-border pl-8 pr-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
         />
       </form>
 

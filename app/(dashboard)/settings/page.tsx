@@ -21,7 +21,6 @@ import {
   FONT_THEMES, type FontThemeKey, FONT_LS_KEY, applyFontTheme,
   PRESET_THEMES, PRESET_LS_KEY, applyPresetTheme, type PresetThemeKey,
   TYPE_DENSITY_OPTIONS, TYPE_DENSITY_LS_KEY, applyTypeDensity, type TypeDensityKey,
-  CARD_STYLE_OPTIONS, CARD_STYLE_LS_KEY, applyCardStyle, type CardStyleKey,
   CHIP_STYLE_OPTIONS, CHIP_STYLE_LS_KEY, applyChipStyle, type ChipStyleKey,
   BUTTON_STYLE_OPTIONS, BUTTON_STYLE_LS_KEY, applyButtonStyle, type ButtonStyleKey,
   SLEEVE_LS_KEY, applySleeve,
@@ -95,7 +94,6 @@ function SettingsContent() {
   const [fontTheme, setFontTheme] = useState<FontThemeKey>("system");
   const [activePreset, setActivePreset] = useState<PresetThemeKey | null>(null);
   const [typeDensity, setTypeDensity] = useState<TypeDensityKey>("default");
-  const [cardStyle, setCardStyle] = useState<CardStyleKey>("outlined");
   const [chipStyle, setChipStyle] = useState<ChipStyleKey>("assist");
   const [btnStyle, setBtnStyle] = useState<ButtonStyleKey>("filled");
   const [sleeveEffect, setSleeveEffect] = useState(true);
@@ -153,10 +151,6 @@ function SettingsContent() {
       if (d) setTypeDensity(d);
     } catch {}
     try {
-      const cs = localStorage.getItem(CARD_STYLE_LS_KEY) as CardStyleKey | null;
-      if (cs) setCardStyle(cs);
-    } catch {}
-    try {
       const ch = localStorage.getItem(CHIP_STYLE_LS_KEY) as ChipStyleKey | null;
       if (ch) setChipStyle(ch);
     } catch {}
@@ -197,12 +191,6 @@ function SettingsContent() {
           setTypeDensity(d);
           localStorage.setItem(TYPE_DENSITY_LS_KEY, TYPE_DENSITY_OPTIONS.find((o) => o.key === d)!.value);
           applyTypeDensity(d);
-        }
-        if (data.card_style) {
-          const cs = data.card_style as CardStyleKey;
-          setCardStyle(cs);
-          localStorage.setItem(CARD_STYLE_LS_KEY, cs);
-          applyCardStyle(cs);
         }
         if (data.chip_style) {
           const ch = data.chip_style as ChipStyleKey;
@@ -308,12 +296,6 @@ function SettingsContent() {
     localStorage.setItem(TYPE_DENSITY_LS_KEY, TYPE_DENSITY_OPTIONS.find((o) => o.key === key)!.value);
   }
 
-  function handleCardStyle(key: CardStyleKey) {
-    setCardStyle(key);
-    applyCardStyle(key);
-    localStorage.setItem(CARD_STYLE_LS_KEY, key);
-  }
-
   function handleChipStyle(key: ChipStyleKey) {
     setChipStyle(key);
     applyChipStyle(key);
@@ -342,7 +324,6 @@ function SettingsContent() {
       preset_theme: activePreset,
       font_theme: fontTheme,
       type_density: typeDensity,
-      card_style: cardStyle,
       chip_style: chipStyle,
       btn_style: btnStyle,
       sleeve_effect: sleeveEffect,
@@ -385,7 +366,6 @@ function SettingsContent() {
         if (data.preset_theme) { setActivePreset(data.preset_theme); localStorage.setItem(PRESET_LS_KEY, data.preset_theme); }
         if (data.font_theme) { setFontTheme(data.font_theme); applyFontTheme(data.font_theme); localStorage.setItem(FONT_LS_KEY, data.font_theme); }
         if (data.type_density) { setTypeDensity(data.type_density); applyTypeDensity(data.type_density); const opt = TYPE_DENSITY_OPTIONS.find((o) => o.key === data.type_density); if (opt) localStorage.setItem(TYPE_DENSITY_LS_KEY, opt.value); }
-        if (data.card_style) { setCardStyle(data.card_style); applyCardStyle(data.card_style); localStorage.setItem(CARD_STYLE_LS_KEY, data.card_style); }
         if (data.chip_style) { setChipStyle(data.chip_style); applyChipStyle(data.chip_style); localStorage.setItem(CHIP_STYLE_LS_KEY, data.chip_style); }
         if (data.btn_style) { setBtnStyle(data.btn_style); applyButtonStyle(data.btn_style); localStorage.setItem(BUTTON_STYLE_LS_KEY, data.btn_style); }
         if (data.sleeve_effect !== undefined) { const sv = Boolean(data.sleeve_effect); setSleeveEffect(sv); applySleeve(sv); localStorage.setItem(SLEEVE_LS_KEY, String(sv)); }
@@ -426,7 +406,6 @@ function SettingsContent() {
           font_theme: s.font_theme,
           preset_theme: s.preset_theme ?? "",
           type_density: s.type_density,
-          card_style: s.card_style,
           chip_style: s.chip_style,
           btn_style: s.btn_style,
           sleeve_effect: String(s.sleeve_effect),
@@ -573,8 +552,11 @@ function SettingsContent() {
                         <div key={i} className="w-5 h-5 rounded-full border border-black/10" style={{ backgroundColor: c }} />
                       ))}
                     </div>
-                    <p className="type-label-large font-semibold">{preset.label}</p>
-                    <p className="type-label-small text-muted-foreground mt-0.5 line-clamp-1">{preset.desc}</p>
+                    <div className="flex items-baseline gap-1.5 mb-0.5">
+                      <p className="type-label-large font-semibold">{preset.label}</p>
+                      <span className="text-[9px] uppercase tracking-wide text-muted-foreground">{preset.mode}</span>
+                    </div>
+                    <p className="type-label-small text-muted-foreground line-clamp-1">{preset.desc}</p>
                     {isActive && (
                       <div className="absolute top-2 right-2 w-5 h-5 rounded-full bg-primary flex items-center justify-center">
                         <CheckIcon className="h-3 w-3 text-primary-foreground" />
@@ -639,35 +621,6 @@ function SettingsContent() {
                   <p className="type-label-small text-muted-foreground mt-0.5">{opt.desc}</p>
                 </button>
               ))}
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Card Style */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Card Style</CardTitle>
-            <CardDescription>
-              M3 card variant applied to all collection cards.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            <OptionPicker options={CARD_STYLE_OPTIONS} value={cardStyle} onChange={handleCardStyle} />
-            {/* Mini preview */}
-            <div className="flex gap-3 pt-1">
-              {/* Elevated preview */}
-              <div className="flex-1 rounded-lg p-3 text-center text-xs text-muted-foreground border-transparent"
-                style={{ boxShadow: "0 2px 8px oklch(0 0 0 / 22%)", background: "color-mix(in oklch, var(--card) 93%, var(--primary) 7%)" }}>
-                Elevated
-              </div>
-              {/* Filled preview */}
-              <div className="flex-1 rounded-lg p-3 text-center text-xs text-muted-foreground bg-card">
-                Filled
-              </div>
-              {/* Outlined preview */}
-              <div className="flex-1 rounded-lg p-3 text-center text-xs text-muted-foreground border border-border">
-                Outlined
-              </div>
             </div>
           </CardContent>
         </Card>
@@ -814,6 +767,54 @@ function SettingsContent() {
         <div className="space-y-4">
         <Card>
           <CardHeader>
+            <CardTitle className="text-base">Welcome Tour</CardTitle>
+            <CardDescription>
+              Replay the guided walkthrough that highlights key features of the app.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Button
+              variant="outline"
+              className="gap-2"
+              onClick={() => {
+                localStorage.removeItem("cv_tour_done");
+                router.push("/dashboard");
+                setTimeout(() => window.dispatchEvent(new CustomEvent("cv:start-tour")), 50);
+              }}
+            >
+              <SparklesIcon className="h-4 w-4" />
+              Start Welcome Tour
+            </Button>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Pricing Sources</CardTitle>
+            <CardDescription>The following sources are checked for each card.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-2">
+              {[
+                { name: "eBay",               url: "ebay.com",               desc: "Completed/sold listings" },
+                { name: "SportsCardInvestor", url: "sportscardinvestor.com", desc: "Market pricing data" },
+                { name: "SportsCardsPro",     url: "sportscardspro.com",     desc: "Price guide & population" },
+              ].map(({ name, url, desc }) => (
+                <div key={name} className="flex items-center justify-between py-2 border-b border-border last:border-0">
+                  <div>
+                    <p className="type-label-large font-medium">{name}</p>
+                    <p className="type-label-small text-muted-foreground">{desc}</p>
+                  </div>
+                  <a href={`https://www.${url}`} target="_blank" rel="noopener noreferrer"
+                    className="type-label-small text-primary hover:underline">{url}</a>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
             <CardTitle className="text-base">Auto-refresh</CardTitle>
             <CardDescription>How often to automatically check card prices across all sources.</CardDescription>
           </CardHeader>
@@ -855,54 +856,6 @@ function SettingsContent() {
                 </p>
               )}
             </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Pricing Sources</CardTitle>
-            <CardDescription>The following sources are checked for each card.</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-2">
-              {[
-                { name: "eBay",               url: "ebay.com",               desc: "Completed/sold listings" },
-                { name: "SportsCardInvestor", url: "sportscardinvestor.com", desc: "Market pricing data" },
-                { name: "SportsCardsPro",     url: "sportscardspro.com",     desc: "Price guide & population" },
-              ].map(({ name, url, desc }) => (
-                <div key={name} className="flex items-center justify-between py-2 border-b border-border last:border-0">
-                  <div>
-                    <p className="type-label-large font-medium">{name}</p>
-                    <p className="type-label-small text-muted-foreground">{desc}</p>
-                  </div>
-                  <a href={`https://www.${url}`} target="_blank" rel="noopener noreferrer"
-                    className="type-label-small text-primary hover:underline">{url}</a>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Welcome Tour</CardTitle>
-            <CardDescription>
-              Replay the guided walkthrough that highlights key features of the app.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Button
-              variant="outline"
-              className="gap-2"
-              onClick={() => {
-                localStorage.removeItem("cv_tour_done");
-                router.push("/dashboard");
-                setTimeout(() => window.dispatchEvent(new CustomEvent("cv:start-tour")), 50);
-              }}
-            >
-              <SparklesIcon className="h-4 w-4" />
-              Start Welcome Tour
-            </Button>
           </CardContent>
         </Card>
 

@@ -19,17 +19,23 @@ export default async function CardsPage({
     <>
       {/* Radarr-style toolbar: bg-card separates it from bg-background below */}
       <div className="bg-card border-b border-border">
-        <div data-tour-id="tour-cards-toolbar" className="max-w-7xl mx-auto px-6 flex items-center gap-3 h-14">
+        <div
+          data-tour-id="tour-cards-toolbar"
+          className="max-w-7xl mx-auto px-4 md:px-6 py-2 md:py-0 flex flex-col md:flex-row md:items-center md:gap-3 md:h-14 gap-2"
+        >
           <SearchInput defaultValue={q} genre={genre} />
-          <div className="w-px h-5 bg-border/60 shrink-0" />
-          <SortSelect currentSort={sort} genre={genre} search={q} />
-          <div className="w-px h-5 bg-border/60 shrink-0" />
-          <RefreshAllButton />
-          <ButtonLink href="/cards/add" data-tour-id="toolbar-add-card">
-            <PlusCircleIcon className="h-4 w-4" /> Add Card
-          </ButtonLink>
-          <div className="ml-auto">
-            <GenreTabs activeGenre={genre ?? "all"} currentSearch={q} activeGenres={activeGenres} />
+          <div className="flex items-center gap-2 md:flex-1">
+            <div className="hidden md:block w-px h-5 bg-border/60 shrink-0" />
+            <SortSelect currentSort={sort} genre={genre} search={q} />
+            <div className="hidden md:block w-px h-5 bg-border/60 shrink-0" />
+            <RefreshAllButton />
+            <ButtonLink href="/cards/add" data-tour-id="toolbar-add-card">
+              <PlusCircleIcon className="h-4 w-4" />
+              <span className="hidden sm:inline">Add Card</span>
+            </ButtonLink>
+            <div className="ml-auto">
+              <GenreTabs activeGenre={genre ?? "all"} currentSearch={q} activeGenres={activeGenres} />
+            </div>
           </div>
         </div>
       </div>
