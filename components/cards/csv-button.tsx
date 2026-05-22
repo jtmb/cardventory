@@ -116,8 +116,8 @@ export function CsvButton({ exportHref, iconOnly = false }: { exportHref: string
         onClick={() => setOpen(true)}
         aria-label="Import / Export CSV"
         className={iconOnly
-          ? "flex items-center justify-center h-8 w-8 rounded-md border border-border text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
-          : "flex items-center gap-1.5 h-8 px-3 rounded-md text-sm font-medium border border-border text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+          ? "flex items-center justify-center h-8 w-8 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+          : "flex items-center gap-1.5 h-8 px-3 rounded-md text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
         }
       >
         <FileSpreadsheetIcon className="h-4 w-4" />

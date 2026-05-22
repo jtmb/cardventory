@@ -117,7 +117,7 @@ export function CardsToolbar({
                 onClick={onAddClick}
                 data-tour-id={addHref === "/cards/add" ? "toolbar-add-card" : undefined}
                 aria-label={addLabel}
-                className="flex items-center justify-center h-8 w-8 rounded-md border border-border text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                className="flex items-center justify-center h-8 w-8 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
               >
                 <PlusCircleIcon className="h-4 w-4" />
               </button>
@@ -126,7 +126,7 @@ export function CardsToolbar({
                 href={addHref}
                 data-tour-id={addHref === "/cards/add" ? "toolbar-add-card" : undefined}
                 aria-label={addLabel}
-                className="flex items-center justify-center h-8 w-8 rounded-md border border-border text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                className="flex items-center justify-center h-8 w-8 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
               >
                 <PlusCircleIcon className="h-4 w-4" />
               </Link>
@@ -143,7 +143,7 @@ export function CardsToolbar({
               type="button"
               onClick={onAddClick}
               aria-label={addLabel}
-              className="flex items-center justify-center h-8 w-8 rounded-md border border-border text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+              className="flex items-center justify-center h-8 w-8 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
             >
               <PlusCircleIcon className="h-4 w-4" />
             </button>
@@ -152,7 +152,7 @@ export function CardsToolbar({
               href={addHref}
               data-tour-id={addHref === "/cards/add" ? "toolbar-add-card" : undefined}
               aria-label={addLabel}
-              className="flex items-center justify-center h-8 w-8 rounded-md border border-border text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+              className="flex items-center justify-center h-8 w-8 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
             >
               <PlusCircleIcon className="h-4 w-4" />
             </Link>

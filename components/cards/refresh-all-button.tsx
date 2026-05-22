@@ -34,7 +34,7 @@ export function RefreshAllButton() {
       onClick={handleRefreshAll}
       disabled={loading}
       aria-label="Refresh all prices"
-      className="flex items-center justify-center h-8 w-8 rounded-md border border-border text-muted-foreground hover:text-foreground hover:bg-muted transition-colors disabled:opacity-50"
+      className="flex items-center justify-center h-8 w-8 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors disabled:opacity-50"
     >
       <RefreshCwIcon className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
     </button>

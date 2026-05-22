@@ -175,8 +175,8 @@ export function CardGrid({ cards, exportHref }: { cards: Card[]; exportHref?: st
         </div>
 
         <div className="flex items-center gap-2">
-          {/* View mode toggle */}
-          <div className="flex items-center gap-0.5 bg-muted rounded-md p-0.5">
+          {/* View mode toggle — hidden on mobile while selecting to save space */}
+          <div className={cn("items-center gap-0.5 bg-muted rounded-md p-0.5", selectMode ? "hidden md:flex" : "flex")}>
             {([
               { v: "grid" as const,    icon: <LayoutGridIcon className="h-3.5 w-3.5" />, title: "Grid view" },
               { v: "list" as const,    icon: <LayoutListIcon className="h-3.5 w-3.5" />, title: "List view" },
@@ -197,21 +197,25 @@ export function CardGrid({ cards, exportHref }: { cards: Card[]; exportHref?: st
             ))}
           </div>
 
-          {/* Sparkline toggle — grid view only */}
+          {/* Sparkline toggle — grid view only, hidden on mobile while selecting */}
           {view === "grid" && (
             <button
               onClick={toggleSparkline}
               title={showSparkline ? "Hide price sparkline" : "Show price sparkline"}
-              className={`flex items-center justify-center h-6 w-6 rounded transition-colors ${
-                showSparkline ? "bg-muted text-foreground" : "text-muted-foreground hover:text-foreground"
-              }`}
+              className={cn(
+                `flex items-center justify-center h-6 w-6 rounded transition-colors ${
+                  showSparkline ? "bg-muted text-foreground" : "text-muted-foreground hover:text-foreground"
+                }`,
+                selectMode && "hidden md:flex"
+              )}
             >
               <ActivityIcon className="h-3.5 w-3.5" />
             </button>
           )}
 
+          {/* Bulk actions — desktop only when selecting */}
           {selectMode && count > 0 && (
-            <>
+            <div className="hidden md:contents">
               {/* Export selected */}
               <button
                 onClick={handleExportSelected}
@@ -271,7 +275,7 @@ export function CardGrid({ cards, exportHref }: { cards: Card[]; exportHref?: st
                   Mark Owned
                 </button>
               )}
-            </>
+            </div>
           )}
 
           {selectMode && (

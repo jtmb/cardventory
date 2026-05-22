@@ -6,7 +6,7 @@ import { RefreshCwIcon } from "lucide-react";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 
-export function RefreshCardButton({ cardId }: { cardId: string }) {
+export function RefreshCardButton({ cardId, iconOnly }: { cardId: string; iconOnly?: boolean }) {
   const [loading, setLoading] = useState(false);
   const router = useRouter();
 
@@ -25,6 +25,19 @@ export function RefreshCardButton({ cardId }: { cardId: string }) {
     } finally {
       setLoading(false);
     }
+  }
+
+  if (iconOnly) {
+    return (
+      <button
+        onClick={handleRefresh}
+        disabled={loading}
+        title="Refresh prices"
+        className="h-7 w-7 flex items-center justify-center rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors disabled:opacity-40"
+      >
+        <RefreshCwIcon className={`h-3.5 w-3.5 ${loading ? "animate-spin" : ""}`} />
+      </button>
+    );
   }
 
   return (

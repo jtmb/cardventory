@@ -40,7 +40,7 @@ const nunito = Nunito({
 });
 
 export async function generateMetadata(): Promise<Metadata> {
-  let iconUrl = "/logo.png";
+  let iconUrl = "/logo-default.svg";
   try {
     const row = await db
       .select()

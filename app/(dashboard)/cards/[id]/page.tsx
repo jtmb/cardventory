@@ -2,12 +2,12 @@ import { getCard, getLatestPrices, getCardPriceHistory, getCardNeighbors } from 
 import { notFound } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
+import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { ButtonLink } from "@/components/ui/button-link";
 import { Card, CardContent } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import { ArrowLeftIcon, ExternalLinkIcon, EditIcon } from "lucide-react";
+import { ArrowLeftIcon, ChevronLeftIcon, ChevronRightIcon, ExternalLinkIcon, PencilIcon } from "lucide-react";
 import { PriceChart } from "@/components/cards/price-chart";
 import { RefreshCardButton } from "@/components/cards/refresh-card-button";
 import { DeleteCardButton } from "@/components/cards/delete-card-button";
@@ -66,34 +66,80 @@ export default async function CardDetailPage({
   return (
     <SwipeCardNav prevId={prevId} nextId={nextId} basePath="/cards">
     <div className="p-6 max-w-6xl mx-auto space-y-6">
-      {/* Back */}
-      <ButtonLink href="/cards" variant="ghost" size="sm" className="gap-2 -ml-2 inline-flex items-center">
-        <ArrowLeftIcon className="h-4 w-4" /> All Cards
-      </ButtonLink>
+      {/* Back (left) + desktop prev/next · Edit pinned to the right */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-0.5">
+          <ButtonLink href="/cards" variant="ghost" size="sm" className="gap-2 -ml-2 inline-flex items-center">
+            <ArrowLeftIcon className="h-4 w-4" /> All Cards
+          </ButtonLink>
+          <div className="hidden md:flex items-center gap-0.5 ml-1">
+            <ButtonLink
+              href={prevId ? `/cards/${prevId}` : "#"}
+              variant="ghost"
+              size="sm"
+              className={cn(!prevId && "opacity-30 pointer-events-none")}
+              aria-label="Previous card"
+            >
+              <ChevronLeftIcon className="h-4 w-4" />
+            </ButtonLink>
+            <ButtonLink
+              href={nextId ? `/cards/${nextId}` : "#"}
+              variant="ghost"
+              size="sm"
+              className={cn(!nextId && "opacity-30 pointer-events-none")}
+              aria-label="Next card"
+            >
+              <ChevronRightIcon className="h-4 w-4" />
+            </ButtonLink>
+          </div>
+        </div>
+        <Link
+          href={`/cards/${id}/edit`}
+          title="Edit card"
+          className="h-8 w-8 flex items-center justify-center rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors shrink-0"
+        >
+          <PencilIcon className="h-3.5 w-3.5" />
+        </Link>
+      </div>
 
       {/* Main detail section */}
       <div className="flex flex-col md:flex-row gap-8">
         {/* Card image */}
         <div className="shrink-0 flex flex-col gap-3 w-full md:w-64 mx-auto md:mx-0 max-w-xs md:max-w-none">
-          <div className="w-full md:w-64 aspect-[5/7] md:aspect-auto md:h-88 rounded-3xl" style={{ filter: "drop-shadow(0 20px 50px rgba(0,0,0,0.65))" }}>
-            {displayImage ? (
-              <SmartCardImage
-                src={displayImage}
-                alt={card.name}
-                unoptimized={displayImage.startsWith("http")}
-              />
-            ) : (
-              <div className="flex h-full flex-col items-center justify-center">
-                <p className="text-4xl mb-2">🃏</p>
-                <p className="text-muted-foreground text-sm">No image</p>
+          <div className="flex items-center gap-2 md:block">
+            {/* Left nav — mobile only */}
+            {prevId
+              ? <Link href={`/cards/${prevId}`} aria-label="Previous card" className="md:hidden shrink-0 p-2 rounded-full bg-card/80 border border-border backdrop-blur-sm text-muted-foreground hover:text-foreground transition-colors">
+                  <ChevronLeftIcon className="h-5 w-5" />
+                </Link>
+              : <div className="md:hidden w-9 shrink-0" />
+            }
+            {/* Image */}
+            <div className="flex-1 md:flex-none md:w-full">
+              <div className="w-full md:w-64 aspect-[5/7] md:aspect-auto md:h-88 rounded-3xl" style={{ filter: "drop-shadow(0 20px 50px rgba(0,0,0,0.65))" }}>
+                {displayImage ? (
+                  <SmartCardImage
+                    src={displayImage}
+                    alt={card.name}
+                    unoptimized={displayImage.startsWith("http")}
+                  />
+                ) : (
+                  <div className="flex h-full flex-col items-center justify-center">
+                    <p className="text-4xl mb-2">🃏</p>
+                    <p className="text-muted-foreground text-sm">No image</p>
+                  </div>
+                )}
               </div>
-            )}
+            </div>
+            {/* Right nav — mobile only */}
+            {nextId
+              ? <Link href={`/cards/${nextId}`} aria-label="Next card" className="md:hidden shrink-0 p-2 rounded-full bg-card/80 border border-border backdrop-blur-sm text-muted-foreground hover:text-foreground transition-colors">
+                  <ChevronRightIcon className="h-5 w-5" />
+                </Link>
+              : <div className="md:hidden w-9 shrink-0" />
+            }
           </div>
-          <RefreshCardButton cardId={id} />
-          <ButtonLink href={`/cards/${id}/edit`} variant="outline" size="sm" className="gap-2 inline-flex items-center justify-center">
-            <EditIcon className="h-3.5 w-3.5" /> Edit Card
-          </ButtonLink>
-          <DeleteCardButton cardId={id} />
+
         </div>
 
         {/* Info */}
@@ -157,7 +203,11 @@ export default async function CardDetailPage({
 
           {/* Per-site pricing */}
           <div data-tour-id="tour-card-sources">
-            <h3 className="text-sm font-semibold text-muted-foreground mb-3 uppercase tracking-wide">Pricing by Source</h3>
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Pricing by Source</h3>
+              {/* Refresh — contextually inline with the prices it refreshes */}
+              <RefreshCardButton cardId={id} iconOnly />
+            </div>
             {pricesWithValues.length === 0 ? (
               <p className="text-sm text-muted-foreground px-1">
                 No price data yet — use the Refresh button to fetch live prices.
@@ -214,6 +264,11 @@ export default async function CardDetailPage({
             </>
           )}
         </div>
+      </div>
+
+      {/* Delete — at the bottom, out of the way */}
+      <div className="flex justify-center pb-2">
+        <DeleteCardButton cardId={id} subtle />
       </div>
 
       {/* Price History Chart */}

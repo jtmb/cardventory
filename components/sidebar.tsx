@@ -1,7 +1,6 @@
 "use client";
 
 import Link from "next/link";
-import Image from "next/image";
 import { useState, useEffect } from "react";
 import { usePathname, useSearchParams } from "next/navigation";
 import { signOut, useSession } from "next-auth/react";
@@ -11,7 +10,6 @@ import {
   PlusCircleIcon,
   SettingsIcon,
   LogOutIcon,
-  TrendingUpIcon,
   PaletteIcon,
   DatabaseIcon,
   TagIcon,
@@ -27,6 +25,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import { AppLogo } from "@/components/app-logo";
 import { ScrollFade } from "@/components/ui/scroll-fade";
 import { AddCardDialog } from "@/components/cards/add-card-dialog";
 
@@ -197,22 +196,6 @@ function NavContent({ onNavigate }: { onNavigate?: () => void }) {
       </div>
       <AddCardDialog open={addCardOpen} onOpenChange={setAddCardOpen} />
     </>
-  );
-}
-
-function AppLogo({ size = "md" }: { size?: "sm" | "md" }) {
-  const [logoUrl, setLogoUrl] = useState<string | null>(null);
-  useEffect(() => {
-    fetch("/api/admin/logo")
-      .then((r) => (r.ok ? r.json() : null))
-      .then((d) => { if (d?.url) setLogoUrl(d.url); })
-      .catch(() => {});
-  }, []);
-  const cls = size === "sm" ? "h-5 w-5" : "h-6 w-6";
-  return logoUrl ? (
-    <Image src={logoUrl} alt="App logo" width={size === "sm" ? 20 : 24} height={size === "sm" ? 20 : 24} className={`${cls} object-contain rounded`} unoptimized />
-  ) : (
-    <TrendingUpIcon className={`${cls} text-primary`} />
   );
 }
 

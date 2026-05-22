@@ -3,6 +3,7 @@
 import { cn } from "@/lib/utils";
 import { Card } from "@/lib/db/schema";
 import Link from "next/link";
+import { useCardPanel } from "@/components/cards/card-panel-context";
 import { SmartCardImage } from "@/components/cards/smart-card-image";
 import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
@@ -75,7 +76,6 @@ export function CardRow({
   showPriceBadges?: boolean;
   infoOverlay?: boolean;
   showSparkline?: boolean;
-  showSparkline?: boolean;
 }) {
   const [currentValue, setCurrentValue] = useState<number | null>(null);
   const [priceChange7d, setPriceChange7d] = useState<number | null>(null);
@@ -83,6 +83,7 @@ export function CardRow({
   const [loading, setLoading] = useState(true);
   const [isPending, startTransition] = useTransition();
   const router = useRouter();
+  const { onCardClick } = useCardPanel();
 
   useEffect(() => {
     fetch(`/api/cards/${card.id}/prices`)
@@ -116,6 +117,7 @@ export function CardRow({
     card, setLine, selectable, selected, onToggle, isPending,
     loading, currentValue, handleDelete,
     showPriceBadges,
+    onCardClick: onCardClick ?? undefined,
   };
   if (layout === "list") return <CardListLayout {...rowProps} />;
   if (layout === "compact") return <CardCompactLayout {...rowProps} />;
@@ -186,6 +188,16 @@ export function CardRow({
             {selected && <CheckIcon className="h-3 w-3 text-primary-foreground" />}
           </div>
           <CardInner card={card} setLine={setLine} isPending={isPending} sparkline={sparkline} showPriceBadges={showPriceBadges} showSparkline={showSparkline} />
+        </button>
+      ) : onCardClick ? (
+        <button type="button" onClick={() => onCardClick(card.id)} className="block w-full text-left">
+          <div className={cn(
+            "cv-card rounded-xl border bg-card overflow-hidden transition-all duration-200",
+            "border-border/60 hover:border-primary/60 hover:shadow-2xl hover:shadow-black/60 hover:-translate-y-1",
+            isPending && "opacity-40 pointer-events-none"
+          )}>
+            <CardInner card={card} setLine={setLine} isPending={isPending} loading={loading} currentValue={currentValue} priceChange7d={priceChange7d} sparkline={sparkline} showPriceBadges={showPriceBadges} showSparkline={showSparkline} />
+          </div>
         </button>
       ) : (
         <Link href={`/cards/${card.id}`} className="block">
@@ -388,13 +400,14 @@ type RowLayoutProps = {
   currentValue: number | null;
   handleDelete: () => void;
   showPriceBadges: boolean;
+  onCardClick?: (id: string) => void;
 };
 
 // ─── List layout (horizontal row with thumbnail) ───────────────────────────
 
 function CardListLayout({
   card, setLine, selectable, selected, onToggle,
-  isPending, loading, currentValue, handleDelete,
+  isPending, loading, currentValue, handleDelete, onCardClick,
 }: RowLayoutProps) {
   return (
     <div className={`group flex items-center gap-3 px-4 py-2.5 transition-colors ${selected ? "bg-primary/5" : "hover:bg-muted/30"} ${isPending ? "opacity-40 pointer-events-none" : ""}`}>
@@ -413,10 +426,16 @@ function CardListLayout({
         containerClassName="shrink-0 relative w-10 h-14 rounded-md overflow-hidden bg-muted border border-border flex items-center justify-center"
         placeholder={<span className="text-base opacity-30">🃏</span>}
       />
-      <Link href={`/cards/${card.id}`} className="flex-1 min-w-0">
-        <p className="font-semibold text-sm truncate leading-tight">{card.name}</p>
-        {setLine && <p className="text-xs text-muted-foreground truncate mt-0.5">{setLine}</p>}
-      </Link>
+      {onCardClick && !selectable
+        ? <button type="button" onClick={() => onCardClick(card.id)} className="flex-1 min-w-0 text-left">
+            <p className="font-semibold text-sm truncate leading-tight">{card.name}</p>
+            {setLine && <p className="text-xs text-muted-foreground truncate mt-0.5">{setLine}</p>}
+          </button>
+        : <Link href={`/cards/${card.id}`} className="flex-1 min-w-0">
+            <p className="font-semibold text-sm truncate leading-tight">{card.name}</p>
+            {setLine && <p className="text-xs text-muted-foreground truncate mt-0.5">{setLine}</p>}
+          </Link>
+      }
       {card.gradeCompany && card.gradeValue && (
         <span className="shrink-0 hidden sm:inline-flex items-center gap-1 rounded-md bg-muted px-2 py-0.5">
           <span className={`text-[10px] font-semibold uppercase tracking-wide ${gradeCompanyColor(card.gradeCompany)}`}>{card.gradeCompany}</span>
@@ -477,7 +496,7 @@ function CardListLayout({
 
 function CardCompactLayout({
   card, setLine, selectable, selected, onToggle,
-  isPending, loading, currentValue, handleDelete,
+  isPending, loading, currentValue, handleDelete, onCardClick,
 }: RowLayoutProps) {
   return (
     <div className={`group flex items-center gap-2 px-4 py-2 transition-colors text-sm ${selected ? "bg-primary/5" : "hover:bg-muted/30"} ${isPending ? "opacity-40 pointer-events-none" : ""}`}>
@@ -488,7 +507,10 @@ function CardCompactLayout({
           </div>
         </button>
       )}
-      <Link href={`/cards/${card.id}`} className="flex-1 min-w-0 font-medium truncate">{card.name}</Link>
+      {onCardClick && !selectable
+        ? <button type="button" onClick={() => onCardClick(card.id)} className="flex-1 min-w-0 font-medium truncate text-left">{card.name}</button>
+        : <Link href={`/cards/${card.id}`} className="flex-1 min-w-0 font-medium truncate">{card.name}</Link>
+      }
       <span className="hidden md:block shrink-0 text-xs text-muted-foreground w-48 truncate text-right">{setLine}</span>
       {card.gradeCompany && card.gradeValue ? (
         <span className="shrink-0 hidden sm:inline-flex items-center gap-1 rounded-md bg-muted px-1.5 py-0.5">

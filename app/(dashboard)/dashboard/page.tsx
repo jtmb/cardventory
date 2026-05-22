@@ -16,12 +16,12 @@ export default async function DashboardPage() {
   return (
     <div className="p-6 space-y-8 max-w-7xl mx-auto">
       {/* Header */}
-      <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+      <div className="flex items-start justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold">Portfolio Overview</h1>
           <p className="text-muted-foreground text-sm mt-0.5">Welcome back, {session?.user?.name}</p>
         </div>
-        <div className="flex gap-2 md:justify-end">
+        <div className="flex items-center gap-1 shrink-0 mt-1">
           <AddCardButton iconOnly label="Add Card" />
           <RefreshAllButton />
         </div>

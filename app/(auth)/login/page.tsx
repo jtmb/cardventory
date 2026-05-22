@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { LayersIcon } from "lucide-react";
+import { AppLogo } from "@/components/app-logo";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -18,7 +18,10 @@ export default function LoginPage() {
 
   useEffect(() => {
     fetch("/api/oauth-status")
-      .then((r) => r.json())
+      .then((r) => {
+        if (!r.ok) throw new Error("not ok");
+        return r.json();
+      })
       .then(setOauthStatus)
       .catch(() => setOauthStatus({ google: false, github: false }));
   }, []);
@@ -56,7 +59,7 @@ export default function LoginPage() {
     <Card>
       <CardHeader className="text-center">
         <div className="flex justify-center mb-2">
-          <LayersIcon className="h-10 w-10 text-primary" />
+          <AppLogo size="lg" />
         </div>
         <CardTitle className="text-2xl">Cardventory</CardTitle>
         <CardDescription>Sign in to your collection</CardDescription>

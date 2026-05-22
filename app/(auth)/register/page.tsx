@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { LayersIcon } from "lucide-react";
+import { AppLogo } from "@/components/app-logo";
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -51,7 +51,7 @@ export default function RegisterPage() {
       <Card>
         <CardHeader className="text-center">
           <div className="flex justify-center mb-2">
-            <LayersIcon className="h-10 w-10 text-primary" />
+            <AppLogo size="lg" />
           </div>
           <CardTitle className="text-2xl">Account Pending</CardTitle>
           <CardDescription>Your account is awaiting approval</CardDescription>
@@ -72,7 +72,7 @@ export default function RegisterPage() {
     <Card>
       <CardHeader className="text-center">
         <div className="flex justify-center mb-2">
-          <LayersIcon className="h-10 w-10 text-primary" />
+          <AppLogo size="lg" />
         </div>
         <CardTitle className="text-2xl">Create Account</CardTitle>
         <CardDescription>Start tracking your collection</CardDescription>

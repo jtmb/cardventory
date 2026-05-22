@@ -29,7 +29,7 @@ export function AddCardButton({
           onClick={() => setOpen(true)}
           aria-label={label}
           className={cn(
-            "flex items-center justify-center h-8 w-8 rounded-md border border-border text-muted-foreground hover:text-foreground hover:bg-muted transition-colors",
+            "flex items-center justify-center h-8 w-8 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors",
             className
           )}
         >

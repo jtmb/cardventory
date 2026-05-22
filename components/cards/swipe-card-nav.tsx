@@ -2,8 +2,6 @@
 
 import { useRef } from "react";
 import { useRouter } from "next/navigation";
-import { ChevronLeftIcon, ChevronRightIcon } from "lucide-react";
-import Link from "next/link";
 
 const MIN_SWIPE_PX = 48;
 
@@ -37,36 +35,6 @@ export function SwipeCardNav({
   return (
     <div onTouchStart={onTouchStart} onTouchEnd={onTouchEnd}>
       {children}
-
-      {/* Mobile prev / next pill buttons — only rendered on mobile */}
-      {(prevId || nextId) && (
-        <div className="md:hidden fixed bottom-6 inset-x-0 flex justify-between px-5 pointer-events-none z-30">
-          {prevId ? (
-            <Link
-              href={`${basePath}/${prevId}`}
-              aria-label="Previous card"
-              className="pointer-events-auto flex items-center gap-1 h-9 pl-2.5 pr-3.5 rounded-full bg-card/90 border border-border shadow-lg text-sm text-muted-foreground hover:text-foreground backdrop-blur-sm"
-            >
-              <ChevronLeftIcon className="h-4 w-4 shrink-0" />
-              Prev
-            </Link>
-          ) : (
-            <div />
-          )}
-          {nextId ? (
-            <Link
-              href={`${basePath}/${nextId}`}
-              aria-label="Next card"
-              className="pointer-events-auto flex items-center gap-1 h-9 pl-3.5 pr-2.5 rounded-full bg-card/90 border border-border shadow-lg text-sm text-muted-foreground hover:text-foreground backdrop-blur-sm"
-            >
-              Next
-              <ChevronRightIcon className="h-4 w-4 shrink-0" />
-            </Link>
-          ) : (
-            <div />
-          )}
-        </div>
-      )}
     </div>
   );
 }

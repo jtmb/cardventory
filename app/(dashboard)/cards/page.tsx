@@ -29,7 +29,7 @@ export default async function CardsPage({
 
   return (
     <CardsPageShell
-      header={<><LayersIcon className="h-5 w-5 text-primary" /><span className="text-xl font-bold">My Cards</span></>}
+      header={<><LayersIcon className="h-6 w-6 text-primary" /><span className="text-2xl font-bold">My Cards</span></>}
       total={total}
       basePath="/cards"
       addHref="/cards/add"

@@ -32,7 +32,7 @@ export default async function WatchlistPage({
     <>
       <CardsPageShell
         defaultStatus="wanted"
-        header={<><BookmarkIcon className="h-5 w-5 text-amber-500" /><span className="text-xl font-bold">Watchlist</span></>}
+        header={<><BookmarkIcon className="h-6 w-6 text-amber-500" /><span className="text-2xl font-bold">Watchlist</span></>}
         total={total}
         basePath="/watchlist"
         addHref="/cards/add?status=wanted"
