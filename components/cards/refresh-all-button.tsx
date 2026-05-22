@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { Button } from "@/components/ui/button";
 import { RefreshCwIcon } from "lucide-react";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
@@ -30,14 +29,14 @@ export function RefreshAllButton() {
   }
 
   return (
-    <Button
+    <button
+      type="button"
       onClick={handleRefreshAll}
       disabled={loading}
-      variant="outline"
-      className="gap-2"
+      aria-label="Refresh all prices"
+      className="flex items-center justify-center h-8 w-8 rounded-md border border-border text-muted-foreground hover:text-foreground hover:bg-muted transition-colors disabled:opacity-50"
     >
       <RefreshCwIcon className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
-      {loading ? "Refreshing…" : "Refresh All"}
-    </Button>
+    </button>
   );
 }

@@ -2,7 +2,7 @@
 
 import { useState, useEffect, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
-import { useSession, signOut } from "next-auth/react";
+import { useSession } from "next-auth/react";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -13,7 +13,7 @@ import {
   SaveIcon, RefreshCwIcon, FlaskConicalIcon, RotateCcwIcon,
   CheckIcon, DownloadIcon, UploadIcon, SparklesIcon, EyeIcon, ShieldIcon,
   BellIcon, MailIcon, MessageSquareIcon, EyeOffIcon, SendIcon,
-  DatabaseIcon, Trash2Icon, StarIcon, LogOutIcon,
+  DatabaseIcon, Trash2Icon, StarIcon,
 } from "lucide-react";
 import { seedTestData } from "@/lib/actions";
 import { UserManagementSection } from "@/components/user-management-section";
@@ -144,6 +144,7 @@ function SettingsContent() {
   const [settingsArrangement, setSettingsArrangement] = useState<SettingsArrangementKey>("single");
   // Appearance extras
   const [priceBadges, setPriceBadges] = useState(true);
+  const [showRefreshWheel, setShowRefreshWheel] = useState(true);
   // Logo state (admin)
   const [logoPreview, setLogoPreview] = useState<string | null>(null);
   const [logoUploading, setLogoUploading] = useState(false);
@@ -259,6 +260,7 @@ function SettingsContent() {
           localStorage.setItem(SETTINGS_ARRANGEMENT_LS_KEY, sa);
         }
         if (data.price_badges !== undefined) setPriceBadges(data.price_badges !== "false");
+        if (data.show_refresh_wheel !== undefined) setShowRefreshWheel(data.show_refresh_wheel !== "false");
         if (data.manual_refresh_last) {
           const nextAllowed = new Date(new Date(data.manual_refresh_last).getTime() + 24 * 60 * 60 * 1000);
           setRefreshCooldownUntil(nextAllowed);
@@ -397,6 +399,7 @@ function SettingsContent() {
     setBtnStyle("filled");
     setZoomScale("natural");
     setPriceBadges(true);
+    setShowRefreshWheel(true);
     setSettingsLayout("centered");
     setSettingsArrangement("single");
     // Apply CSS immediately
@@ -431,6 +434,7 @@ function SettingsContent() {
           btn_style: "filled",
           zoom_scale: "natural",
           price_badges: true,
+          show_refresh_wheel: true,
           settings_layout: "centered",
           settings_arrangement: "single",
         }),
@@ -457,6 +461,7 @@ function SettingsContent() {
       settings_layout: settingsLayout,
       settings_arrangement: settingsArrangement,
       price_badges: priceBadges,
+      show_refresh_wheel: showRefreshWheel,
       refresh_interval: refreshInterval,
       notif_email_enabled: notifEmailEnabled,
       notif_smtp_host: notifSmtpHost,
@@ -541,6 +546,7 @@ function SettingsContent() {
           settings_layout: s.settings_layout,
           settings_arrangement: s.settings_arrangement,
           price_badges: String(s.price_badges),
+          show_refresh_wheel: String(s.show_refresh_wheel),
           notif_email_enabled: String(s.notif_email_enabled),
           notif_smtp_host: s.notif_smtp_host,
           notif_smtp_port: s.notif_smtp_port,
@@ -788,19 +794,19 @@ function SettingsContent() {
       {/* ── Appearance ─────────────────────────────────────────────────────── */}
       {activeSection === "appearance" && (
         <>
-        <div className="flex items-center justify-end">
+        <div className="flex items-end justify-between mb-4">
+          <div>
+            <h1 className="type-headline-large font-bold">Appearance</h1>
+            <p className="type-body-medium text-muted-foreground mt-1">Configure Cardventory to your preferences</p>
+          </div>
           <Button
             variant="ghost"
             size="sm"
             onClick={handleResetAllAppearance}
-            className="h-8 gap-1.5 text-muted-foreground hover:text-foreground"
+            className="h-8 gap-1.5 text-muted-foreground hover:text-foreground shrink-0"
           >
             <RotateCcwIcon className="h-3.5 w-3.5" /> Reset all to defaults
           </Button>
-        </div>
-        <div className="mb-4">
-          <h1 className="type-headline-large font-bold">Appearance</h1>
-          <p className="type-body-medium text-muted-foreground mt-1">Configure Cardventory to your preferences</p>
         </div>
         <div className={settingsArrangementClass(settingsArrangement)}>
         {/* Preset Themes */}
@@ -965,6 +971,41 @@ function SettingsContent() {
                 <span
                   className={`inline-block h-4 w-4 rounded-full bg-white shadow transition-transform ${
                     priceBadges ? "translate-x-5" : "translate-x-0.5"
+                  }`}
+                />
+              </button>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Refresh Wheel */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Refresh Wheel</CardTitle>
+            <CardDescription>
+              Show the &quot;Refresh All Prices&quot; spinning wheel button in the toolbar on My Cards and Watchlist.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="type-label-large font-medium">Refresh wheel</p>
+                <p className="type-label-small text-muted-foreground mt-0.5">
+                  {showRefreshWheel ? "On — button shown in toolbar" : "Off — button hidden"}
+                </p>
+              </div>
+              <button
+                type="button"
+                role="switch"
+                aria-checked={showRefreshWheel}
+                onClick={() => setShowRefreshWheel((v) => !v)}
+                className={`relative inline-flex h-6 w-11 items-center rounded-full border-2 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
+                  showRefreshWheel ? "bg-primary border-primary" : "bg-muted border-border"
+                }`}
+              >
+                <span
+                  className={`inline-block h-4 w-4 rounded-full bg-white shadow transition-transform ${
+                    showRefreshWheel ? "translate-x-5" : "translate-x-0.5"
                   }`}
                 />
               </button>
@@ -1981,12 +2022,10 @@ function SettingsContent() {
           </Button>
           <Button
             variant="ghost"
-            size="sm"
-            className="gap-2 text-muted-foreground hover:text-foreground shrink-0"
-            onClick={() => signOut({ callbackUrl: "/login" })}
+            className="text-muted-foreground hover:text-foreground shrink-0"
+            onClick={() => router.push("/dashboard")}
           >
-            <LogOutIcon className="h-3.5 w-3.5" />
-            Sign Out
+            Cancel
           </Button>
         </div>
       </div>

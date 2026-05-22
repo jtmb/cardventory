@@ -8,7 +8,19 @@ const nextConfig: NextConfig = {
   },
   experimental: {
   },
+  async headers() {
+    return [
+      {
+        // Uploaded card images — UUID filenames never change, safe to cache forever
+        source: "/uploads/:path*",
+        headers: [
+          { key: "Cache-Control", value: "public, max-age=31536000, immutable" },
+        ],
+      },
+    ];
+  },
   images: {
+    minimumCacheTTL: 86400, // cache optimised remote images for 24 h
     remotePatterns: [
       { protocol: "https", hostname: "**.ebayimg.com" },
       { protocol: "https", hostname: "**.ebay.com" },

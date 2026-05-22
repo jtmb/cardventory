@@ -1,13 +1,8 @@
-import { getCards, getActiveGenres, countCards } from "@/lib/actions";
-import { ButtonLink } from "@/components/ui/button-link";
-import { PlusCircleIcon, BookmarkIcon } from "lucide-react";
+import { getCards, getActiveGenres, countCards, getAllSettings } from "@/lib/actions";
+import { BookmarkIcon, PlusCircleIcon } from "lucide-react";
 import { CardGrid } from "@/components/cards/card-grid";
-import { GenreTabs } from "@/components/cards/genre-tabs";
-import { SearchInput } from "@/components/cards/search-input";
-import { SortSelect } from "@/components/cards/sort-select";
-import { GradeFilter } from "@/components/cards/grade-filter";
 import { PaginationControls } from "@/components/cards/pagination-controls";
-import { CsvToolbar } from "@/components/cards/csv-toolbar";
+import { CardsToolbar } from "@/components/cards/cards-toolbar";
 
 const DEFAULT_PAGE_SIZE = 48;
 
@@ -20,11 +15,13 @@ export default async function WatchlistPage({
   const page = Math.max(1, parseInt(pageStr ?? "1") || 1);
   const pageSize = [18, 24, 30].includes(parseInt(pageSizeStr ?? "")) ? parseInt(pageSizeStr!) : DEFAULT_PAGE_SIZE;
 
-  const [cardsPage, total, activeGenres] = await Promise.all([
+  const [cardsPage, total, activeGenres, userSettings] = await Promise.all([
     getCards(genre, q, sort, page, pageSize, grade, "wanted"),
     countCards(genre, q, grade, "wanted"),
     getActiveGenres(),
+    getAllSettings(),
   ]);
+  const showRefreshWheel = userSettings.show_refresh_wheel !== "false";
 
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
 
@@ -32,30 +29,20 @@ export default async function WatchlistPage({
 
   return (
     <>
-      <div className="bg-card border-b border-border">
-        <div className="max-w-7xl mx-auto px-4 md:px-6 py-2 md:py-0 flex flex-col md:flex-row md:items-center md:gap-3 md:h-14 gap-2">
-          <div className="flex items-center gap-2 mr-auto">
-            <BookmarkIcon className="h-4 w-4 text-amber-500" />
-            <span className="font-semibold text-sm">Watchlist</span>
-            {total > 0 && <span className="text-xs text-muted-foreground">({total})</span>}
-          </div>
-          <SearchInput defaultValue={q} genre={genre} basePath="/watchlist" />
-          <div className="flex items-center gap-2">
-            <div className="hidden md:block w-px h-5 bg-border/60 shrink-0" />
-            <SortSelect currentSort={sort} genre={genre} search={q} basePath="/watchlist" />
-            <GradeFilter activeGrade={grade} />
-            <div className="hidden md:block w-px h-5 bg-border/60 shrink-0" />
-            <CsvToolbar exportHref={exportHref} />
-            <ButtonLink href="/cards/add?status=wanted">
-              <PlusCircleIcon className="h-4 w-4" />
-              <span className="hidden sm:inline">Add to Watchlist</span>
-            </ButtonLink>
-            <div className="ml-auto">
-              <GenreTabs activeGenre={genre ?? "all"} currentSearch={q} activeGenres={activeGenres} basePath="/watchlist" />
-            </div>
-          </div>
-        </div>
-      </div>
+      <CardsToolbar
+        header={<><BookmarkIcon className="h-4 w-4 text-amber-500" /><span className="font-semibold text-sm">Watchlist</span></>}
+        total={total}
+        basePath="/watchlist"
+        addHref="/cards/add?status=wanted"
+        addLabel="Add to Watchlist"
+        exportHref={exportHref}
+        activeGenres={activeGenres}
+        q={q}
+        genre={genre}
+        sort={sort}
+        grade={grade}
+        showRefresh={showRefreshWheel}
+      />
 
       <div className="p-6 max-w-7xl mx-auto">
         {cardsPage.length === 0 && total === 0 ? (

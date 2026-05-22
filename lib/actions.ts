@@ -255,19 +255,33 @@ export async function getDashboardStats() {
 
   const totalPurchaseValue = allCards.reduce((sum, c) => sum + (c.purchasePrice ?? 0), 0);
 
-  // Get latest prices for all cards
-  const cardIds = allCards.map((c) => c.id);
-
+  const cardCurrentValues: Record<string, number> = {};
   let totalCurrentValue = 0;
-  const cardCurrentValues: Record<string, number | null> = {};
 
-  if (cardIds.length > 0) {
-    for (const cardId of cardIds) {
-      const latest = await getLatestPrices(cardId);
-      const prices = latest.map((p) => p.price).filter((p): p is number => p !== null);
-      const highest = prices.length > 0 ? Math.max(...prices) : null;
-      cardCurrentValues[cardId] = highest;
-      if (highest !== null) totalCurrentValue += highest;
+  if (allCards.length > 0) {
+    const cardIds = allCards.map((c) => c.id);
+    const placeholders = cardIds.map(() => "?").join(",");
+
+    // Single query replaces the N+1 per-card loop:
+    // For each card, find the most-recent price per source, then take the max across sources.
+    const rows = rawSqlite.prepare(`
+      SELECT ph.card_id, MAX(ph.price) AS highest_price
+      FROM price_history ph
+      INNER JOIN (
+        SELECT card_id, source, MAX(fetched_at) AS max_fetched
+        FROM price_history
+        WHERE card_id IN (${placeholders}) AND price IS NOT NULL
+        GROUP BY card_id, source
+      ) latest
+        ON ph.card_id = latest.card_id
+       AND ph.source  = latest.source
+       AND ph.fetched_at = latest.max_fetched
+      GROUP BY ph.card_id
+    `).all(...cardIds) as Array<{ card_id: string; highest_price: number }>;
+
+    for (const row of rows) {
+      cardCurrentValues[row.card_id] = row.highest_price;
+      totalCurrentValue += row.highest_price;
     }
   }
 

@@ -1,11 +1,10 @@
 "use client";
 
 import { useRef, useTransition, useState, useEffect } from "react";
-import { DownloadIcon, UploadIcon, PlusCircleIcon, MoreHorizontalIcon, CheckIcon } from "lucide-react";
+import { DownloadIcon, UploadIcon, PlusCircleIcon, MoreHorizontalIcon } from "lucide-react";
 import { toast } from "sonner";
 import { importCards, type ImportRow } from "@/lib/actions";
-import { useRouter, usePathname } from "next/navigation";
-import { useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 
 const CSV_HEADER_ALIASES: Record<string, keyof ImportRow> = {
@@ -72,65 +71,21 @@ function parseCSV(text: string): ImportRow[] {
   }).filter((r) => r.name?.trim());
 }
 
-const SORT_OPTIONS = [
-  { value: "newest",     label: "Newest" },
-  { value: "oldest",     label: "Oldest" },
-  { value: "value_high", label: "Value (High → Low)" },
-  { value: "value_low",  label: "Value (Low → High)" },
-  { value: "paid_high",  label: "Paid (High → Low)" },
-  { value: "paid_low",   label: "Paid (Low → High)" },
-  { value: "gain_high",  label: "Gain / Loss (Best)" },
-  { value: "gain_low",   label: "Gain / Loss (Worst)" },
-];
-
-const GRADE_OPTIONS = [
-  { value: "all", label: "All Grades" },
-  { value: "PSA", label: "PSA" },
-  { value: "BGS", label: "BGS" },
-  { value: "CGC", label: "CGC" },
-  { value: "SGC", label: "SGC" },
-  { value: "HGA", label: "HGA" },
-  { value: "raw", label: "Raw / Ungraded" },
-];
-
 export function MobileCardActionsMenu({
   exportHref,
-  currentSort = "newest",
-  activeGrade = "all",
-  genre,
-  search,
+  basePath = "/cards",
+  addHref,
 }: {
   exportHref: string;
-  currentSort?: string;
-  activeGrade?: string;
-  genre?: string;
-  search?: string;
+  basePath?: string;
+  addHref?: string;
 }) {
+  const resolvedAddHref = addHref ?? `${basePath}/add`;
   const [open, setOpen] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
   const [isPending, startTransition] = useTransition();
   const router = useRouter();
-  const pathname = usePathname();
-  const searchParams = useSearchParams();
-
-  function sortHref(value: string) {
-    const params = new URLSearchParams();
-    if (genre && genre !== "all") params.set("genre", genre);
-    if (search) params.set("q", search);
-    if (value !== "newest") params.set("sort", value);
-    const qs = params.toString();
-    return `/cards${qs ? `?${qs}` : ""}`;
-  }
-
-  function gradeHref(grade: string) {
-    const params = new URLSearchParams(searchParams.toString());
-    if (grade === "all") params.delete("grade");
-    else params.set("grade", grade);
-    params.delete("page");
-    const qs = params.toString();
-    return `${pathname}${qs ? `?${qs}` : ""}`;
-  }
 
   useEffect(() => {
     if (!open) return;
@@ -185,54 +140,14 @@ export function MobileCardActionsMenu({
 
       {open && (
         <div className="absolute left-0 top-full mt-1 z-50 w-52 rounded-lg border border-border bg-popover shadow-lg py-1 max-h-[80vh] overflow-y-auto">
-          {/* Sort */}
-          <div className="px-3 pt-2 pb-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Sort</div>
-          {SORT_OPTIONS.map(({ value, label }) => (
-            <Link
-              key={value}
-              href={sortHref(value)}
-              onClick={() => setOpen(false)}
-              className={`flex items-center gap-2.5 px-3 py-1.5 text-sm transition-colors ${
-                currentSort === value ? "text-primary bg-primary/10" : "hover:bg-muted"
-              }`}
-            >
-              {currentSort === value
-                ? <CheckIcon className="h-3.5 w-3.5 shrink-0" />
-                : <span className="w-3.5 shrink-0" />}
-              {label}
-            </Link>
-          ))}
-
-          <div className="my-1 border-t border-border" />
-
-          {/* Grade filter */}
-          <div className="px-3 pt-2 pb-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Grade Filter</div>
-          {GRADE_OPTIONS.map(({ value, label }) => (
-            <Link
-              key={value}
-              href={gradeHref(value)}
-              onClick={() => setOpen(false)}
-              className={`flex items-center gap-2.5 px-3 py-1.5 text-sm transition-colors ${
-                activeGrade === value ? "text-primary bg-primary/10" : "hover:bg-muted"
-              }`}
-            >
-              {activeGrade === value
-                ? <CheckIcon className="h-3.5 w-3.5 shrink-0" />
-                : <span className="w-3.5 shrink-0" />}
-              {label}
-            </Link>
-          ))}
-
-          <div className="my-1 border-t border-border" />
-
           {/* Actions */}
           <Link
-            href="/cards/add"
+            href={resolvedAddHref}
             onClick={() => setOpen(false)}
             className="flex items-center gap-2.5 px-3 py-2 text-sm hover:bg-muted transition-colors"
           >
             <PlusCircleIcon className="h-4 w-4 text-muted-foreground" />
-            Add Card
+            {basePath === "/watchlist" ? "Add to Watchlist" : "Add Card"}
           </Link>
 
           <div className="my-1 border-t border-border" />

@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { SearchIcon } from "lucide-react";
+import { SearchIcon, XIcon } from "lucide-react";
 
 type Suggestion = {
   id: string;
@@ -26,10 +26,12 @@ export function SearchInput({
   defaultValue,
   genre,
   basePath = "/cards",
+  fullWidth = false,
 }: {
   defaultValue?: string;
   genre?: string;
   basePath?: string;
+  fullWidth?: boolean;
 }) {
   const router = useRouter();
   const [value, setValue] = useState(defaultValue ?? "");
@@ -87,12 +89,12 @@ export function SearchInput({
   }, []);
 
   return (
-    <div className="relative w-full md:w-auto" ref={containerRef}>
-      <form onSubmit={handleSubmit} className="relative flex items-center w-full md:w-auto">
+    <div className={`relative ${fullWidth ? "w-full" : "w-full md:w-auto"}`} ref={containerRef}>
+      <form onSubmit={handleSubmit} className={`relative flex items-center ${fullWidth ? "w-full" : "w-full md:w-auto"}`}>
         {genre && genre !== "all" && <input type="hidden" name="genre" value={genre} />}
         <SearchIcon className="absolute left-2.5 h-4 w-4 text-muted-foreground pointer-events-none" />
         <input
-          type="search"
+          type="text"
           name="q"
           value={value}
           onChange={handleChange}
@@ -100,12 +102,22 @@ export function SearchInput({
           onFocus={() => suggestions.length > 0 && setOpen(true)}
           placeholder="Search cards..."
           autoComplete="off"
-          className="h-8 w-full md:w-52 rounded-md bg-background border border-border pl-8 pr-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+          className={`h-8 ${fullWidth ? "w-full" : "w-full md:w-52"} rounded-md bg-background border border-border pl-8 ${value ? "pr-7" : "pr-3"} text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring`}
         />
+        {value && (
+          <button
+            type="button"
+            onClick={() => { setValue(""); setSuggestions([]); setOpen(false); }}
+            className="absolute right-2 h-4 w-4 flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors"
+            tabIndex={-1}
+          >
+            <XIcon className="h-3 w-3" />
+          </button>
+        )}
       </form>
 
       {open && suggestions.length > 0 && (
-        <div className="absolute left-0 top-full mt-1 z-50 w-72 bg-card border border-border rounded-lg shadow-xl overflow-hidden">
+        <div className="absolute left-0 top-full mt-1 z-50 w-full bg-card border border-border rounded-lg shadow-xl overflow-hidden">
           {suggestions.map((s, idx) => (
             <Link
               key={s.id}

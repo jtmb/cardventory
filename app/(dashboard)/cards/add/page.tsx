@@ -11,11 +11,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { CustomSelect } from "@/components/cards/custom-select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import { ArrowLeftIcon, UploadIcon, XIcon, AlertTriangleIcon } from "lucide-react";
+import { UploadIcon, XIcon, AlertTriangleIcon, SaveIcon } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
 import { toast } from "sonner";
-import { ButtonLink } from "@/components/ui/button-link";
 import { ImagePicker } from "@/components/cards/image-picker";
 import type { Card as CardType } from "@/lib/db/schema";
 
@@ -145,13 +144,9 @@ export default function AddCardPage() {
   }
 
   return (
-    <div className="p-6 pb-24 md:pb-6 max-w-2xl mx-auto space-y-6">
-      <ButtonLink href="/cards" variant="ghost" size="sm" className="gap-2 -ml-2 inline-flex items-center">
-        <ArrowLeftIcon className="h-4 w-4" /> Back
-      </ButtonLink>
-
+    <div className="p-6 pb-24 max-w-2xl mx-auto space-y-6">
       <div>
-        <h1 className="text-2xl font-bold">Add Card</h1>
+        <h1 className="type-headline-large font-bold">Add Card</h1>
         <p className="text-muted-foreground text-sm mt-0.5">Add a card to your collection</p>
       </div>
 
@@ -386,10 +381,21 @@ export default function AddCardPage() {
         </Card>
         )}
 
-        <div className="fixed bottom-0 left-0 right-0 md:relative md:bottom-auto z-10 px-4 py-3 bg-background border-t border-border md:border-none md:bg-transparent md:px-0 md:py-0">
-          <Button type="submit" disabled={loading || uploading} className="w-full h-11 text-base">
-            {loading ? "Adding card…" : status === "wanted" ? "Add to Watchlist" : "Add Card"}
-          </Button>
+        <div className="fixed bottom-0 left-0 md:left-60 right-0 z-10 border-t border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+          <div className="mx-auto w-full max-w-2xl px-6 py-3 flex items-center gap-3">
+            <Button type="submit" disabled={loading || uploading} className="gap-2 ml-auto shadow-sm">
+              <SaveIcon className="h-4 w-4" />
+              {loading ? "Adding card…" : status === "wanted" ? "Add to Watchlist" : "Add Card"}
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              className="text-muted-foreground hover:text-foreground shrink-0"
+              onClick={() => router.push(status === "wanted" ? "/watchlist" : "/cards")}
+            >
+              Cancel
+            </Button>
+          </div>
         </div>
       </form>
     </div>
