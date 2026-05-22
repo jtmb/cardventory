@@ -306,28 +306,35 @@ export function CardGrid({ cards, exportHref }: { cards: Card[]; exportHref?: st
       </div>
 
       {/* Cards */}
-      {cards.length > 0 ? (
-        view === "grid" ? (
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
-            {cards.map((card) => (
-              <CardRow key={card.id} card={card} layout="grid" selectable={selectMode} selected={selectedIds.has(card.id)} onToggle={toggleCard} showPriceBadges={showPriceBadges} infoOverlay={overlayInfo} />
-            ))}
+      <div className="relative">
+        {isPending && (
+          <div className="absolute inset-0 z-20 flex items-center justify-center rounded-lg bg-background/70 backdrop-blur-[2px]">
+            <div className="h-14 w-14 rounded-full border-4 border-border border-t-primary animate-spin" />
           </div>
+        )}
+        {cards.length > 0 ? (
+          view === "grid" ? (
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
+              {cards.map((card) => (
+                <CardRow key={card.id} card={card} layout="grid" selectable={selectMode} selected={selectedIds.has(card.id)} onToggle={toggleCard} showPriceBadges={showPriceBadges} infoOverlay={overlayInfo} />
+              ))}
+            </div>
+          ) : (
+            <div className="rounded-lg border border-border bg-card overflow-hidden divide-y divide-border/60">
+              {cards.map((card) => (
+                <CardRow key={card.id} card={card} layout={view} selectable={selectMode} selected={selectedIds.has(card.id)} onToggle={toggleCard} />
+              ))}
+            </div>
+          )
         ) : (
-          <div className="rounded-lg border border-border bg-card overflow-hidden divide-y divide-border/60">
-            {cards.map((card) => (
-              <CardRow key={card.id} card={card} layout={view} selectable={selectMode} selected={selectedIds.has(card.id)} onToggle={toggleCard} />
-            ))}
+          <div className="flex flex-col items-center justify-center py-24 text-center">
+            <p className="text-muted-foreground text-lg">No cards in this category</p>
+            <ButtonLink href="/cards/add" className="mt-4">
+              <PlusCircleIcon className="h-4 w-4" /> Add Card
+            </ButtonLink>
           </div>
-        )
-      ) : (
-        <div className="flex flex-col items-center justify-center py-24 text-center">
-          <p className="text-muted-foreground text-lg">No cards in this category</p>
-          <ButtonLink href="/cards/add" className="mt-4">
-            <PlusCircleIcon className="h-4 w-4" /> Add Card
-          </ButtonLink>
-        </div>
-      )}
+        )}
+      </div>
     </>
   );
 }

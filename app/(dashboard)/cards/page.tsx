@@ -11,7 +11,7 @@ import { PaginationControls } from "@/components/cards/pagination-controls";
 import { CsvToolbar } from "@/components/cards/csv-toolbar";
 import { MobileCardActionsMenu } from "@/components/cards/mobile-card-actions";
 
-const DEFAULT_PAGE_SIZE = 48;
+const DEFAULT_PAGE_SIZE = 24;
 
 export default async function CardsPage({
   searchParams,
@@ -20,7 +20,7 @@ export default async function CardsPage({
 }) {
   const { genre, q, sort, page: pageStr, pageSize: pageSizeStr, grade } = await searchParams;
   const page = Math.max(1, parseInt(pageStr ?? "1") || 1);
-  const pageSize = [24, 48, 96].includes(parseInt(pageSizeStr ?? "")) ? parseInt(pageSizeStr!) : DEFAULT_PAGE_SIZE;
+  const pageSize = [18, 24, 30].includes(parseInt(pageSizeStr ?? "")) ? parseInt(pageSizeStr!) : DEFAULT_PAGE_SIZE;
 
   const [cardsPage, total, activeGenres] = await Promise.all([
     getCards(genre, q, sort, page, pageSize, grade, "owned"),

@@ -18,7 +18,7 @@ export default async function WatchlistPage({
 }) {
   const { genre, q, sort, page: pageStr, pageSize: pageSizeStr, grade } = await searchParams;
   const page = Math.max(1, parseInt(pageStr ?? "1") || 1);
-  const pageSize = [24, 48, 96].includes(parseInt(pageSizeStr ?? "")) ? parseInt(pageSizeStr!) : DEFAULT_PAGE_SIZE;
+  const pageSize = [18, 24, 30].includes(parseInt(pageSizeStr ?? "")) ? parseInt(pageSizeStr!) : DEFAULT_PAGE_SIZE;
 
   const [cardsPage, total, activeGenres] = await Promise.all([
     getCards(genre, q, sort, page, pageSize, grade, "wanted"),

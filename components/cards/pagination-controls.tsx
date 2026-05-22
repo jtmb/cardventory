@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useSearchParams, usePathname } from "next/navigation";
 import { ChevronLeftIcon, ChevronRightIcon } from "lucide-react";
 
-const PAGE_SIZE_OPTIONS = [24, 48, 96];
+const PAGE_SIZE_OPTIONS = [18, 24, 30];
 
 interface PaginationControlsProps {
   page: number;
@@ -30,7 +30,7 @@ export function PaginationControls({
       params.delete("page");
     }
     if (ps !== undefined) {
-      if (ps === 48) {
+      if (ps === 24) {
         params.delete("pageSize");
       } else {
         params.set("pageSize", String(ps));
