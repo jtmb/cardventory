@@ -183,11 +183,10 @@ export function WelcomeTour() {
         return;
       }
 
-      // Auto-fallback: right → bottom → center when space is tight
+      // Auto-fallback: right → bottom → null when space is tight
       let placement = s.placement ?? "right";
       if (placement === "right" && rect.right + 12 + TW + 8 > vw) placement = "bottom";
-      if (placement === "bottom" && rect.bottom + 12 + TH + 8 > vh) placement = "center";
-      if (placement === "center") { setTooltipPos(null); return; }
+      if (placement === "bottom" && rect.bottom + 12 + TH + 8 > vh) { setTooltipPos(null); return; }
 
       if (placement === "right") {
         const rawTop = rect.top + rect.height / 2;
