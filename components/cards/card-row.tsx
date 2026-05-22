@@ -3,7 +3,7 @@
 import { cn } from "@/lib/utils";
 import { Card } from "@/lib/db/schema";
 import Link from "next/link";
-import Image from "next/image";
+import { SmartCardImage } from "@/components/cards/smart-card-image";
 import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { CheckIcon, PencilIcon, Trash2Icon, TrendingUpIcon, TrendingDownIcon } from "lucide-react";
@@ -211,20 +211,20 @@ function CardInner({
   return (
     <>
       {/* Card image — trading card 5:7 aspect ratio */}
-      <div className="cv-card-image relative w-full aspect-[5/7] bg-gradient-to-b from-muted/25 to-muted/75 overflow-hidden">
-        {card.photoUrl ? (
-          <Image
-            src={card.photoUrl}
-            alt={card.name}
-            fill
-            className="object-contain p-2 group-hover:scale-[1.05] transition-transform duration-300"
-            unoptimized={card.photoUrl.startsWith("http")}
-          />
-        ) : (
+      <SmartCardImage
+        src={card.photoUrl}
+        alt={card.name}
+        unoptimized={!!card.photoUrl && card.photoUrl.startsWith("http")}
+        fitMode="ambient"
+        containerClassName="cv-card-image relative w-full aspect-[5/7] overflow-hidden rounded-xl"
+        containerStyle={{ clipPath: "inset(0 round 0.75rem)" }}
+
+        placeholder={
           <div className="w-full h-full flex items-center justify-center">
             <span className="text-5xl opacity-20">🃏</span>
           </div>
-        )}
+        }
+      >
         {/* Sheen overlay */}
         <div className="absolute inset-0 bg-gradient-to-br from-white/[0.05] via-transparent to-transparent pointer-events-none" />
         {/* Grade badge */}
@@ -253,6 +253,13 @@ function CardInner({
           </div>
         )}
 
+        {/* Set-line hover reveal — fades in over the bottom of the card on hover */}
+        {!infoOverlay && setLine && (
+          <div className="absolute bottom-0 inset-x-0 opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none bg-gradient-to-t from-black/80 via-black/50 to-transparent pt-8 pb-2 px-2.5">
+            <p className="text-[10px] text-white/80 leading-snug">{setLine}</p>
+          </div>
+        )}
+
         {/* Bottom info overlay */}
         {infoOverlay && (
           <div className={cn(
@@ -268,14 +275,14 @@ function CardInner({
             )}
           </div>
         )}
-      </div>
+      </SmartCardImage>
 
       {/* Info area — hidden when info overlay is active */}
       {!infoOverlay && (
         <div className={cn("p-3 space-y-1 border-t border-border/50", isPending && "opacity-40")}>
           <p className="type-title-small font-semibold leading-tight line-clamp-1 tracking-tight">{card.name}</p>
           {setLine && (
-            <p className="text-xs text-muted-foreground line-clamp-2 leading-snug">{setLine}</p>
+            <p className="text-xs text-muted-foreground truncate">{setLine}</p>
           )}
           <div className="pt-1">
             {loading ? (
@@ -342,13 +349,14 @@ function CardListLayout({
           </div>
         </button>
       )}
-      <div className="shrink-0 w-10 h-14 rounded-md overflow-hidden bg-muted border border-border flex items-center justify-center">
-        {card.photoUrl ? (
-          <Image src={card.photoUrl} alt={card.name} width={40} height={56} className="object-contain" unoptimized={card.photoUrl.startsWith("http")} />
-        ) : (
-          <span className="text-base opacity-30">🃏</span>
-        )}
-      </div>
+      <SmartCardImage
+        src={card.photoUrl}
+        alt={card.name}
+        unoptimized={!!card.photoUrl && card.photoUrl.startsWith("http")}
+        fitMode="cover"
+        containerClassName="shrink-0 relative w-10 h-14 rounded-md overflow-hidden bg-muted border border-border flex items-center justify-center"
+        placeholder={<span className="text-base opacity-30">🃏</span>}
+      />
       <Link href={`/cards/${card.id}`} className="flex-1 min-w-0">
         <p className="font-semibold text-sm truncate leading-tight">{card.name}</p>
         {setLine && <p className="text-xs text-muted-foreground truncate mt-0.5">{setLine}</p>}
