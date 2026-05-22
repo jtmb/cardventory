@@ -60,9 +60,9 @@ export function CardsToolbar({
   const [expanded, setExpanded] = useState(false);
 
   return (
-    <div className="bg-card border-b border-border" data-tour-id={tourId}>
+    <div className="pt-6" data-tour-id={tourId}>
       {/* ── Primary row ─────────────────────────────────────── */}
-      <div className="max-w-7xl mx-auto px-4 md:px-6 flex items-center gap-2 h-12 md:h-14">
+      <div className="max-w-7xl mx-auto px-6 flex items-center gap-2 h-12 md:h-14">
 
         {/* Mobile: title is a toggle button */}
         <button
@@ -162,7 +162,7 @@ export function CardsToolbar({
 
       {/* ── Expandable panel (mobile only) ──────────────────── */}
       {expanded && (
-        <div className="md:hidden border-t border-border bg-card px-4 py-3 space-y-2.5">
+        <div className="md:hidden border-t border-border px-6 py-3 space-y-2.5">
           <div className="flex items-center gap-1.5">
             <div className="flex-1">
               <SearchInput defaultValue={q} genre={genre} basePath={basePath} fullWidth />
