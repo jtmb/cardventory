@@ -80,26 +80,23 @@ export function CardsToolbar({
           />
         </button>
 
-        {/* Desktop: static title */}
-        <div className="hidden md:flex items-center gap-2 shrink-0">
+        {/* Desktop: static title — hidden; rendered inside toolbar flex row instead */}
+        <div className="hidden items-center gap-2 shrink-0">
           {header}
           {total > 0 && <span className="text-xs text-muted-foreground">({total})</span>}
         </div>
 
         {/* Desktop: full toolbar always visible */}
         <div className="hidden md:flex items-center gap-2 flex-1">
+          <div className="flex items-center gap-2 shrink-0">
+            {header}
+            {total > 0 && <span className="text-xs text-muted-foreground">({total})</span>}
+          </div>
           <div className="w-px h-5 bg-border/60 shrink-0" />
-          <Link
-            href={addHref}
-            data-tour-id={addHref === "/cards/add" ? "toolbar-add-card" : undefined}
-            aria-label={addLabel}
-            className="flex items-center justify-center h-8 w-8 rounded-md border border-border text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
-          >
-            <PlusCircleIcon className="h-4 w-4" />
-          </Link>
-          {showRefresh && <RefreshAllButton />}
+          <div className="flex-1" />
           <div className="w-px h-5 bg-border/60 shrink-0" />
-          <div className="ml-auto flex items-center gap-1.5">
+          <div className="flex items-center gap-1.5">
+            <SearchInput defaultValue={q} genre={genre} basePath={basePath} />
             <FiltersButton
               activeGrade={grade}
               currentSort={sort}
@@ -108,9 +105,18 @@ export function CardsToolbar({
               basePath={basePath}
               activeGenres={activeGenres}
             />
-            <SearchInput defaultValue={q} genre={genre} basePath={basePath} />
             <div className="w-px h-5 bg-border/60 shrink-0" />
-            <CsvButton exportHref={exportHref} />
+            <CsvButton exportHref={exportHref} iconOnly />
+            <div className="w-px h-5 bg-border/60 shrink-0" />
+            <Link
+              href={addHref}
+              data-tour-id={addHref === "/cards/add" ? "toolbar-add-card" : undefined}
+              aria-label={addLabel}
+              className="flex items-center justify-center h-8 w-8 rounded-md border border-border text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+            >
+              <PlusCircleIcon className="h-4 w-4" />
+            </Link>
+            {showRefresh && <RefreshAllButton />}
           </div>
         </div>
 

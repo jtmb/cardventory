@@ -1,5 +1,6 @@
 import { getDashboardStats, getGradeStats, getPortfolioHistory } from "@/lib/actions";
 import { auth } from "@/auth";
+import Link from "next/link";
 import { PlusCircleIcon, LayersIcon } from "lucide-react";
 import { ButtonLink } from "@/components/ui/button-link";
 import { RefreshAllButton } from "@/components/cards/refresh-all-button";
@@ -22,10 +23,10 @@ export default async function DashboardPage() {
           <p className="text-muted-foreground text-sm mt-0.5">Welcome back, {session?.user?.name}</p>
         </div>
         <div className="flex gap-2 md:justify-end">
+          <Link href="/cards/add" aria-label="Add Card" className="flex items-center justify-center h-8 w-8 rounded-md border border-border text-muted-foreground hover:text-foreground hover:bg-muted transition-colors">
+            <PlusCircleIcon className="h-4 w-4" />
+          </Link>
           <RefreshAllButton />
-          <ButtonLink href="/cards/add" className="h-8 px-3 gap-1.5 text-sm">
-            <PlusCircleIcon className="h-4 w-4" /> Add Card
-          </ButtonLink>
         </div>
       </div>
 

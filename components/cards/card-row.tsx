@@ -25,6 +25,39 @@ function fmt(n: number | null | undefined) {
   return new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(n);
 }
 
+function Sparkline({ data, cardId }: { data: number[]; cardId: string }) {
+  if (data.length < 2) return null;
+  const min = Math.min(...data);
+  const max = Math.max(...data);
+  const range = max - min || 1;
+  const W = 300, H = 80;
+  const xs = data.map((_, i) => (i / (data.length - 1)) * W);
+  const ys = data.map(v => H - ((v - min) / range) * (H - 10) - 5);
+  const pts = xs.map((x, i) => `${x.toFixed(1)},${ys[i].toFixed(1)}`);
+  const rising = data[data.length - 1] >= data[0];
+  const color = rising ? "#22c55e" : "#ef4444";
+  const gradId = `spk-${cardId}`;
+  const linePath = `M ${pts.join(" L ")}`;
+  const areaPath = `M 0,${H} L ${pts.join(" L ")} L ${W},${H} Z`;
+  return (
+    <svg
+      viewBox={`0 0 ${W} ${H}`}
+      className="absolute inset-0 w-full h-full pointer-events-none"
+      preserveAspectRatio="none"
+      aria-hidden
+    >
+      <defs>
+        <linearGradient id={gradId} x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor={color} stopOpacity="0.28" />
+          <stop offset="100%" stopColor={color} stopOpacity="0.02" />
+        </linearGradient>
+      </defs>
+      <path d={areaPath} fill={`url(#${gradId})`} />
+      <path d={linePath} fill="none" stroke={color} strokeWidth="1.5" strokeOpacity="0.5" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
 export function CardRow({
   card,
   selectable = false,
@@ -32,7 +65,7 @@ export function CardRow({
   onToggle,
   layout = "grid",
   showPriceBadges = true,
-  infoOverlay = false,
+  showSparkline = true,
 }: {
   card: Card;
   selectable?: boolean;
@@ -41,9 +74,12 @@ export function CardRow({
   layout?: "grid" | "list" | "compact";
   showPriceBadges?: boolean;
   infoOverlay?: boolean;
+  showSparkline?: boolean;
+  showSparkline?: boolean;
 }) {
   const [currentValue, setCurrentValue] = useState<number | null>(null);
   const [priceChange7d, setPriceChange7d] = useState<number | null>(null);
+  const [sparkline, setSparkline] = useState<number[]>([]);
   const [loading, setLoading] = useState(true);
   const [isPending, startTransition] = useTransition();
   const router = useRouter();
@@ -54,6 +90,7 @@ export function CardRow({
       .then((data) => {
         setCurrentValue(data.highest ?? null);
         setPriceChange7d(data.change7d ?? null);
+        setSparkline(data.sparkline ?? []);
       })
       .catch(() => {})
       .finally(() => setLoading(false));
@@ -148,7 +185,7 @@ export function CardRow({
           >
             {selected && <CheckIcon className="h-3 w-3 text-primary-foreground" />}
           </div>
-          <CardInner card={card} setLine={setLine} isPending={isPending} showPriceBadges={showPriceBadges} infoOverlay={infoOverlay} />
+          <CardInner card={card} setLine={setLine} isPending={isPending} sparkline={sparkline} showPriceBadges={showPriceBadges} showSparkline={showSparkline} />
         </button>
       ) : (
         <Link href={`/cards/${card.id}`} className="block">
@@ -157,7 +194,7 @@ export function CardRow({
             "border-border/60 hover:border-primary/60 hover:shadow-2xl hover:shadow-black/60 hover:-translate-y-1",
             isPending && "opacity-40 pointer-events-none"
           )}>
-            <CardInner card={card} setLine={setLine} isPending={isPending} loading={loading} currentValue={currentValue} priceChange7d={priceChange7d} showPriceBadges={showPriceBadges} infoOverlay={infoOverlay} />
+            <CardInner card={card} setLine={setLine} isPending={isPending} loading={loading} currentValue={currentValue} priceChange7d={priceChange7d} sparkline={sparkline} showPriceBadges={showPriceBadges} showSparkline={showSparkline} />
           </div>
         </Link>
       )}
@@ -183,9 +220,18 @@ function gradeCompanyColor(company: string | null | undefined): string {
   }
 }
 
-function conditionLabel(condition: string | null | undefined) {
+function conditionLabel(condition: string | null | undefined): { short: string; full: string } | null {
+  const map: Record<string, { short: string; full: string }> = {
+    gem_mint:  { short: "GM",  full: "Gem Mint" },
+    mint:      { short: "M",   full: "Mint" },
+    near_mint: { short: "NM",  full: "Near Mint" },
+    excellent: { short: "EX",  full: "Excellent" },
+    very_good: { short: "VG",  full: "Very Good" },
+    good:      { short: "G",   full: "Good" },
+    poor:      { short: "P",   full: "Poor" },
+  };
   if (!condition || condition === "none") return null;
-  return condition.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+  return map[condition] ?? { short: condition.slice(0, 3).toUpperCase(), full: condition };
 }
 
 /** Shared card visual — used in both normal and selectable modes */
@@ -196,8 +242,9 @@ function CardInner({
   loading = false,
   currentValue = null,
   priceChange7d = null,
+  sparkline = [],
   showPriceBadges = true,
-  infoOverlay = false,
+  showSparkline = true,
 }: {
   card: Card;
   setLine: string;
@@ -205,8 +252,9 @@ function CardInner({
   loading?: boolean;
   currentValue?: number | null;
   priceChange7d?: number | null;
+  sparkline?: number[];
   showPriceBadges?: boolean;
-  infoOverlay?: boolean;
+  showSparkline?: boolean;
 }) {
   return (
     <>
@@ -216,7 +264,7 @@ function CardInner({
         alt={card.name}
         unoptimized={!!card.photoUrl && card.photoUrl.startsWith("http")}
         fitMode="ambient"
-        containerClassName="cv-card-image relative w-full aspect-[5/7] overflow-hidden rounded-xl"
+        containerClassName="cv-card-image relative w-full aspect-[5/7] overflow-hidden rounded-xl @container"
         containerStyle={{ clipPath: "inset(0 round 0.75rem)" }}
 
         placeholder={
@@ -227,22 +275,47 @@ function CardInner({
       >
         {/* Sheen overlay */}
         <div className="absolute inset-0 bg-gradient-to-br from-white/[0.05] via-transparent to-transparent pointer-events-none" />
-        {/* Grade badge */}
-        {card.gradeCompany && card.gradeValue && (
-          <div className="absolute top-2 right-2 flex items-center gap-1 bg-black/65 backdrop-blur-sm shadow-md rounded-md px-2 py-0.5">
-            <span className={`text-[10px] font-semibold uppercase tracking-wide ${gradeCompanyColor(card.gradeCompany)}`}>{card.gradeCompany}</span>
-            <span className="text-xs font-bold text-white leading-tight">{card.gradeValue}</span>
-          </div>
-        )}
-        {/* Condition badge — only shown when ungraded */}
-        {!card.gradeCompany && conditionLabel(card.condition) && (
-          <div className="absolute top-2 right-2 flex items-center bg-black/65 backdrop-blur-sm shadow-md rounded-md px-2 py-0.5">
-            <span className="text-[10px] font-medium text-white/85 leading-tight">{conditionLabel(card.condition)}</span>
-          </div>
-        )}
-        {/* 7-day price trend — top-left, same row as grade badge */}
+        {/* Wide layout (≥130px): grade/condition top-right, trend top-left */}
+        <div className="absolute top-2 right-2 hidden @[130px]:flex flex-col items-end gap-1">
+          {card.gradeCompany && card.gradeValue && (
+            <div className="flex flex-col items-center bg-black/65 backdrop-blur-sm shadow-md rounded-md px-1.5 py-0.5">
+              <span className={`text-[9px] font-semibold uppercase leading-tight ${gradeCompanyColor(card.gradeCompany)}`}>{card.gradeCompany}</span>
+              <span className="text-xs font-bold text-white leading-tight">{card.gradeValue}</span>
+            </div>
+          )}
+          {!card.gradeCompany && conditionLabel(card.condition) && (
+            <div className="flex items-center bg-black/65 backdrop-blur-sm shadow-md rounded-md px-2 py-0.5" title={conditionLabel(card.condition)!.full}>
+              <span className="text-[10px] font-medium text-white/85 leading-tight">{conditionLabel(card.condition)!.short}</span>
+            </div>
+          )}
+        </div>
         {!loading && priceChange7d !== null && priceChange7d !== 0 && (
-          <div className="absolute top-2 left-2 flex items-center gap-0.5 bg-black/65 backdrop-blur-sm shadow-md rounded-md px-1.5 py-0.5">
+          <div className="absolute top-2 left-2 hidden @[130px]:flex items-center gap-0.5 bg-black/65 backdrop-blur-sm shadow-md rounded-md px-1.5 py-0.5">
+            {priceChange7d > 0
+              ? <TrendingUpIcon className="h-2.5 w-2.5 text-emerald-400" />
+              : <TrendingDownIcon className="h-2.5 w-2.5 text-red-400" />
+            }
+            <span className={`text-[10px] font-bold leading-tight ${priceChange7d > 0 ? "text-emerald-400" : "text-red-400"}`}>
+              {Math.abs(priceChange7d).toFixed(0)}%
+            </span>
+          </div>
+        )}
+        {/* Narrow layout (<130px): grade/condition bottom-right, trend bottom-left stacked vertically */}
+        <div className="absolute bottom-2 right-2 flex @[130px]:hidden flex-col items-end gap-1">
+          {card.gradeCompany && card.gradeValue && (
+            <div className="flex flex-col items-center bg-black/65 backdrop-blur-sm shadow-md rounded-md px-1.5 py-0.5">
+              <span className={`text-[9px] font-semibold uppercase leading-tight ${gradeCompanyColor(card.gradeCompany)}`}>{card.gradeCompany}</span>
+              <span className="text-xs font-bold text-white leading-tight">{card.gradeValue}</span>
+            </div>
+          )}
+          {!card.gradeCompany && conditionLabel(card.condition) && (
+            <div className="flex items-center bg-black/65 backdrop-blur-sm shadow-md rounded-md px-2 py-0.5" title={conditionLabel(card.condition)!.full}>
+              <span className="text-[10px] font-medium text-white/85 leading-tight">{conditionLabel(card.condition)!.short}</span>
+            </div>
+          )}
+        </div>
+        {!loading && priceChange7d !== null && priceChange7d !== 0 && (
+          <div className="absolute bottom-2 left-2 flex @[130px]:hidden flex-col items-center gap-0 bg-black/65 backdrop-blur-sm shadow-md rounded-md px-1.5 py-1">
             {priceChange7d > 0
               ? <TrendingUpIcon className="h-2.5 w-2.5 text-emerald-400" />
               : <TrendingDownIcon className="h-2.5 w-2.5 text-red-400" />
@@ -254,53 +327,36 @@ function CardInner({
         )}
 
         {/* Set-line hover reveal — fades in over the bottom of the card on hover */}
-        {!infoOverlay && setLine && (
+        {setLine && (
           <div className="absolute bottom-0 inset-x-0 opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none bg-gradient-to-t from-black/80 via-black/50 to-transparent pt-8 pb-2 px-2.5">
             <p className="text-[10px] text-white/80 leading-snug">{setLine}</p>
           </div>
         )}
-
-        {/* Bottom info overlay */}
-        {infoOverlay && (
-          <div className={cn(
-            "absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/90 via-black/55 to-transparent pt-8 px-2 pb-2",
-            isPending && "opacity-40"
-          )}>
-            <p className="text-[11px] font-semibold text-white leading-tight line-clamp-2">{card.name}</p>
-            {setLine && (
-              <p className="text-[10px] text-white/55 truncate mt-0.5">{setLine}</p>
-            )}
-            {showPriceBadges && !loading && currentValue !== null && (
-              <span className="mt-1 block text-[10px] font-bold text-white/90 tabular-nums">{fmt(currentValue)}</span>
-            )}
-          </div>
-        )}
       </SmartCardImage>
 
-      {/* Info area — hidden when info overlay is active */}
-      {!infoOverlay && (
-        <div className={cn("p-3 space-y-1 border-t border-border/50", isPending && "opacity-40")}>
-          <p className="type-title-small font-semibold leading-tight line-clamp-1 tracking-tight">{card.name}</p>
-          {setLine && (
-            <p className="text-xs text-muted-foreground truncate">{setLine}</p>
+      {/* Info area */}
+      <div className={cn("p-3 space-y-1 border-t border-border/50 relative overflow-hidden", isPending && "opacity-40")}>
+        <Sparkline data={showSparkline ? sparkline : []} cardId={card.id} />
+        <p className="type-title-small font-semibold leading-tight line-clamp-1 tracking-tight">{card.name}</p>
+        {setLine && (
+          <p className="text-xs text-muted-foreground truncate">{setLine}</p>
+        )}
+        <div className="pt-1">
+          {loading ? (
+            <div className="h-3.5 w-4/5 bg-muted rounded animate-pulse" />
+          ) : (
+            <div>
+              {currentValue !== null ? (
+                <span className="inline-flex items-baseline bg-primary/15 text-primary rounded-md px-2 py-0.5 text-sm font-bold tabular-nums leading-tight ring-1 ring-primary/20">
+                  {fmt(currentValue)}
+                </span>
+              ) : (
+                <span className="text-xs text-muted-foreground/40">No price data</span>
+              )}
+            </div>
           )}
-          <div className="pt-1">
-            {loading ? (
-              <div className="h-3.5 w-4/5 bg-muted rounded animate-pulse" />
-            ) : (
-              <div>
-                {currentValue !== null ? (
-                  <span className="inline-flex items-baseline bg-primary/15 text-primary rounded-md px-2 py-0.5 text-sm font-bold tabular-nums leading-tight ring-1 ring-primary/20">
-                    {fmt(currentValue)}
-                  </span>
-                ) : (
-                  <span className="text-xs text-muted-foreground/40">No price data</span>
-                )}
-              </div>
-            )}
-          </div>
         </div>
-      )}
+      </div>
     </>
   );
 }
@@ -368,8 +424,8 @@ function CardListLayout({
         </span>
       )}
       {!card.gradeCompany && conditionLabel(card.condition) && (
-        <span className="shrink-0 hidden sm:inline-flex text-[10px] font-medium text-muted-foreground bg-muted/70 rounded px-1.5 py-0.5">
-          {conditionLabel(card.condition)}
+        <span className="shrink-0 hidden sm:inline-flex text-[10px] font-medium text-muted-foreground bg-muted/70 rounded px-1.5 py-0.5" title={conditionLabel(card.condition)!.full}>
+          {conditionLabel(card.condition)!.short}
         </span>
       )}
       <div className="shrink-0 flex items-center gap-2.5">
@@ -440,8 +496,8 @@ function CardCompactLayout({
           <span className="text-xs font-bold text-foreground">{card.gradeValue}</span>
         </span>
       ) : conditionLabel(card.condition) ? (
-        <span className="shrink-0 hidden sm:inline-flex text-[10px] font-medium text-muted-foreground bg-muted/70 rounded px-1.5 py-0.5">
-          {conditionLabel(card.condition)}
+        <span className="shrink-0 hidden sm:inline-flex text-[10px] font-medium text-muted-foreground bg-muted/70 rounded px-1.5 py-0.5" title={conditionLabel(card.condition)!.full}>
+          {conditionLabel(card.condition)!.short}
         </span>
       ) : (
         <span className="shrink-0 hidden sm:inline w-10" />

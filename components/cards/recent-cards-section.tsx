@@ -2,14 +2,13 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { LayoutGridIcon, LayoutListIcon, ListIcon, PanelBottomIcon } from "lucide-react";
+import { LayoutGridIcon, LayoutListIcon, ListIcon } from "lucide-react";
 import { MiniCardRow } from "./mini-card-row";
 import { CardRow } from "./card-row";
 import type { Card } from "@/lib/db/schema";
 
 type ViewMode = "row" | "grid" | "compact";
 const LS_KEY = "cv_dash_recent_view";
-const OVERLAY_LS_KEY = "cv_dash_recent_overlay";
 
 const GENRE_LABELS: Record<string, string> = {
   basketball: "Basketball", baseball: "Baseball", football: "Football",
@@ -49,7 +48,6 @@ export function RecentCardsSection({ cards }: { cards: Card[] }) {
   const [view, setView] = useState<ViewMode>("grid");
   const [rowPage, setRowPage] = useState(1);
   const [gridPage, setGridPage] = useState(1);
-  const [overlayInfo, setOverlayInfo] = useState(true);
 
   const ROW_PAGE_SIZE = 4;
   const GRID_PAGE_SIZE = 16;
@@ -61,8 +59,6 @@ export function RecentCardsSection({ cards }: { cards: Card[] }) {
   useEffect(() => {
     const stored = localStorage.getItem(LS_KEY) as ViewMode | null;
     if (stored) setView(stored);
-    const storedOverlay = localStorage.getItem(OVERLAY_LS_KEY);
-    if (storedOverlay !== null) setOverlayInfo(storedOverlay === "true");
   }, []);
 
   function setViewMode(v: ViewMode) {
@@ -75,13 +71,6 @@ export function RecentCardsSection({ cards }: { cards: Card[] }) {
   const btnBase = "flex items-center justify-center h-6 w-6 rounded transition-colors";
   const btnActive = "bg-background text-foreground shadow-sm";
   const btnInactive = "text-muted-foreground hover:text-foreground";
-
-  function toggleOverlay() {
-    setOverlayInfo((v) => {
-      localStorage.setItem(OVERLAY_LS_KEY, String(!v));
-      return !v;
-    });
-  }
 
   return (
     <section>
@@ -113,16 +102,6 @@ export function RecentCardsSection({ cards }: { cards: Card[] }) {
               <ListIcon className="h-3.5 w-3.5" />
             </button>
           </div>
-            {/* Overlay info toggle — grid only */}
-            {view === "grid" && (
-              <button
-                onClick={toggleOverlay}
-                title={overlayInfo ? "Show info panel below" : "Pin info to image bottom"}
-                className={`${btnBase} ${overlayInfo ? btnActive : btnInactive}`}
-              >
-                <PanelBottomIcon className="h-3.5 w-3.5" />
-              </button>
-            )}
           </div>
           <Link href="/cards" className="text-sm text-primary hover:underline">
             View all
@@ -166,9 +145,9 @@ export function RecentCardsSection({ cards }: { cards: Card[] }) {
 
       {view === "grid" && (
         <>
-          <div className="grid grid-cols-4 sm:grid-cols-5 md:grid-cols-6 lg:grid-cols-8 gap-2">
+          <div className="grid grid-cols-6 sm:grid-cols-8 md:grid-cols-10 lg:grid-cols-12 gap-2">
             {gridSlice.map((card) => (
-              <CardRow key={card.id} card={card} layout="grid" infoOverlay={overlayInfo} />
+              <CardRow key={card.id} card={card} layout="grid" />
             ))}
           </div>
           {gridPageCount > 1 && (

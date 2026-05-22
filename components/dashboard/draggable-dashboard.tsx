@@ -69,8 +69,8 @@ const LS_KEY = "cv_dashboard_order";
 type SectionId = "stats" | "by-category" | "recent-cards" | "grade-breakdown" | "portfolio-trend";
 
 const DEFAULT_ORDER: SectionId[] = [
-  "recent-cards",
   "stats",
+  "recent-cards",
   "by-category",
   "grade-breakdown",
   "portfolio-trend",

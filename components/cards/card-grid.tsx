@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { CheckSquare2Icon, Trash2Icon, XIcon, LayoutGridIcon, LayoutListIcon, ListIcon, DownloadIcon, TagIcon, BookmarkIcon, BookmarkCheckIcon, PanelBottomIcon } from "lucide-react";
+import { CheckSquare2Icon, Trash2Icon, XIcon, LayoutGridIcon, LayoutListIcon, ListIcon, DownloadIcon, TagIcon, BookmarkIcon, BookmarkCheckIcon, ActivityIcon } from "lucide-react";
 import { CardRow, CardRowSkeleton } from "./card-row";
 import type { Card } from "@/lib/db/schema";
 import { Button, buttonVariants } from "@/components/ui/button";
@@ -37,7 +37,7 @@ const GENRES = [
 
 type ViewMode = "grid" | "list" | "compact";
 const VIEW_LS_KEY = "cv_cards_view";
-const OVERLAY_LS_KEY = "cv_cards_overlay";
+const SPARKLINE_LS_KEY = "cv_cards_sparkline";
 
 export function CardGrid({ cards, exportHref }: { cards: Card[]; exportHref?: string }) {
   const [selectMode, setSelectMode] = useState(false);
@@ -46,14 +46,14 @@ export function CardGrid({ cards, exportHref }: { cards: Card[]; exportHref?: st
   const [view, setView] = useState<ViewMode>("grid");
   const [genrePickerOpen, setGenrePickerOpen] = useState(false);
   const [showPriceBadges, setShowPriceBadges] = useState(true);
-  const [overlayInfo, setOverlayInfo] = useState(false);
+  const [showSparkline, setShowSparkline] = useState(true);
   const router = useRouter();
 
   useEffect(() => {
     const stored = localStorage.getItem(VIEW_LS_KEY) as ViewMode | null;
     if (stored) setView(stored);
-    const storedOverlay = localStorage.getItem(OVERLAY_LS_KEY);
-    if (storedOverlay !== null) setOverlayInfo(storedOverlay === "true");
+    const storedSparkline = localStorage.getItem(SPARKLINE_LS_KEY);
+    if (storedSparkline !== null) setShowSparkline(storedSparkline !== "false");
     // Load price badge preference
     fetch("/api/settings")
       .then((r) => r.ok ? r.json() : null)
@@ -66,9 +66,9 @@ export function CardGrid({ cards, exportHref }: { cards: Card[]; exportHref?: st
     localStorage.setItem(VIEW_LS_KEY, v);
   }
 
-  function toggleOverlay() {
-    setOverlayInfo((v) => {
-      localStorage.setItem(OVERLAY_LS_KEY, String(!v));
+  function toggleSparkline() {
+    setShowSparkline((v) => {
+      localStorage.setItem(SPARKLINE_LS_KEY, String(!v));
       return !v;
     });
   }
@@ -197,16 +197,16 @@ export function CardGrid({ cards, exportHref }: { cards: Card[]; exportHref?: st
             ))}
           </div>
 
-          {/* Info overlay toggle — grid view only */}
+          {/* Sparkline toggle — grid view only */}
           {view === "grid" && (
             <button
-              onClick={toggleOverlay}
-              title={overlayInfo ? "Show info panel below" : "Pin info to image bottom"}
+              onClick={toggleSparkline}
+              title={showSparkline ? "Hide price sparkline" : "Show price sparkline"}
               className={`flex items-center justify-center h-6 w-6 rounded transition-colors ${
-                overlayInfo ? "bg-muted text-foreground" : "text-muted-foreground hover:text-foreground"
+                showSparkline ? "bg-muted text-foreground" : "text-muted-foreground hover:text-foreground"
               }`}
             >
-              <PanelBottomIcon className="h-3.5 w-3.5" />
+              <ActivityIcon className="h-3.5 w-3.5" />
             </button>
           )}
 
@@ -316,7 +316,7 @@ export function CardGrid({ cards, exportHref }: { cards: Card[]; exportHref?: st
           view === "grid" ? (
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
               {cards.map((card) => (
-                <CardRow key={card.id} card={card} layout="grid" selectable={selectMode} selected={selectedIds.has(card.id)} onToggle={toggleCard} showPriceBadges={showPriceBadges} infoOverlay={overlayInfo} />
+                <CardRow key={card.id} card={card} layout="grid" selectable={selectMode} selected={selectedIds.has(card.id)} onToggle={toggleCard} showPriceBadges={showPriceBadges} showSparkline={showSparkline} />
               ))}
             </div>
           ) : (

@@ -57,5 +57,21 @@ export async function GET(
     change7d: percentChange(7),
     change30d: percentChange(30),
     latest,
+    sparkline: buildSparkline(history),
   });
+}
+
+function buildSparkline(history: { price: number | null; fetchedAt: Date | unknown }[]): number[] {
+  const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+  const dayMax = new Map<string, number>();
+  for (const row of history) {
+    if (row.price === null) continue;
+    const d = row.fetchedAt instanceof Date ? row.fetchedAt : new Date((row.fetchedAt as number) * 1000);
+    if (d < thirtyDaysAgo) continue;
+    const key = d.toISOString().slice(0, 10);
+    dayMax.set(key, Math.max(dayMax.get(key) ?? 0, row.price as number));
+  }
+  return Array.from(dayMax.entries())
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([, v]) => v);
 }
