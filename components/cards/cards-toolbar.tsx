@@ -37,6 +37,8 @@ export interface CardsToolbarProps {
   showRefresh?: boolean;
   /** data-tour-id for e2e / onboarding */
   tourId?: string;
+  /** When provided, renders a button instead of a Link for the Add action */
+  onAddClick?: () => void;
 }
 
 export function CardsToolbar({
@@ -53,6 +55,7 @@ export function CardsToolbar({
   grade,
   showRefresh = false,
   tourId,
+  onAddClick,
 }: CardsToolbarProps) {
   const [expanded, setExpanded] = useState(false);
 
@@ -108,6 +111,43 @@ export function CardsToolbar({
             <div className="w-px h-5 bg-border/60 shrink-0" />
             <CsvButton exportHref={exportHref} iconOnly />
             <div className="w-px h-5 bg-border/60 shrink-0" />
+            {onAddClick ? (
+              <button
+                type="button"
+                onClick={onAddClick}
+                data-tour-id={addHref === "/cards/add" ? "toolbar-add-card" : undefined}
+                aria-label={addLabel}
+                className="flex items-center justify-center h-8 w-8 rounded-md border border-border text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+              >
+                <PlusCircleIcon className="h-4 w-4" />
+              </button>
+            ) : (
+              <Link
+                href={addHref}
+                data-tour-id={addHref === "/cards/add" ? "toolbar-add-card" : undefined}
+                aria-label={addLabel}
+                className="flex items-center justify-center h-8 w-8 rounded-md border border-border text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+              >
+                <PlusCircleIcon className="h-4 w-4" />
+              </Link>
+            )}
+            {showRefresh && <RefreshAllButton />}
+          </div>
+        </div>
+
+        {/* Mobile: refresh + add button always visible on the far right */}
+        <div className="md:hidden ml-auto flex items-center gap-1.5 shrink-0">
+          {showRefresh && <RefreshAllButton />}
+          {onAddClick ? (
+            <button
+              type="button"
+              onClick={onAddClick}
+              aria-label={addLabel}
+              className="flex items-center justify-center h-8 w-8 rounded-md border border-border text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+            >
+              <PlusCircleIcon className="h-4 w-4" />
+            </button>
+          ) : (
             <Link
               href={addHref}
               data-tour-id={addHref === "/cards/add" ? "toolbar-add-card" : undefined}
@@ -116,21 +156,7 @@ export function CardsToolbar({
             >
               <PlusCircleIcon className="h-4 w-4" />
             </Link>
-            {showRefresh && <RefreshAllButton />}
-          </div>
-        </div>
-
-        {/* Mobile: refresh + add button always visible on the far right */}
-        <div className="md:hidden ml-auto flex items-center gap-1.5 shrink-0">
-          {showRefresh && <RefreshAllButton />}
-          <Link
-            href={addHref}
-            data-tour-id={addHref === "/cards/add" ? "toolbar-add-card" : undefined}
-            aria-label={addLabel}
-            className="flex items-center justify-center h-8 w-8 rounded-md border border-border text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
-          >
-            <PlusCircleIcon className="h-4 w-4" />
-          </Link>
+          )}
         </div>
       </div>
 

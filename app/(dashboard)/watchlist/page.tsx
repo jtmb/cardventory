@@ -2,7 +2,7 @@ import { getCards, getActiveGenres, countCards, getAllSettings } from "@/lib/act
 import { BookmarkIcon, PlusCircleIcon } from "lucide-react";
 import { CardGrid } from "@/components/cards/card-grid";
 import { PaginationControls } from "@/components/cards/pagination-controls";
-import { CardsToolbar } from "@/components/cards/cards-toolbar";
+import { CardsPageShell } from "@/components/cards/cards-page-shell";
 import { ButtonLink } from "@/components/ui/button-link";
 
 const DEFAULT_PAGE_SIZE = 48;
@@ -30,7 +30,8 @@ export default async function WatchlistPage({
 
   return (
     <>
-      <CardsToolbar
+      <CardsPageShell
+        defaultStatus="wanted"
         header={<><BookmarkIcon className="h-4 w-4 text-amber-500" /><span className="font-semibold text-sm">Watchlist</span></>}
         total={total}
         basePath="/watchlist"
@@ -43,7 +44,7 @@ export default async function WatchlistPage({
         sort={sort}
         grade={grade}
         showRefresh={showRefreshWheel}
-      />
+      >
 
       <div className="p-6 max-w-7xl mx-auto">
         {cardsPage.length === 0 && total === 0 ? (
@@ -67,6 +68,7 @@ export default async function WatchlistPage({
           </>
         )}
       </div>
+      </CardsPageShell>
     </>
   );
 }

@@ -27,6 +27,8 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import { ScrollFade } from "@/components/ui/scroll-fade";
+import { AddCardDialog } from "@/components/cards/add-card-dialog";
 
 const navItems = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboardIcon },
@@ -59,6 +61,7 @@ function NavContent({ onNavigate }: { onNavigate?: () => void }) {
   const { data: session } = useSession();
   const isAdmin = session?.user?.role === "admin";
   const [pendingCount, setPendingCount] = useState(0);
+  const [addCardOpen, setAddCardOpen] = useState(false);
 
   useEffect(() => {
     if (!isAdmin) return;
@@ -70,7 +73,8 @@ function NavContent({ onNavigate }: { onNavigate?: () => void }) {
 
   return (
     <>
-      <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
+      <ScrollFade className="flex-1 px-3 py-4 space-y-1" fromColor="from-sidebar">
+        <nav>
         {navItems.map(({ href, label, icon: Icon }) => {
           const active =
             href === "/dashboard" ? pathname === "/dashboard" || pathname === "/" :
@@ -81,6 +85,22 @@ function NavContent({ onNavigate }: { onNavigate?: () => void }) {
           const tourId = href === "/cards/add" ? "tour-add-card" : href === "/settings" ? "tour-settings" : undefined;
           return (
             <div key={href}>
+              {href === "/cards/add" ? (
+                <button
+                  type="button"
+                  data-tour-id={tourId}
+                  onClick={() => { setAddCardOpen(true); onNavigate?.(); }}
+                  className={cn(
+                    "w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors",
+                    active
+                      ? "bg-primary/15 text-primary"
+                      : "text-sidebar-foreground/60 hover:text-sidebar-foreground hover:bg-sidebar-accent"
+                  )}
+                >
+                  <Icon className="h-4 w-4 shrink-0" />
+                  {label}
+                </button>
+              ) : (
               <Link
                 href={href}
                 onClick={onNavigate}
@@ -95,6 +115,7 @@ function NavContent({ onNavigate }: { onNavigate?: () => void }) {
                 <Icon className="h-4 w-4 shrink-0" />
                 {label}
               </Link>
+              )}
 
               {href === "/settings" && (onSettings || !!onNavigate) && (
                 <div className="mt-0.5 ml-3 pl-4 border-l border-sidebar-border space-y-0.5">
@@ -161,7 +182,8 @@ function NavContent({ onNavigate }: { onNavigate?: () => void }) {
         })}
 
 
-      </nav>
+        </nav>
+      </ScrollFade>
 
       <div className="px-3 py-4 border-t border-sidebar-border">
         <Button
@@ -173,6 +195,7 @@ function NavContent({ onNavigate }: { onNavigate?: () => void }) {
           Sign Out
         </Button>
       </div>
+      <AddCardDialog open={addCardOpen} onOpenChange={setAddCardOpen} />
     </>
   );
 }
@@ -199,7 +222,7 @@ export function Sidebar() {
   return (
     <>
       {/* ── Desktop sidebar (md and up) ──────────────────────────────────── */}
-      <aside className="hidden md:flex w-60 shrink-0 bg-sidebar border-r border-sidebar-border flex-col sticky top-0 h-screen overflow-y-auto">
+          <aside className="hidden md:flex w-60 shrink-0 bg-sidebar border-r border-sidebar-border flex-col sticky top-0 h-dvh overflow-hidden">
         <div className="flex items-center gap-2 px-5 py-5 border-b border-sidebar-border">
           <AppLogo size="md" />
           <span className="font-bold text-lg text-sidebar-foreground tracking-tight">Cardventory</span>

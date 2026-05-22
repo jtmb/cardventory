@@ -1,8 +1,7 @@
 import { getDashboardStats, getGradeStats, getPortfolioHistory } from "@/lib/actions";
 import { auth } from "@/auth";
-import Link from "next/link";
-import { PlusCircleIcon, LayersIcon } from "lucide-react";
-import { ButtonLink } from "@/components/ui/button-link";
+import { LayersIcon } from "lucide-react";
+import { AddCardButton } from "@/components/cards/add-card-button";
 import { RefreshAllButton } from "@/components/cards/refresh-all-button";
 import { DraggableDashboard } from "@/components/dashboard/draggable-dashboard";
 
@@ -23,9 +22,7 @@ export default async function DashboardPage() {
           <p className="text-muted-foreground text-sm mt-0.5">Welcome back, {session?.user?.name}</p>
         </div>
         <div className="flex gap-2 md:justify-end">
-          <Link href="/cards/add" aria-label="Add Card" className="flex items-center justify-center h-8 w-8 rounded-md border border-border text-muted-foreground hover:text-foreground hover:bg-muted transition-colors">
-            <PlusCircleIcon className="h-4 w-4" />
-          </Link>
+          <AddCardButton iconOnly label="Add Card" />
           <RefreshAllButton />
         </div>
       </div>
@@ -35,9 +32,7 @@ export default async function DashboardPage() {
           <LayersIcon className="h-16 w-16 text-muted-foreground/30 mb-4" />
           <h2 className="text-xl font-semibold text-muted-foreground">No cards yet</h2>
           <p className="text-muted-foreground/60 mt-2 mb-6">Add your first card to start tracking its value</p>
-          <ButtonLink href="/cards/add">
-            <PlusCircleIcon className="h-4 w-4" /> Add Your First Card
-          </ButtonLink>
+          <AddCardButton label="Add Your First Card" />
         </div>
       ) : (
         <DraggableDashboard

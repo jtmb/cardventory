@@ -2,7 +2,7 @@ import { getCards, getActiveGenres, countCards, getAllSettings } from "@/lib/act
 import { LayersIcon } from "lucide-react";
 import { CardGrid } from "@/components/cards/card-grid";
 import { PaginationControls } from "@/components/cards/pagination-controls";
-import { CardsToolbar } from "@/components/cards/cards-toolbar";
+import { CardsPageShell } from "@/components/cards/cards-page-shell";
 
 const DEFAULT_PAGE_SIZE = 24;
 
@@ -28,24 +28,21 @@ export default async function CardsPage({
   const exportHref = `/api/cards/export?status=owned${genre && genre !== "all" ? `&genre=${genre}` : ""}${q ? `&q=${encodeURIComponent(q)}` : ""}${grade && grade !== "all" ? `&grade=${grade}` : ""}`;
 
   return (
-    <>
-      <CardsToolbar
-        header={<><LayersIcon className="h-4 w-4 text-primary" /><span className="font-semibold text-sm">My Cards</span></>}
-        total={total}
-        basePath="/cards"
-        addHref="/cards/add"
-        addLabel="Add Card"
-        exportHref={exportHref}
-        activeGenres={activeGenres}
-        q={q}
-        genre={genre}
-        sort={sort}
-        grade={grade}
-        showRefresh={showRefreshWheel}
-        tourId="tour-cards-toolbar"
-      />
-
-      {/* Content on the darker bg-background */}
+    <CardsPageShell
+      header={<><LayersIcon className="h-4 w-4 text-primary" /><span className="font-semibold text-sm">My Cards</span></>}
+      total={total}
+      basePath="/cards"
+      addHref="/cards/add"
+      addLabel="Add Card"
+      exportHref={exportHref}
+      activeGenres={activeGenres}
+      q={q}
+      genre={genre}
+      sort={sort}
+      grade={grade}
+      showRefresh={showRefreshWheel}
+      tourId="tour-cards-toolbar"
+    >
       <div data-tour-id="tour-cards-grid" className="p-6 max-w-7xl mx-auto">
         <CardGrid cards={cardsPage} exportHref={exportHref} />
         <PaginationControls
@@ -55,7 +52,7 @@ export default async function CardsPage({
           pageSize={pageSize}
         />
       </div>
-    </>
+    </CardsPageShell>
   );
 }
 
