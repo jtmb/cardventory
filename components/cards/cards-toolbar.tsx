@@ -7,8 +7,7 @@ import { PlusCircleIcon, ChevronDownIcon } from "lucide-react";
 import { RefreshAllButton } from "@/components/cards/refresh-all-button";
 import { SearchInput } from "@/components/cards/search-input";
 import { FiltersButton } from "@/components/cards/filters-button";
-import { CsvToolbar } from "@/components/cards/csv-toolbar";
-import { MobileCardActionsMenu } from "@/components/cards/mobile-card-actions";
+import { CsvButton } from "@/components/cards/csv-button";
 import { cn } from "@/lib/utils";
 
 export interface CardsToolbarProps {
@@ -100,38 +99,7 @@ export function CardsToolbar({
           </Link>
           {showRefresh && <RefreshAllButton />}
           <div className="w-px h-5 bg-border/60 shrink-0" />
-          <CsvToolbar exportHref={exportHref} />
-          <div className="w-px h-5 bg-border/60 shrink-0" />
-          <FiltersButton
-            activeGrade={grade}
-            currentSort={sort}
-            genre={genre}
-            search={q}
-            basePath={basePath}
-            activeGenres={activeGenres}
-          />
-          <div className="ml-auto">
-            <SearchInput defaultValue={q} genre={genre} basePath={basePath} />
-          </div>
-        </div>
-
-        {/* Mobile: + add button always visible on the far right */}
-        <Link
-          href={addHref}
-          data-tour-id={addHref === "/cards/add" ? "toolbar-add-card" : undefined}
-          aria-label={addLabel}
-          className="md:hidden ml-auto flex items-center justify-center h-8 w-8 rounded-md border border-border text-muted-foreground hover:text-foreground hover:bg-muted transition-colors shrink-0"
-        >
-          <PlusCircleIcon className="h-4 w-4" />
-        </Link>
-      </div>
-
-      {/* ── Expandable panel (mobile only) ──────────────────── */}
-      {expanded && (
-        <div className="md:hidden border-t border-border bg-card px-4 py-3 space-y-2.5">
-          <SearchInput defaultValue={q} genre={genre} basePath={basePath} fullWidth />
-          <div className="flex items-center gap-2">
-            {showRefresh && <RefreshAllButton />}
+          <div className="ml-auto flex items-center gap-1.5">
             <FiltersButton
               activeGrade={grade}
               currentSort={sort}
@@ -140,11 +108,42 @@ export function CardsToolbar({
               basePath={basePath}
               activeGenres={activeGenres}
             />
-            <MobileCardActionsMenu
-              exportHref={exportHref}
+            <SearchInput defaultValue={q} genre={genre} basePath={basePath} />
+            <div className="w-px h-5 bg-border/60 shrink-0" />
+            <CsvButton exportHref={exportHref} />
+          </div>
+        </div>
+
+        {/* Mobile: refresh + add button always visible on the far right */}
+        <div className="md:hidden ml-auto flex items-center gap-1.5 shrink-0">
+          {showRefresh && <RefreshAllButton />}
+          <Link
+            href={addHref}
+            data-tour-id={addHref === "/cards/add" ? "toolbar-add-card" : undefined}
+            aria-label={addLabel}
+            className="flex items-center justify-center h-8 w-8 rounded-md border border-border text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+          >
+            <PlusCircleIcon className="h-4 w-4" />
+          </Link>
+        </div>
+      </div>
+
+      {/* ── Expandable panel (mobile only) ──────────────────── */}
+      {expanded && (
+        <div className="md:hidden border-t border-border bg-card px-4 py-3 space-y-2.5">
+          <div className="flex items-center gap-1.5">
+            <div className="flex-1">
+              <SearchInput defaultValue={q} genre={genre} basePath={basePath} fullWidth />
+            </div>
+            <FiltersButton
+              activeGrade={grade}
+              currentSort={sort}
+              genre={genre}
+              search={q}
               basePath={basePath}
-              addHref={addHref}
+              activeGenres={activeGenres}
             />
+            <CsvButton exportHref={exportHref} iconOnly />
           </div>
         </div>
       )}

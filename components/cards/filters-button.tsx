@@ -108,15 +108,17 @@ export function FiltersButton({
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className={`flex items-center gap-1.5 h-8 px-3 rounded-md text-sm font-medium border transition-colors ${
+        aria-label="Filters"
+        className={`relative flex items-center justify-center h-8 w-8 rounded-md border transition-colors ${
           isFiltered
             ? "bg-primary/10 text-primary border-primary/30"
             : "border-border text-muted-foreground hover:text-foreground hover:bg-muted"
         }`}
       >
         <SlidersHorizontalIcon className="h-3.5 w-3.5" />
-        Filters
-        {isFiltered && <span className="h-1.5 w-1.5 rounded-full bg-primary shrink-0" />}
+        {isFiltered && (
+          <span className="absolute top-1 right-1 h-1.5 w-1.5 rounded-full bg-primary" />
+        )}
       </button>
 
       {open && (
