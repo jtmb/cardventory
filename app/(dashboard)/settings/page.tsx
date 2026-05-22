@@ -96,6 +96,7 @@ function SettingsContent() {
   const [refreshInterval, setRefreshInterval] = useState("1440");
   const [saving, setSaving] = useState(false);
   const [seeding, setSeeding] = useState(false);
+  const [triggeringEvent, setTriggeringEvent] = useState(false);
   const [themeColors, setThemeColors] = useState<Partial<ThemeColors>>({});
   const [fontTheme, setFontTheme] = useState<FontThemeKey>("system");
   const [activePreset, setActivePreset] = useState<PresetThemeKey | null>("default");
@@ -1159,6 +1160,37 @@ function SettingsContent() {
             </Button>
           </CardContent>
         </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Trigger Test Event</CardTitle>
+            <CardDescription>
+              Insert a test notification into the event queue. It will appear as a toast on the next poll cycle (up to 30 s).
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Button
+              variant="outline"
+              disabled={triggeringEvent}
+              className="gap-2"
+              onClick={async () => {
+                setTriggeringEvent(true);
+                try {
+                  const res = await fetch("/api/notifications", { method: "POST" });
+                  if (!res.ok) throw new Error("Failed");
+                  toast.success("Test event queued — watch for the toast notification");
+                } catch {
+                  toast.error("Failed to trigger test event");
+                } finally {
+                  setTriggeringEvent(false);
+                }
+              }}
+            >
+              <BellIcon className="h-4 w-4" />
+              {triggeringEvent ? "Queuing…" : "Trigger Test Event"}
+            </Button>
+          </CardContent>
+        </Card>
         </div>
       )}
 
@@ -1491,6 +1523,14 @@ function SettingsContent() {
               <MessageSquareIcon className="h-4 w-4" />
               {testingDiscord ? "Sending…" : "Send Test Discord"}
             </Button>
+            <Button
+              variant="outline"
+              className="gap-2"
+              onClick={() => toast("Test notification", { description: "Toast notifications are working correctly!" })}
+            >
+              <BellIcon className="h-4 w-4" />
+              Send Test Toast
+            </Button>
             {(!notifEmailEnabled && !notifDiscordEnabled) && (
               <p className="w-full type-label-small text-muted-foreground">Enable a notification channel above to test it.</p>
             )}
@@ -1763,7 +1803,7 @@ function SettingsContent() {
           </CardHeader>
           <CardContent className="space-y-5">
             {/* Scheduler config */}
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-1.5">
                 <Label>Auto-backup interval</Label>
                 <select
@@ -1780,7 +1820,10 @@ function SettingsContent() {
                 </select>
               </div>
               <div className="space-y-1.5">
-                <Label>Keep last <span className="text-muted-foreground font-normal">(oldest pruned)</span></Label>
+                <Label>
+                  Keep last{" "}
+                  <span className="text-muted-foreground font-normal text-xs">(oldest pruned)</span>
+                </Label>
                 <input
                   type="number"
                   min="1"

@@ -154,32 +154,80 @@ export function EditCardForm({ card }: { card: Card }) {
       </div>
       <form onSubmit={handleSubmit} className="space-y-6">
         <UiCard>
-          <CardHeader><CardTitle className="text-base">Card Photo</CardTitle></CardHeader>
-          <CardContent className="space-y-3">
-            <div className="flex justify-center">
-              {photoPreview ? (
-                <div className="relative w-full max-w-[220px] aspect-[5/7] rounded-lg overflow-hidden border border-border">
-                  <Image src={photoPreview} alt="Preview" fill className="object-contain" unoptimized={photoPreview.startsWith("http")} />
-                  <button type="button" onClick={() => { setPhotoPreview(null); setPhotoUrl(null); }}
-                    className="absolute top-1 right-1 bg-black/60 rounded-full p-1 hover:bg-black">
-                    <XIcon className="h-3.5 w-3.5 text-white" />
+          <CardContent className="pt-5 pb-4">
+            <div className="flex gap-4">
+              {/* Portrait thumbnail */}
+              <div className="shrink-0">
+                {photoPreview ? (
+                  <div className="relative w-[110px] aspect-[5/7] rounded-xl overflow-hidden border border-border bg-muted/20 group shadow-sm">
+                    <Image
+                      src={photoPreview}
+                      alt="Card preview"
+                      fill
+                      className="object-contain"
+                      unoptimized={photoPreview.startsWith("http")}
+                    />
+                    <div className="absolute inset-0 bg-black/0 group-hover:bg-black/25 transition-colors rounded-xl" />
+                    <button
+                      type="button"
+                      onClick={() => { setPhotoPreview(null); setPhotoUrl(null); }}
+                      className="absolute top-1.5 right-1.5 bg-black/70 rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-black/90"
+                    >
+                      <XIcon className="h-3 w-3 text-white" />
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => fileRef.current?.click()}
+                    className="w-[110px] aspect-[5/7] flex flex-col items-center justify-center border-2 border-dashed border-border rounded-xl bg-muted/10 hover:bg-muted/30 hover:border-primary/40 transition-all cursor-pointer group"
+                  >
+                    <div className="p-2 rounded-full bg-muted/60 group-hover:bg-muted mb-2 transition-colors">
+                      <UploadIcon className="h-5 w-5 text-muted-foreground/50" />
+                    </div>
+                    <span className="text-[10px] text-muted-foreground/50 text-center leading-tight px-2">
+                      Click to<br />upload
+                    </span>
                   </button>
+                )}
+              </div>
+
+              {/* Actions */}
+              <div className="flex-1 flex flex-col gap-2 justify-center">
+                <div className="mb-1">
+                  <p className="text-sm font-semibold text-foreground">Card Photo</p>
+                  <p className="text-xs text-muted-foreground mt-0.5 leading-snug">
+                    Upload a file or search eBay sold listings to find a card image.
+                  </p>
                 </div>
-              ) : (
-                <div onClick={() => fileRef.current?.click()}
-                  className="flex flex-col items-center justify-center w-full max-w-[220px] aspect-[5/7] border-2 border-dashed border-border rounded-lg cursor-pointer hover:border-primary/50 transition-colors">
-                  <UploadIcon className="h-7 w-7 text-muted-foreground/50 mb-2" />
-                  <p className="text-xs text-muted-foreground text-center">Click to upload</p>
-                </div>
-              )}
+
+                <button
+                  type="button"
+                  onClick={() => fileRef.current?.click()}
+                  disabled={uploading}
+                  className="self-start flex items-center gap-2 px-3 py-2 rounded-lg border border-border bg-background hover:bg-muted hover:border-muted-foreground/30 transition-colors text-sm font-medium text-foreground disabled:opacity-50"
+                >
+                  <UploadIcon className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                  {uploading ? "Uploading…" : photoPreview ? "Replace photo" : "Upload photo"}
+                </button>
+
+                <ImagePicker
+                  getQuery={getSearchQuery}
+                  onSelect={(url) => { setPhotoUrl(url); setPhotoPreview(url); }}
+                />
+
+                {uploading && (
+                  <div className="flex items-center gap-2 mt-1">
+                    <div className="h-1 flex-1 bg-muted rounded-full overflow-hidden">
+                      <div className="h-full w-2/3 bg-primary/50 rounded-full animate-pulse" />
+                    </div>
+                    <span className="text-[10px] text-muted-foreground">Uploading…</span>
+                  </div>
+                )}
+              </div>
             </div>
-            <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handlePhotoChange} />
-            {uploading && <p className="text-xs text-muted-foreground">Uploading…</p>}
-            <ImagePicker
-              getQuery={getSearchQuery}
-              onSelect={(url) => { setPhotoUrl(url); setPhotoPreview(url); }}
-            />
           </CardContent>
+          <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handlePhotoChange} />
         </UiCard>
 
         <UiCard>

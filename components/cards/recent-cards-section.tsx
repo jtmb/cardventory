@@ -46,10 +46,10 @@ function MiniCardCompact({ card }: { card: Card }) {
 }
 
 export function RecentCardsSection({ cards }: { cards: Card[] }) {
-  const [view, setView] = useState<ViewMode>("row");
+  const [view, setView] = useState<ViewMode>("grid");
   const [rowPage, setRowPage] = useState(1);
   const [gridPage, setGridPage] = useState(1);
-  const [overlayInfo, setOverlayInfo] = useState(false);
+  const [overlayInfo, setOverlayInfo] = useState(true);
 
   const ROW_PAGE_SIZE = 4;
   const GRID_PAGE_SIZE = 16;
@@ -89,16 +89,6 @@ export function RecentCardsSection({ cards }: { cards: Card[] }) {
         <h2 className="text-lg font-semibold">Recently Added</h2>
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-2">
-            {/* Overlay info toggle — grid only */}
-            {view === "grid" && (
-              <button
-                onClick={toggleOverlay}
-                title={overlayInfo ? "Show info panel below" : "Pin info to image bottom"}
-                className={`${btnBase} ${overlayInfo ? btnActive : btnInactive}`}
-              >
-                <PanelBottomIcon className="h-3.5 w-3.5" />
-              </button>
-            )}
           {/* View mode toggle pill */}
           <div className="flex items-center gap-0.5 bg-muted rounded-md p-0.5">
             <button
@@ -123,6 +113,16 @@ export function RecentCardsSection({ cards }: { cards: Card[] }) {
               <ListIcon className="h-3.5 w-3.5" />
             </button>
           </div>
+            {/* Overlay info toggle — grid only */}
+            {view === "grid" && (
+              <button
+                onClick={toggleOverlay}
+                title={overlayInfo ? "Show info panel below" : "Pin info to image bottom"}
+                className={`${btnBase} ${overlayInfo ? btnActive : btnInactive}`}
+              >
+                <PanelBottomIcon className="h-3.5 w-3.5" />
+              </button>
+            )}
           </div>
           <Link href="/cards" className="text-sm text-primary hover:underline">
             View all

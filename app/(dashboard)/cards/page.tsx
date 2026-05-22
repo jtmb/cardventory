@@ -9,6 +9,7 @@ import { SortSelect } from "@/components/cards/sort-select";
 import { GradeFilter } from "@/components/cards/grade-filter";
 import { PaginationControls } from "@/components/cards/pagination-controls";
 import { CsvToolbar } from "@/components/cards/csv-toolbar";
+import { MobileCardActionsMenu } from "@/components/cards/mobile-card-actions";
 
 const DEFAULT_PAGE_SIZE = 48;
 
@@ -41,16 +42,36 @@ export default async function CardsPage({
         >
           <SearchInput defaultValue={q} genre={genre} />
           <div className="flex items-center gap-2 md:flex-1">
-            <div className="hidden md:block w-px h-5 bg-border/60 shrink-0" />
-            <SortSelect currentSort={sort} genre={genre} search={q} />
-            <GradeFilter activeGrade={grade} />
-            <div className="hidden md:block w-px h-5 bg-border/60 shrink-0" />
+            {/* Add Card — primary action, right after search on desktop */}
+            <div className="hidden md:flex items-center gap-2">
+              <div className="w-px h-5 bg-border/60 shrink-0" />
+              <ButtonLink href="/cards/add" data-tour-id="toolbar-add-card">
+                <PlusCircleIcon className="h-4 w-4" />
+                <span>Add Card</span>
+              </ButtonLink>
+              <div className="w-px h-5 bg-border/60 shrink-0" />
+            </div>
+            {/* Refresh + bulk data ops */}
             <RefreshAllButton />
-            <CsvToolbar exportHref={exportHref} />
-            <ButtonLink href="/cards/add" data-tour-id="toolbar-add-card">
-              <PlusCircleIcon className="h-4 w-4" />
-              <span className="hidden sm:inline">Add Card</span>
-            </ButtonLink>
+            <div className="hidden md:flex items-center gap-2">
+              <CsvToolbar exportHref={exportHref} />
+              <div className="w-px h-5 bg-border/60 shrink-0" />
+            </div>
+            {/* Mobile combo menu */}
+            <div className="md:hidden">
+              <MobileCardActionsMenu
+                exportHref={exportHref}
+                currentSort={sort}
+                activeGrade={grade}
+                genre={genre}
+                search={q}
+              />
+            </div>
+            {/* View controls — grade, sort, genre filter */}
+            <div className="hidden md:flex items-center gap-2">
+              <GradeFilter activeGrade={grade} />
+              <SortSelect currentSort={sort} genre={genre} search={q} />
+            </div>
             <div className="ml-auto">
               <GenreTabs activeGenre={genre ?? "all"} currentSearch={q} activeGenres={activeGenres} />
             </div>

@@ -145,7 +145,7 @@ export default function AddCardPage() {
   }
 
   return (
-    <div className="p-6 max-w-2xl mx-auto space-y-6">
+    <div className="p-6 pb-24 md:pb-6 max-w-2xl mx-auto space-y-6">
       <ButtonLink href="/cards" variant="ghost" size="sm" className="gap-2 -ml-2 inline-flex items-center">
         <ArrowLeftIcon className="h-4 w-4" /> Back
       </ButtonLink>
@@ -219,37 +219,79 @@ export default function AddCardPage() {
       <form onSubmit={handleSubmit} className="space-y-6">
         {/* Photo */}
         <Card>
-          <CardHeader><CardTitle className="text-base">Card Photo</CardTitle></CardHeader>
-          <CardContent className="space-y-3">
-            <div className="flex justify-center">
-              {photoPreview ? (
-                <div className="relative w-full max-w-[220px] aspect-[5/7] rounded-lg overflow-hidden border border-border">
-                  <Image src={photoPreview} alt="Preview" fill className="object-contain" />
+          <CardContent className="pt-5 pb-4">
+            <div className="flex gap-4">
+              {/* Portrait thumbnail */}
+              <div className="shrink-0">
+                {photoPreview ? (
+                  <div className="relative w-[110px] aspect-[5/7] rounded-xl overflow-hidden border border-border bg-muted/20 group shadow-sm">
+                    <Image
+                      src={photoPreview}
+                      alt="Card preview"
+                      fill
+                      className="object-contain"
+                    />
+                    <div className="absolute inset-0 bg-black/0 group-hover:bg-black/25 transition-colors rounded-xl" />
+                    <button
+                      type="button"
+                      onClick={() => { setPhotoPreview(null); setPhotoUrl(null); }}
+                      className="absolute top-1.5 right-1.5 bg-black/70 rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-black/90"
+                    >
+                      <XIcon className="h-3 w-3 text-white" />
+                    </button>
+                  </div>
+                ) : (
                   <button
                     type="button"
-                    onClick={() => { setPhotoPreview(null); setPhotoUrl(null); }}
-                    className="absolute top-1 right-1 bg-black/60 rounded-full p-1 hover:bg-black"
+                    onClick={() => fileRef.current?.click()}
+                    className="w-[110px] aspect-[5/7] flex flex-col items-center justify-center border-2 border-dashed border-border rounded-xl bg-muted/10 hover:bg-muted/30 hover:border-primary/40 transition-all cursor-pointer group"
                   >
-                    <XIcon className="h-3.5 w-3.5 text-white" />
+                    <div className="p-2 rounded-full bg-muted/60 group-hover:bg-muted mb-2 transition-colors">
+                      <UploadIcon className="h-5 w-5 text-muted-foreground/50" />
+                    </div>
+                    <span className="text-[10px] text-muted-foreground/50 text-center leading-tight px-2">
+                      Click to<br />upload
+                    </span>
                   </button>
+                )}
+              </div>
+
+              {/* Actions */}
+              <div className="flex-1 flex flex-col gap-2 justify-center">
+                <div className="mb-1">
+                  <p className="text-sm font-semibold text-foreground">Card Photo</p>
+                  <p className="text-xs text-muted-foreground mt-0.5 leading-snug">
+                    Upload a file or search eBay sold listings to find a card image.
+                  </p>
                 </div>
-              ) : (
-                <div
+
+                <button
+                  type="button"
                   onClick={() => fileRef.current?.click()}
-                  className="flex flex-col items-center justify-center w-full max-w-[220px] aspect-[5/7] border-2 border-dashed border-border rounded-lg cursor-pointer hover:border-primary/50 transition-colors"
+                  disabled={uploading}
+                  className="self-start flex items-center gap-2 px-3 py-2 rounded-lg border border-border bg-background hover:bg-muted hover:border-muted-foreground/30 transition-colors text-sm font-medium text-foreground disabled:opacity-50"
                 >
-                  <UploadIcon className="h-7 w-7 text-muted-foreground/50 mb-2" />
-                  <p className="text-xs text-muted-foreground text-center">Click to upload<br />or auto-fetched</p>
-                </div>
-              )}
+                  <UploadIcon className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                  {uploading ? "Uploading…" : photoPreview ? "Replace photo" : "Upload photo"}
+                </button>
+
+                <ImagePicker
+                  getQuery={getSearchQuery}
+                  onSelect={(url) => { setPhotoUrl(url); setPhotoPreview(url); }}
+                />
+
+                {uploading && (
+                  <div className="flex items-center gap-2 mt-1">
+                    <div className="h-1 flex-1 bg-muted rounded-full overflow-hidden">
+                      <div className="h-full w-2/3 bg-primary/50 rounded-full animate-pulse" />
+                    </div>
+                    <span className="text-[10px] text-muted-foreground">Uploading…</span>
+                  </div>
+                )}
+              </div>
             </div>
-            <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handlePhotoChange} />
-            {uploading && <p className="text-xs text-muted-foreground">Uploading…</p>}
-            <ImagePicker
-              getQuery={getSearchQuery}
-              onSelect={(url) => { setPhotoUrl(url); setPhotoPreview(url); }}
-            />
           </CardContent>
+          <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handlePhotoChange} />
         </Card>
 
         {/* Card Info */}
@@ -270,20 +312,20 @@ export default function AddCardPage() {
                   options={GENRES}
                 />
               </Field>
-              <Field label="Year">
-                <Input ref={yearRef} name="year" type="number" placeholder="2024" min={1900} max={2099} />
+              <Field label="Year *">
+                <Input ref={yearRef} name="year" type="number" placeholder="2024" min={1900} max={2099} required />
               </Field>
             </div>
             <div className="grid grid-cols-2 gap-4">
-              <Field label="Set Name">
-                <Input ref={setNameRef} name="setName" placeholder="e.g. Prizm" />
+              <Field label="Set Name *">
+                <Input ref={setNameRef} name="setName" placeholder="e.g. Prizm" required />
               </Field>
-              <Field label="Card Number">
-                <Input ref={cardNumberRef} name="cardNumber" placeholder="e.g. 136" />
+              <Field label="Card Number *">
+                <Input ref={cardNumberRef} name="cardNumber" placeholder="e.g. 136" required />
               </Field>
             </div>
-            <Field label="Variant / Parallel">
-              <Input ref={variantRef} name="variant" placeholder="e.g. Base, Holo, Silver Prizm" />
+            <Field label="Variant / Parallel *">
+              <Input ref={variantRef} name="variant" placeholder="e.g. Base, Holo, Silver Prizm" required />
             </Field>
           </CardContent>
         </Card>
@@ -344,9 +386,11 @@ export default function AddCardPage() {
         </Card>
         )}
 
-        <Button type="submit" disabled={loading || uploading} className="w-full h-11 text-base">
-          {loading ? "Adding card…" : status === "wanted" ? "Add to Watchlist" : "Add Card"}
-        </Button>
+        <div className="fixed bottom-0 left-0 right-0 md:relative md:bottom-auto z-10 px-4 py-3 bg-background border-t border-border md:border-none md:bg-transparent md:px-0 md:py-0">
+          <Button type="submit" disabled={loading || uploading} className="w-full h-11 text-base">
+            {loading ? "Adding card…" : status === "wanted" ? "Add to Watchlist" : "Add Card"}
+          </Button>
+        </div>
       </form>
     </div>
   );

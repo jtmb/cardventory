@@ -115,7 +115,9 @@ export default async function CardDetailPage({
                   </Badge>
                 )}
                 {card.condition && !card.gradeCompany && (
-                  <Badge variant="secondary">{card.condition}</Badge>
+                  <Badge className="bg-muted/80 text-muted-foreground border-border">
+                    {card.condition.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())}
+                  </Badge>
                 )}
               </div>
             )}

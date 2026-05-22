@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { SearchIcon, XIcon, Loader2Icon } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { toast } from "sonner";
 import Image from "next/image";
 
 interface Props {
@@ -19,7 +19,10 @@ export function ImagePicker({ onSelect, getQuery }: Props) {
 
   async function handleSearch() {
     const q = getQuery().trim();
-    if (!q) return;
+    if (!q) {
+      toast.error("Fill in the card name before searching for images");
+      return;
+    }
 
     setLoading(true);
     setOpen(true);
@@ -44,21 +47,19 @@ export function ImagePicker({ onSelect, getQuery }: Props) {
 
   return (
     <div className="space-y-3">
-      <Button
+      <button
         type="button"
-        variant="outline"
-        size="sm"
-        className="gap-2"
         onClick={handleSearch}
         disabled={loading}
+        className="self-start flex items-center gap-2 px-3 py-2 rounded-lg border border-border bg-background hover:bg-muted hover:border-muted-foreground/30 transition-colors text-sm font-medium text-foreground disabled:opacity-50"
       >
         {loading ? (
-          <Loader2Icon className="h-3.5 w-3.5 animate-spin" />
+          <Loader2Icon className="h-3.5 w-3.5 text-muted-foreground shrink-0 animate-spin" />
         ) : (
-          <SearchIcon className="h-3.5 w-3.5" />
+          <SearchIcon className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
         )}
-        Search card images
-      </Button>
+        {loading ? "Searching…" : "Search card images"}
+      </button>
 
       {open && (
         <div className="space-y-2">

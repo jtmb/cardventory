@@ -41,3 +41,20 @@ export async function PATCH(req: NextRequest) {
 
   return NextResponse.json({ ok: true });
 }
+
+/** POST /api/notifications — insert a test notification for the current user */
+export async function POST() {
+  const session = await auth();
+  if (!session?.user?.id) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  await db.insert(notifications).values({
+    userId: session.user.id,
+    message: "🧪 Test event — your notification pipeline is working correctly!",
+    type: "price_change",
+    read: false,
+  });
+
+  return NextResponse.json({ ok: true });
+}

@@ -19,7 +19,7 @@ import {
   arrayMove,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { TrendingUpIcon, TrendingDownIcon, LayersIcon, DollarSignIcon, PlusCircleIcon, ShieldIcon, BarChart2Icon, GripVerticalIcon } from "lucide-react";
+import { TrendingUpIcon, TrendingDownIcon, LayersIcon, DollarSignIcon, PlusCircleIcon, ShieldIcon, BarChart2Icon, GripVerticalIcon, RotateCcwIcon } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { ButtonLink } from "@/components/ui/button-link";
 import { Badge } from "@/components/ui/badge";
@@ -69,9 +69,9 @@ const LS_KEY = "cv_dashboard_order";
 type SectionId = "stats" | "by-category" | "recent-cards" | "grade-breakdown" | "portfolio-trend";
 
 const DEFAULT_ORDER: SectionId[] = [
+  "recent-cards",
   "stats",
   "by-category",
-  "recent-cards",
   "grade-breakdown",
   "portfolio-trend",
 ];
@@ -354,6 +354,20 @@ export function DraggableDashboard({
           </div>
         ) : null}
       </DragOverlay>
+
+      <div className="flex justify-end pt-2">
+        <button
+          type="button"
+          onClick={() => {
+            try { localStorage.removeItem(LS_KEY); } catch {}
+            setOrder(DEFAULT_ORDER);
+          }}
+          className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
+        >
+          <RotateCcwIcon className="h-3 w-3" />
+          Reset layout
+        </button>
+      </div>
     </DndContext>
   );
 }

@@ -37,11 +37,11 @@ const navItems = [
 ];
 
 const settingsSubItems = [
-  { key: "account",       label: "Account",       icon: UserCircleIcon },
   { key: "general",        label: "General",        icon: TagIcon      },
   { key: "appearance",    label: "Appearance",    icon: PaletteIcon  },
   { key: "data",          label: "Data",          icon: DatabaseIcon },
   { key: "notifications", label: "Notifications", icon: BellIcon     },
+  { key: "account",       label: "Account",       icon: UserCircleIcon },
 ];
 
 const adminSubItems = [
@@ -96,7 +96,7 @@ function NavContent({ onNavigate }: { onNavigate?: () => void }) {
                 {label}
               </Link>
 
-              {href === "/settings" && onSettings && (
+              {href === "/settings" && (onSettings || !!onNavigate) && (
                 <div className="mt-0.5 ml-3 pl-4 border-l border-sidebar-border space-y-0.5">
                   {settingsSubItems.map(({ key, label: subLabel, icon: SubIcon }) => (
                     <Link

@@ -234,6 +234,12 @@ function CardInner({
             <span className="text-xs font-bold text-white leading-tight">{card.gradeValue}</span>
           </div>
         )}
+        {/* Condition badge — only shown when ungraded */}
+        {!card.gradeCompany && conditionLabel(card.condition) && (
+          <div className="absolute top-2 right-2 flex items-center bg-black/65 backdrop-blur-sm shadow-md rounded-md px-2 py-0.5">
+            <span className="text-[10px] font-medium text-white/85 leading-tight">{conditionLabel(card.condition)}</span>
+          </div>
+        )}
         {/* 7-day price trend — top-left, same row as grade badge */}
         {!loading && priceChange7d !== null && priceChange7d !== 0 && (
           <div className="absolute top-2 left-2 flex items-center gap-0.5 bg-black/65 backdrop-blur-sm shadow-md rounded-md px-1.5 py-0.5">
@@ -270,12 +276,6 @@ function CardInner({
           <p className="type-title-small font-semibold leading-tight line-clamp-1 tracking-tight">{card.name}</p>
           {setLine && (
             <p className="text-xs text-muted-foreground line-clamp-2 leading-snug">{setLine}</p>
-          )}
-          {/* Condition chip — only shown when not graded */}
-          {!card.gradeCompany && conditionLabel(card.condition) && (
-            <span className="inline-flex self-start text-[10px] font-medium text-muted-foreground bg-muted/70 rounded px-1.5 py-0.5 leading-tight">
-              {conditionLabel(card.condition)}
-            </span>
           )}
           <div className="pt-1">
             {loading ? (
