@@ -3,6 +3,7 @@ import { BookmarkIcon, PlusCircleIcon } from "lucide-react";
 import { CardGrid } from "@/components/cards/card-grid";
 import { PaginationControls } from "@/components/cards/pagination-controls";
 import { CardsToolbar } from "@/components/cards/cards-toolbar";
+import { ButtonLink } from "@/components/ui/button-link";
 
 const DEFAULT_PAGE_SIZE = 48;
 
