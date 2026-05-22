@@ -133,6 +133,25 @@ export async function getCard(id: string) {
     .get();
 }
 
+export async function getCardNeighbors(id: string, status = "owned") {
+  const session = await auth();
+  const userId = requireAuth(session);
+
+  const rows = await db
+    .select({ id: cards.id })
+    .from(cards)
+    .where(and(eq(cards.userId, userId), eq(cards.status, status)))
+    .orderBy(desc(cards.createdAt))
+    .all();
+
+  const idx = rows.findIndex((r) => r.id === id);
+  if (idx === -1) return { prevId: null as string | null, nextId: null as string | null };
+  return {
+    prevId: idx > 0 ? rows[idx - 1].id : null as string | null,
+    nextId: idx < rows.length - 1 ? rows[idx + 1].id : null as string | null,
+  };
+}
+
 export async function getActiveGenres(): Promise<string[]> {
   const session = await auth();
   const userId = requireAuth(session);

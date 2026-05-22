@@ -1,4 +1,4 @@
-import { getCard, getLatestPrices, getCardPriceHistory } from "@/lib/actions";
+import { getCard, getLatestPrices, getCardPriceHistory, getCardNeighbors } from "@/lib/actions";
 import { notFound } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
@@ -11,6 +11,8 @@ import { ArrowLeftIcon, ExternalLinkIcon, EditIcon } from "lucide-react";
 import { PriceChart } from "@/components/cards/price-chart";
 import { RefreshCardButton } from "@/components/cards/refresh-card-button";
 import { DeleteCardButton } from "@/components/cards/delete-card-button";
+import { SwipeCardNav } from "@/components/cards/swipe-card-nav";
+import { SmartCardImage } from "@/components/cards/smart-card-image";
 
 const GENRE_LABELS: Record<string, string> = {
   basketball: "Basketball", baseball: "Baseball", football: "Football",
@@ -39,8 +41,11 @@ export default async function CardDetailPage({
   const card = await getCard(id);
   if (!card) notFound();
 
-  const latestPrices = await getLatestPrices(id);
-  const history = await getCardPriceHistory(id);
+  const [latestPrices, history, { prevId, nextId }] = await Promise.all([
+    getLatestPrices(id),
+    getCardPriceHistory(id),
+    getCardNeighbors(id, card.status ?? "owned"),
+  ]);
 
   const pricesWithValues = latestPrices.filter((p) => p.price !== null);
   const highestPrice =
@@ -59,6 +64,7 @@ export default async function CardDetailPage({
   const displayImage = card.photoUrl ?? autoImage;
 
   return (
+    <SwipeCardNav prevId={prevId} nextId={nextId} basePath="/cards">
     <div className="p-6 max-w-6xl mx-auto space-y-6">
       {/* Back */}
       <ButtonLink href="/cards" variant="ghost" size="sm" className="gap-2 -ml-2 inline-flex items-center">
@@ -69,18 +75,15 @@ export default async function CardDetailPage({
       <div className="flex flex-col md:flex-row gap-8">
         {/* Card image */}
         <div className="shrink-0 flex flex-col gap-3 w-full md:w-64 mx-auto md:mx-0 max-w-xs md:max-w-none">
-          <div className="w-full md:w-64 aspect-[5/7] md:aspect-auto md:h-88 rounded-xl overflow-hidden bg-muted border border-border flex items-center justify-center">
+          <div className="w-full md:w-64 aspect-[5/7] md:aspect-auto md:h-88 rounded-3xl" style={{ filter: "drop-shadow(0 20px 50px rgba(0,0,0,0.65))" }}>
             {displayImage ? (
-              <Image
+              <SmartCardImage
                 src={displayImage}
                 alt={card.name}
-                width={256}
-                height={352}
-                className="object-contain w-full h-full"
                 unoptimized={displayImage.startsWith("http")}
               />
             ) : (
-              <div className="text-center p-6">
+              <div className="flex h-full flex-col items-center justify-center">
                 <p className="text-4xl mb-2">🃏</p>
                 <p className="text-muted-foreground text-sm">No image</p>
               </div>
@@ -223,5 +226,6 @@ export default async function CardDetailPage({
         </Card>
       )}
     </div>
+    </SwipeCardNav>
   );
 }
