@@ -27,6 +27,10 @@ import { RefreshAllButton } from "@/components/cards/refresh-all-button";
 import { RecentCardsSection } from "@/components/cards/recent-cards-section";
 import { PortfolioChart } from "@/components/cards/portfolio-chart";
 import type { Card as CardType } from "@/lib/db/schema";
+import { useRouter } from "next/navigation";
+import { CardPanelContext } from "@/components/cards/card-panel-context";
+import { CardDetailPanel } from "@/components/cards/card-detail-panel";
+import { cn } from "@/lib/utils";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -256,9 +260,19 @@ export function DraggableDashboard({
   portfolioHistory: PortfolioPoint[];
   userName: string;
 }) {
+  const router = useRouter();
   const [order, setOrder] = useState<SectionId[]>(DEFAULT_ORDER);
   const [activeId, setActiveId] = useState<SectionId | null>(null);
   const [mounted, setMounted] = useState(false);
+  const [selectedCardId, setSelectedCardId] = useState<string | null>(null);
+
+  function handleCardClick(id: string) {
+    if (typeof window !== "undefined" && window.innerWidth < 768) {
+      router.push(`/cards/${id}`);
+    } else {
+      setSelectedCardId(id);
+    }
+  }
 
   useEffect(() => {
     setMounted(true);
@@ -312,11 +326,13 @@ export function DraggableDashboard({
   // Render static (no drag) until client hydrates to avoid layout shift
   if (!mounted) {
     return (
-      <div className="space-y-8">
-        {DEFAULT_ORDER.map((id) => (
-          <div key={id}>{renderSection(id)}</div>
-        ))}
-      </div>
+      <CardPanelContext.Provider value={{ onCardClick: handleCardClick }}>
+        <div className="space-y-8">
+          {DEFAULT_ORDER.map((id) => (
+            <div key={id}>{renderSection(id)}</div>
+          ))}
+        </div>
+      </CardPanelContext.Provider>
     );
   }
 
@@ -331,6 +347,8 @@ export function DraggableDashboard({
   });
 
   return (
+    <CardPanelContext.Provider value={{ onCardClick: handleCardClick }}>
+      <div className={cn("transition-all duration-300 ease-in-out", selectedCardId ? "md:pr-[480px]" : "")}>
     <DndContext
       sensors={sensors}
       collisionDetection={closestCenter}
@@ -369,6 +387,26 @@ export function DraggableDashboard({
         </button>
       </div>
     </DndContext>
+      </div>
+
+      {/* Detail panel — desktop only, fixed right edge */}
+      <div
+        className={cn(
+          "hidden md:flex flex-col fixed top-0 right-0 bottom-0 w-[480px] z-30",
+          "border-l border-border bg-background",
+          "transition-transform duration-300 ease-in-out",
+          selectedCardId ? "translate-x-0" : "translate-x-full"
+        )}
+      >
+        {selectedCardId && (
+          <CardDetailPanel
+            cardId={selectedCardId}
+            onClose={() => setSelectedCardId(null)}
+            onNavigate={setSelectedCardId}
+          />
+        )}
+      </div>
+    </CardPanelContext.Provider>
   );
 }
 

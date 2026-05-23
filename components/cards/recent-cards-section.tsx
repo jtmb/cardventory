@@ -2,9 +2,11 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { LayoutGridIcon, LayoutListIcon, ListIcon } from "lucide-react";
 import { MiniCardRow } from "./mini-card-row";
 import { CardRow } from "./card-row";
+import { useCardPanel } from "./card-panel-context";
 import type { Card } from "@/lib/db/schema";
 
 type ViewMode = "row" | "grid" | "compact";
@@ -24,8 +26,22 @@ function fmt(n: number) {
 
 /** Dense text-only row used in compact view */
 function MiniCardCompact({ card }: { card: Card }) {
+  const { onCardClick } = useCardPanel();
+  const router = useRouter();
+
+  function handleClick(e: React.MouseEvent) {
+    if (onCardClick) {
+      e.preventDefault();
+      if (typeof window !== "undefined" && window.innerWidth < 768) {
+        router.push(`/cards/${card.id}`);
+      } else {
+        onCardClick(card.id);
+      }
+    }
+  }
+
   return (
-    <Link href={`/cards/${card.id}`}>
+    <Link href={`/cards/${card.id}`} onClick={handleClick}>
       <div className="flex items-center gap-3 px-3 py-2 hover:bg-muted/60 transition-colors">
         <span className="shrink-0 w-20 text-xs text-muted-foreground truncate">
           {GENRE_LABELS[card.sportGenre] ?? card.sportGenre}

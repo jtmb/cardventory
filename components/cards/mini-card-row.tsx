@@ -1,6 +1,10 @@
+"use client";
+
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import type { Card } from "@/lib/db/schema";
 import { SmartCardImage } from "@/components/cards/smart-card-image";
+import { useCardPanel } from "@/components/cards/card-panel-context";
 
 const GENRE_LABELS: Record<string, string> = {
   basketball: "Basketball", baseball: "Baseball", football: "Football",
@@ -9,8 +13,22 @@ const GENRE_LABELS: Record<string, string> = {
 };
 
 export function MiniCardRow({ card }: { card: Card }) {
+  const { onCardClick } = useCardPanel();
+  const router = useRouter();
+
+  function handleClick(e: React.MouseEvent) {
+    if (onCardClick) {
+      e.preventDefault();
+      if (typeof window !== "undefined" && window.innerWidth < 768) {
+        router.push(`/cards/${card.id}`);
+      } else {
+        onCardClick(card.id);
+      }
+    }
+  }
+
   return (
-    <Link href={`/cards/${card.id}`}>
+    <Link href={`/cards/${card.id}`} onClick={handleClick}>
       <div className="flex items-center gap-3 px-4 py-3 rounded-lg border border-border bg-card hover:border-border/60 transition-colors">
         <SmartCardImage
           src={card.photoUrl}
