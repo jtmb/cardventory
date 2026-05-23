@@ -5,6 +5,7 @@ import { DownloadIcon, UploadIcon } from "lucide-react";
 import { toast } from "sonner";
 import { importCards, type ImportRow } from "@/lib/actions";
 import { useRouter } from "next/navigation";
+import { trackCustomEvent } from "@/lib/analytics/client";
 
 const CSV_HEADER_ALIASES: Record<string, keyof ImportRow> = {
   name: "name",
@@ -111,6 +112,7 @@ export function CsvToolbar({ exportHref }: { exportHref: string }) {
       <a
         href={exportHref}
         download
+        onClick={() => trackCustomEvent("csv_export", {})}
         className="flex items-center gap-1.5 h-8 px-3 rounded-md text-sm font-medium border border-border text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
         title="Export CSV"
       >

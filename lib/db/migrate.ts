@@ -104,4 +104,64 @@ export function migrate(sqlite: InstanceType<typeof Database>) {
       CREATE INDEX IF NOT EXISTS idx_user_login_logs_user_id ON user_login_logs(user_id);
     `);
   } catch {}
+
+  // Analytics tables
+  try {
+    sqlite.exec(`
+      CREATE TABLE IF NOT EXISTS analytics_sessions (
+        id TEXT PRIMARY KEY,
+        user_id TEXT REFERENCES users(id) ON DELETE SET NULL,
+        started_at INTEGER NOT NULL,
+        last_seen_at INTEGER NOT NULL,
+        ended_at INTEGER,
+        page_count INTEGER NOT NULL DEFAULT 0,
+        event_count INTEGER NOT NULL DEFAULT 0,
+        entry_path TEXT NOT NULL DEFAULT '/',
+        exit_path TEXT,
+        device TEXT,
+        browser TEXT,
+        os TEXT,
+        viewport TEXT,
+        country TEXT,
+        region TEXT,
+        city TEXT,
+        utm_source TEXT,
+        utm_medium TEXT,
+        utm_campaign TEXT,
+        referrer TEXT,
+        has_consent INTEGER NOT NULL DEFAULT 0
+      );
+      CREATE TABLE IF NOT EXISTS analytics_events (
+        id TEXT PRIMARY KEY,
+        session_id TEXT NOT NULL,
+        user_id TEXT REFERENCES users(id) ON DELETE SET NULL,
+        event_type TEXT NOT NULL,
+        event_name TEXT,
+        path TEXT NOT NULL,
+        referrer TEXT,
+        properties TEXT,
+        utm_source TEXT,
+        utm_medium TEXT,
+        utm_campaign TEXT,
+        created_at INTEGER NOT NULL
+      );
+      CREATE TABLE IF NOT EXISTS analytics_consent (
+        id TEXT PRIMARY KEY,
+        user_id TEXT REFERENCES users(id) ON DELETE SET NULL,
+        session_id TEXT NOT NULL,
+        analytics_consent INTEGER NOT NULL DEFAULT 0,
+        performance_consent INTEGER NOT NULL DEFAULT 0,
+        created_at INTEGER NOT NULL,
+        ip_hash TEXT,
+        consent_version TEXT NOT NULL DEFAULT '1.0'
+      );
+      CREATE INDEX IF NOT EXISTS idx_analytics_events_session ON analytics_events(session_id);
+      CREATE INDEX IF NOT EXISTS idx_analytics_events_path ON analytics_events(path);
+      CREATE INDEX IF NOT EXISTS idx_analytics_events_type ON analytics_events(event_type);
+      CREATE INDEX IF NOT EXISTS idx_analytics_events_created ON analytics_events(created_at);
+      CREATE INDEX IF NOT EXISTS idx_analytics_sessions_user ON analytics_sessions(user_id);
+      CREATE INDEX IF NOT EXISTS idx_analytics_sessions_started ON analytics_sessions(started_at);
+      CREATE INDEX IF NOT EXISTS idx_analytics_sessions_country ON analytics_sessions(country);
+    `);
+  } catch {}
 }

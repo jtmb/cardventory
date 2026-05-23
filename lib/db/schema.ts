@@ -126,3 +126,59 @@ export type NewNotification = typeof notifications.$inferInsert;
 export type UserLoginLog = typeof userLoginLogs.$inferSelect;
 export type NewUserLoginLog = typeof userLoginLogs.$inferInsert;
 export type BannedUser = typeof bannedUsers.$inferSelect;
+
+// ── Analytics ─────────────────────────────────────────────────────────────────
+
+export const analyticsSessions = sqliteTable("analytics_sessions", {
+  id: text("id").primaryKey(),
+  userId: text("user_id").references(() => users.id, { onDelete: "set null" }),
+  startedAt: integer("started_at").notNull(),
+  lastSeenAt: integer("last_seen_at").notNull(),
+  endedAt: integer("ended_at"),
+  pageCount: integer("page_count").notNull().default(0),
+  eventCount: integer("event_count").notNull().default(0),
+  entryPath: text("entry_path").notNull().default("/"),
+  exitPath: text("exit_path"),
+  device: text("device"), // desktop | mobile | tablet
+  browser: text("browser"),
+  os: text("os"),
+  viewport: text("viewport"), // "1920x1080"
+  country: text("country"),
+  region: text("region"),
+  city: text("city"),
+  utmSource: text("utm_source"),
+  utmMedium: text("utm_medium"),
+  utmCampaign: text("utm_campaign"),
+  referrer: text("referrer"),
+  hasConsent: integer("has_consent", { mode: "boolean" }).notNull().default(false),
+});
+
+export const analyticsEvents = sqliteTable("analytics_events", {
+  id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+  sessionId: text("session_id").notNull(),
+  userId: text("user_id").references(() => users.id, { onDelete: "set null" }),
+  eventType: text("event_type").notNull(), // pageview | click | scroll_depth | form_start | form_submit | form_abandon | custom
+  eventName: text("event_name"), // for custom events
+  path: text("path").notNull(),
+  referrer: text("referrer"),
+  properties: text("properties"), // JSON string
+  utmSource: text("utm_source"),
+  utmMedium: text("utm_medium"),
+  utmCampaign: text("utm_campaign"),
+  createdAt: integer("created_at").notNull(),
+});
+
+export const analyticsConsent = sqliteTable("analytics_consent", {
+  id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+  userId: text("user_id").references(() => users.id, { onDelete: "set null" }),
+  sessionId: text("session_id").notNull(),
+  analyticsConsent: integer("analytics_consent", { mode: "boolean" }).notNull().default(false),
+  performanceConsent: integer("performance_consent", { mode: "boolean" }).notNull().default(false),
+  createdAt: integer("created_at").notNull().$defaultFn(() => Date.now()),
+  ipHash: text("ip_hash"),
+  consentVersion: text("consent_version").notNull().default("1.0"),
+});
+
+export type AnalyticsSession = typeof analyticsSessions.$inferSelect;
+export type AnalyticsEvent = typeof analyticsEvents.$inferSelect;
+export type AnalyticsConsent = typeof analyticsConsent.$inferSelect;

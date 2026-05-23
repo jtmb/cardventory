@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { RefreshCwIcon } from "lucide-react";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
+import { trackCustomEvent } from "@/lib/analytics/client";
 
 export function RefreshCardButton({ cardId, iconOnly }: { cardId: string; iconOnly?: boolean }) {
   const [loading, setLoading] = useState(false);
@@ -15,6 +16,7 @@ export function RefreshCardButton({ cardId, iconOnly }: { cardId: string; iconOn
     try {
       const res = await fetch(`/api/pricing/refresh/${cardId}`, { method: "POST" });
       if (res.ok) {
+        trackCustomEvent("price_refresh", { cardId });
         toast.success("Prices refreshed");
         router.refresh();
       } else {

@@ -22,6 +22,7 @@ import {
   UsersIcon,
   BarChart3Icon,
   UserCircleIcon,
+  GaugeIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -151,6 +152,19 @@ function NavContent({ onNavigate }: { onNavigate?: () => void }) {
                         <BarChart3Icon className="h-3.5 w-3.5 shrink-0" />
                         Analytics
                       </Link>
+                      <Link
+                        href="/admin/metrics"
+                        onClick={onNavigate}
+                        className={cn(
+                          "flex items-center gap-2.5 px-2.5 py-1.5 rounded-md text-xs font-medium transition-colors",
+                          pathname === "/admin/metrics"
+                            ? "text-primary bg-primary/10"
+                            : "text-sidebar-foreground/55 hover:text-sidebar-foreground hover:bg-sidebar-accent"
+                        )}
+                      >
+                        <GaugeIcon className="h-3.5 w-3.5 shrink-0" />
+                        Metrics
+                      </Link>
                       {adminSubItems.map(({ key, label: subLabel, icon: SubIcon }) => (
                         <Link
                           key={key}
@@ -184,7 +198,7 @@ function NavContent({ onNavigate }: { onNavigate?: () => void }) {
         </nav>
       </ScrollFade>
 
-      <div className="px-3 py-4 border-t border-sidebar-border">
+      <div className="px-3 py-4 border-t border-sidebar-border shrink-0">
         <Button
           variant="ghost"
           className="w-full justify-start gap-3 text-sidebar-foreground/60 hover:text-sidebar-foreground hover:bg-sidebar-accent text-sm"
@@ -206,7 +220,7 @@ export function Sidebar() {
     <>
       {/* ── Desktop sidebar (md and up) ──────────────────────────────────── */}
           <aside className="hidden md:flex w-60 shrink-0 bg-sidebar border-r border-sidebar-border flex-col sticky top-0 h-dvh overflow-hidden">
-        <div className="flex items-center gap-2 px-5 py-5 border-b border-sidebar-border">
+        <div className="flex items-center gap-2 px-5 py-5 border-b border-sidebar-border shrink-0">
           <AppLogo size="md" />
           <span className="font-bold text-lg text-sidebar-foreground tracking-tight">Cardventory</span>
         </div>
@@ -243,7 +257,7 @@ export function Sidebar() {
           drawerOpen ? "translate-x-0" : "-translate-x-full"
         )}
       >
-        <div className="flex items-center justify-between px-5 py-4 border-b border-sidebar-border">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-sidebar-border shrink-0">
           <div className="flex items-center gap-2">
             <AppLogo size="sm" />
             <span className="font-bold text-base text-sidebar-foreground tracking-tight">Cardventory</span>

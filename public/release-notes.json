@@ -1,4 +1,17 @@
 {
+  "1.0.40": {
+    "title": "System Metrics, Analytics Overhaul & Security Monitoring",
+    "notes": [
+      "System Health panel in Analytics — live CPU load, system memory, process heap, and uptime with colour-coded meter bars",
+      "Blocked requests counter tracks upload spam, scan abuse, and signup spam since last server restart",
+      "Analytics sections are now drag-and-drop rearrangeable — layout saved per browser",
+      "Security monitoring: login activity, signup trends, top IPs (with multi-account flag), and recent bans all visualised",
+      "SSRF protection on notification test endpoint — admin-only, SMTP port allowlist, Discord webhook URL validation",
+      "Scan rate limiting — max 5 OCR scans per minute per user; oversized and non-image uploads rejected",
+      "Settings flood protection — unknown keys silently dropped, values capped at 10,000 characters",
+      "Redesigned What's New modal — slide-up animation, numbered items, bottom-sheet on mobile"
+    ]
+  },
   "1.0.38": {
     "title": "Security Hardening, Demo Mode & Quality of Life",
     "notes": [

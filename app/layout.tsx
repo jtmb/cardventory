@@ -3,6 +3,9 @@ import { Plus_Jakarta_Sans, JetBrains_Mono, Oswald, Bebas_Neue, Inter, Nunito } 
 import "./globals.css";
 import { Toaster } from "@/components/ui/sonner";
 import ThemeApplicator from "@/components/theme-applicator";
+import { ConsentProvider } from "@/components/analytics/consent-provider";
+import { AnalyticsProvider } from "@/components/analytics/analytics-provider";
+import { ConsentBanner } from "@/components/analytics/consent-banner";
 import { preinit } from "react-dom";
 import { db } from "@/lib/db";
 import { settings } from "@/lib/db/schema";
@@ -76,7 +79,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="en" className={`dark ${fontVars}`} suppressHydrationWarning>
       <body className="antialiased min-h-screen">
         <ThemeApplicator />
-        {children}
+        <ConsentProvider>
+          <AnalyticsProvider />
+          {children}
+          <ConsentBanner />
+        </ConsentProvider>
         <Toaster richColors position="top-right" />
       </body>
     </html>

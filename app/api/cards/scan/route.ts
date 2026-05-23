@@ -6,6 +6,7 @@ import { tmpdir } from "os";
 import { join } from "path";
 import { randomUUID } from "crypto";
 import sharp from "sharp";
+import { securityMetrics } from "@/lib/security-metrics";
 
 // Known card set names (used for set detection and filtering from player name)
 const KNOWN_SETS = [
@@ -491,6 +492,7 @@ export async function POST(req: NextRequest) {
   const now = Date.now();
   const bucketTs = (scanBucket.get(userId) ?? []).filter(t => now - t < SCAN_RATE_WINDOW_MS);
   if (bucketTs.length >= SCAN_RATE_MAX) {
+    securityMetrics.increment("scanBlocked");
     return NextResponse.json(
       { error: "Scan rate limit reached. Please wait before scanning again." },
       { status: 429 }

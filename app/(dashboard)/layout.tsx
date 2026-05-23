@@ -8,6 +8,7 @@ import { DashboardClientInit } from "@/components/dashboard-client-init";
 import { ReleaseNotesModal } from "@/components/release-notes-modal";
 import { MainScrollContainer } from "@/components/main-scroll-container";
 import { DemoModeBanner } from "@/components/demo-mode-banner";
+import { AdminConsentInit } from "@/components/analytics/admin-consent-init";
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
   const session = await auth();
@@ -28,6 +29,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
       </div>
       <WelcomeTour />
       <DashboardClientInit />
+      <AdminConsentInit />
       <ReleaseNotesModal />
     </SessionProvider>
   );

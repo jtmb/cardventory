@@ -5,6 +5,7 @@ import path from "path";
 import { db } from "@/lib/db";
 import { cards } from "@/lib/db/schema";
 import { eq, and, like, sql } from "drizzle-orm";
+import { securityMetrics } from "@/lib/security-metrics";
 
 const MAX_SIZE = 5 * 1024 * 1024; // 5 MB per file
 const MIN_DISK_FREE = 500 * 1024 * 1024; // Refuse uploads if < 500 MB free
@@ -59,12 +60,14 @@ export async function POST(req: NextRequest) {
 
   // ── Rate limiting ────────────────────────────────────────────────────────
   if (!checkRate(burstBucket, userId, BURST_WINDOW_MS, BURST_MAX)) {
+    securityMetrics.increment("uploadBlocked");
     return NextResponse.json(
       { error: "Too many uploads. Please slow down." },
       { status: 429 }
     );
   }
   if (!checkRate(hourlyBucket, userId, RATE_WINDOW_MS, RATE_MAX)) {
+    securityMetrics.increment("uploadBlocked");
     return NextResponse.json(
       { error: "Hourly upload limit reached. Try again later." },
       { status: 429 }

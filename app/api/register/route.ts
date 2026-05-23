@@ -6,6 +6,7 @@ import { eq, isNull, and } from "drizzle-orm";
 import bcrypt from "bcryptjs";
 import { sendDiscordNotification } from "@/lib/notifications";
 import { getRealIp } from "@/lib/get-real-ip";
+import { securityMetrics } from "@/lib/security-metrics";
 
 async function getSystemSetting(key: string): Promise<string | null> {
   const row = await db
@@ -56,6 +57,7 @@ export async function POST(req: NextRequest) {
 
       // Rate limit: max 5 attempts per IP per hour (skip for first user)
       if (isRateLimited(ip)) {
+        securityMetrics.increment("registrationBlocked");
         return NextResponse.json(
           { error: "Too many registration attempts. Please try again later." },
           { status: 429 }

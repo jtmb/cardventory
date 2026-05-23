@@ -1,5 +1,5 @@
 import cron from "node-cron";
-import { db } from "@/lib/db";
+import { db, rawSqlite } from "@/lib/db";
 import { cards, priceHistory, settings, users, notifications } from "@/lib/db/schema";
 import { eq, and, isNull, lt, max, desc } from "drizzle-orm";
 import { fetchAllPrices } from "@/lib/scrapers";
@@ -221,4 +221,16 @@ export async function startCron() {
   cron.schedule("0 * * * *", autoDenyPendingUsers);
   // Run once on startup to catch any already-expired pending users
   autoDenyPendingUsers().catch(() => {});
+
+  // Analytics retention cleanup: delete events + sessions older than 90 days, runs daily at 03:00
+  cron.schedule("0 3 * * *", () => {
+    const cutoff = Date.now() - 90 * 24 * 60 * 60 * 1000;
+    try {
+      const evDel = rawSqlite.prepare("DELETE FROM analytics_events WHERE created_at < ?").run(cutoff);
+      const ssDel = rawSqlite.prepare("DELETE FROM analytics_sessions WHERE started_at < ?").run(cutoff);
+      console.log(`[cron] Analytics cleanup: removed ${evDel.changes} events, ${ssDel.changes} sessions older than 90 days`);
+    } catch (err) {
+      console.error("[cron] Analytics cleanup error:", err);
+    }
+  });
 }

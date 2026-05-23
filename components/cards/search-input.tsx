@@ -4,6 +4,7 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { SearchIcon, XIcon } from "lucide-react";
+import { trackCustomEvent } from "@/lib/analytics/client";
 
 type Suggestion = {
   id: string;
@@ -60,6 +61,7 @@ export function SearchInput({
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setOpen(false);
+    if (value.trim()) trackCustomEvent("search", { query_length: value.trim().length });
     const params = new URLSearchParams();
     if (genre && genre !== "all") params.set("genre", genre);
     if (value.trim()) params.set("q", value.trim());
