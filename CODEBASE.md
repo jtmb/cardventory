@@ -229,6 +229,11 @@ Query: `?q=<card name>`. Returns `{ imageUrl }` from eBay search.
 - **GET**: User settings as `{ key: value }` map
 - **POST**: Upsert settings. Body: flat key-value object
 
+**Security measures:**
+- Auth required (401 if not signed in)
+- **Key allowlist**: only the 27 known user-preference keys are written; all unknown keys are silently skipped — prevents arbitrary key flooding of the settings table
+- **Value length cap**: 10,000 chars per value
+
 #### `GET/POST /api/system-settings` _(admin only)_
 - **GET**: System-wide settings
 - **POST**: Upsert system settings
@@ -270,10 +275,26 @@ Multipart upload custom logo → `public/uploads/logo.*`
 #### `POST /api/notifications/test`
 Send test notification (email + Discord).
 
+**Security measures:**
+- **Admin-only** (403 for non-admins) — this endpoint makes live outbound HTTP and SMTP connections
+- **SMTP host validation**: loopback and link-local addresses (`localhost`, `127.x`, `169.254.x`, `::1`) are rejected (400)
+- **SMTP port allowlist**: only ports `25`, `465`, `587`, `2525` are permitted (400)
+- **Discord webhook validation**: URL must begin with `https://discord.com/api/webhooks/` — any other URL is rejected before any outbound call (400)
+
 ### Files
 
 #### `POST /api/upload`
-Multipart card photo upload → `/app/uploads/`. Returns `{ url: string }`
+Multipart card photo upload → `public/uploads/`. Returns `{ url: string }`
+
+**Security measures:**
+- Auth required (401 if not signed in)
+- **Burst rate limit**: 10 uploads/minute per user (429)
+- **Hourly rate limit**: 30 uploads/hour per user (429)
+- **Per-user quota**: max 500 local images counted from cards with `/uploads/` image URLs (413)
+- **File size**: max 5 MB per upload (413)
+- **Magic-byte validation**: actual file bytes checked against JPEG/PNG/GIF/WebP signatures — `Content-Type` from the client is not trusted
+- **Disk space guard**: rejects if < 500 MB free on the uploads filesystem (507)
+- Extension derived from detected MIME type, not the client-supplied filename
 
 #### `GET /api/backups` — list backups
 #### `POST /api/backups` — trigger backup
@@ -739,6 +760,12 @@ File: `app/api/cards/scan/route.ts`
 Endpoint: `POST /api/cards/scan`  
 Accepts: multipart `image` field **or** JSON `{ image: "data:image/..." }`  
 Returns: `{ card: { name, year, setName, cardNumber, variant, gradeCompany, gradeValue, sportGenre }, _raw, _labelRaw, _nameRaw, _bodyRaw }`
+
+**Security measures:**
+- Auth required (401 if not signed in)
+- **Rate limit**: 5 scans/minute per user — OCR + sharp preprocessing is CPU-intensive (429)
+- **Size guard**: images larger than 15 MB are rejected immediately after the buffer is read, before any sharp or Tesseract work (413)
+- **MIME allowlist**: only `image/jpeg`, `image/png`, `image/webp`, `image/gif` are accepted (400)
 
 ---
 

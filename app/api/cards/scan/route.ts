@@ -474,11 +474,30 @@ async function inferSportFromWeb(name: string): Promise<string> {
   }
 }
 
+const SCAN_MAX_BYTES = 15 * 1024 * 1024; // 15 MB
+const SCAN_RATE_WINDOW_MS = 60_000;       // 1 minute sliding window
+const SCAN_RATE_MAX = 5;                  // max scans per user per minute
+const ALLOWED_SCAN_MIMES = new Set(["image/jpeg", "image/png", "image/webp", "image/gif"]);
+const scanBucket = new Map<string, number[]>(); // per-user timestamp buckets
+
 export async function POST(req: NextRequest) {
   const session = await auth();
   if (!session?.user?.id) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
+
+  // Per-user rate limiting — OCR + sharp is expensive
+  const userId = session.user.id;
+  const now = Date.now();
+  const bucketTs = (scanBucket.get(userId) ?? []).filter(t => now - t < SCAN_RATE_WINDOW_MS);
+  if (bucketTs.length >= SCAN_RATE_MAX) {
+    return NextResponse.json(
+      { error: "Scan rate limit reached. Please wait before scanning again." },
+      { status: 429 }
+    );
+  }
+  bucketTs.push(now);
+  scanBucket.set(userId, bucketTs);
 
   const contentType = req.headers.get("content-type") ?? "";
   let imageBuffer: Buffer;
@@ -497,6 +516,14 @@ export async function POST(req: NextRequest) {
     const base64 = dataUrl.includes(",") ? dataUrl.split(",")[1] : dataUrl;
     mimeType = dataUrl.match(/data:([^;]+)/)?.[1] ?? "image/jpeg";
     imageBuffer = Buffer.from(base64, "base64");
+  }
+
+  // Validate size and MIME before passing to sharp + Tesseract
+  if (imageBuffer.length > SCAN_MAX_BYTES) {
+    return NextResponse.json({ error: "Image too large. Maximum size is 15 MB." }, { status: 413 });
+  }
+  if (!ALLOWED_SCAN_MIMES.has(mimeType)) {
+    return NextResponse.json({ error: "Only JPEG, PNG, WebP, and GIF images are supported." }, { status: 400 });
   }
 
   const ext = mimeType.split("/")[1]?.replace("jpeg", "jpg") ?? "jpg";

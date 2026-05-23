@@ -1,4 +1,21 @@
 {
+  "1.0.38": {
+    "title": "Security Hardening, Demo Mode & Quality of Life",
+    "notes": [
+      "Upload security: per-user rate limiting (10/min, 30/hr), 500-image quota, magic-byte file validation, and disk-space guard",
+      "Registration anti-spam: in-memory rate limiter blocks more than 5 sign-up attempts per IP per hour",
+      "IP address now captured in login logs at registration time, not only on first login",
+      "IP detection updated to respect Cloudflare Tunnel and Traefik headers (CF-Connecting-IP takes priority)",
+      "One active session per account — signing in from a new device invalidates all previous sessions",
+      "Demo Mode — admins can enable a banner shown to all users indicating the instance is a demo",
+      "Admin: bulk select in User Management — approve, lock, or delete multiple accounts at once",
+      "Password visibility toggle (eye icon) on login, register, and admin password-change forms",
+      "User Management panel fully responsive on mobile with card-style layout",
+      "Mobile grid slider now works correctly from 2 columns upward",
+      "Session Management options moved to the Authentication settings tab",
+      "Signup Notifications section moved above Registration Controls in Authentication settings"
+    ]
+  },
   "1.0.37": {
     "title": "Landing Page, Logo & Auth Improvements",
     "notes": [
