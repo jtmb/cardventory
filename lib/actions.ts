@@ -734,7 +734,46 @@ export async function updateCardsStatus(ids: string[], status: string) {
   revalidatePath("/watchlist");
 }
 
+export async function updateCardsTradeBait(ids: string[], isTradeBait: boolean) {
+  if (!ids.length) return;
+  const session = await auth();
+  const userId = requireAuth(session);
+
+  await db
+    .update(cards)
+    .set({ isTradeBait, updatedAt: new Date() })
+    .where(and(inArray(cards.id, ids), eq(cards.userId, userId)));
+
+  revalidatePath("/cards");
+}
+
 // ─── Duplicate Detection ────────────────────────────────────────────────────
+
+export async function getDuplicateGroups(): Promise<Card[][]> {
+  const session = await auth();
+  const userId = requireAuth(session);
+
+  const allCards = await db
+    .select()
+    .from(cards)
+    .where(and(eq(cards.userId, userId), eq(cards.status, "owned")))
+    .all();
+
+  // Group by composite key: name (lower) + gradeCompany + gradeValue
+  const groups = new Map<string, Card[]>();
+  for (const card of allCards) {
+    const key = [
+      card.name.toLowerCase().trim(),
+      card.gradeCompany ?? "",
+      card.gradeValue ?? "",
+    ].join("|");
+    const group = groups.get(key) ?? [];
+    group.push(card);
+    groups.set(key, group);
+  }
+
+  return [...groups.values()].filter((g) => g.length >= 2);
+}
 
 export async function checkDuplicate(
   name: string,

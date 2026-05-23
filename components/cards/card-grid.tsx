@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { CheckSquare2Icon, Trash2Icon, XIcon, LayoutGridIcon, LayoutListIcon, ListIcon, DownloadIcon, TagIcon, BookmarkIcon, BookmarkCheckIcon, ActivityIcon } from "lucide-react";
+import { CheckSquare2Icon, Trash2Icon, XIcon, LayoutGridIcon, LayoutListIcon, ListIcon, DownloadIcon, TagIcon, BookmarkIcon, BookmarkCheckIcon, ActivityIcon, ArrowRightLeftIcon } from "lucide-react";
 import { CardRow, CardRowSkeleton } from "./card-row";
 import type { Card } from "@/lib/db/schema";
 import { Button, buttonVariants } from "@/components/ui/button";
@@ -20,7 +20,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { deleteCards, updateCardsGenre, updateCardsStatus } from "@/lib/actions";
+import { deleteCards, updateCardsGenre, updateCardsStatus, updateCardsTradeBait } from "@/lib/actions";
 import { toast } from "sonner";
 
 const GENRES = [
@@ -147,6 +147,16 @@ export function CardGrid({ cards, exportHref }: { cards: Card[]; exportHref?: st
     startTransition(async () => {
       await updateCardsStatus(ids, "owned");
       toast.success(`${ids.length} ${ids.length === 1 ? "card" : "cards"} marked as Owned`);
+      exitSelectMode();
+      router.refresh();
+    });
+  }
+
+  function handleToggleTradeBait(isTradeBait: boolean) {
+    const ids = [...selectedIds];
+    startTransition(async () => {
+      await updateCardsTradeBait(ids, isTradeBait);
+      toast.success(isTradeBait ? `${ids.length} ${ids.length === 1 ? "card" : "cards"} marked as Trade Bait` : `Trade Bait removed from ${ids.length} ${ids.length === 1 ? "card" : "cards"}`);
       exitSelectMode();
       router.refresh();
     });
@@ -318,6 +328,32 @@ export function CardGrid({ cards, exportHref }: { cards: Card[]; exportHref?: st
                   <BookmarkCheckIcon className="h-3.5 w-3.5" />
                   Mark Owned
                 </button>
+              )}
+              {/* Trade Bait toggle — only for owned cards */}
+              {allOwned && (
+                <>
+                  {selectedCards.every((c) => c.isTradeBait) ? (
+                    <button
+                      onClick={() => handleToggleTradeBait(false)}
+                      disabled={isPending}
+                      className={cn(buttonVariants({ variant: "outline", size: "sm" }), "gap-1.5 text-emerald-500 border-emerald-500/40 hover:bg-emerald-500/10")}
+                      title="Remove from Trade Bait"
+                    >
+                      <ArrowRightLeftIcon className="h-3.5 w-3.5" />
+                      Remove Trade Bait
+                    </button>
+                  ) : (
+                    <button
+                      onClick={() => handleToggleTradeBait(true)}
+                      disabled={isPending}
+                      className={cn(buttonVariants({ variant: "outline", size: "sm" }), "gap-1.5")}
+                      title="Mark as Trade Bait"
+                    >
+                      <ArrowRightLeftIcon className="h-3.5 w-3.5" />
+                      Trade Bait
+                    </button>
+                  )}
+                </>
               )}
             </div>
           )}

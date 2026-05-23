@@ -17,7 +17,19 @@ export function RefreshCardButton({ cardId, iconOnly }: { cardId: string; iconOn
       const res = await fetch(`/api/pricing/refresh/${cardId}`, { method: "POST" });
       if (res.ok) {
         trackCustomEvent("price_refresh", { cardId });
-        toast.success("Prices refreshed");
+        const data = await res.json() as { diff?: { prevPrice: number; newPrice: number; changeAmount: number; changePercent: number | null } | null };
+        const diff = data.diff;
+        if (diff) {
+          const fmt = (n: number) => new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(n);
+          const sign = diff.changeAmount >= 0 ? "+" : "";
+          const pct = diff.changePercent !== null ? ` (${sign}${diff.changePercent.toFixed(1)}%)` : "";
+          const msg = `${fmt(diff.prevPrice)} → ${fmt(diff.newPrice)} ${sign}${fmt(diff.changeAmount)}${pct}`;
+          if (diff.changeAmount > 0) toast.success(msg, { description: "Market value updated" });
+          else if (diff.changeAmount < 0) toast.warning(msg, { description: "Market value updated" });
+          else toast.success("Prices refreshed — no change");
+        } else {
+          toast.success("Prices refreshed");
+        }
         router.refresh();
       } else {
         toast.error("Refresh failed");

@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { db } from "@/lib/db";
 import { cards, priceHistory } from "@/lib/db/schema";
-import { eq, and } from "drizzle-orm";
+import { eq, and, isNotNull, desc } from "drizzle-orm";
 import { fetchAllPrices } from "@/lib/scrapers";
 
 export async function POST(
@@ -25,6 +25,17 @@ export async function POST(
   if (!card) {
     return NextResponse.json({ error: "Card not found" }, { status: 404 });
   }
+
+  // Snapshot prev max price before fetching new data
+  const prevRows = await db
+    .select({ price: priceHistory.price })
+    .from(priceHistory)
+    .where(and(eq(priceHistory.cardId, cardId), isNotNull(priceHistory.price)))
+    .orderBy(desc(priceHistory.fetchedAt))
+    .all();
+  const prevMaxPrice = prevRows.length > 0
+    ? Math.max(...prevRows.slice(0, 8).map((r) => r.price!))
+    : null;
 
   const results = await fetchAllPrices({
     name: card.name,
@@ -63,5 +74,17 @@ export async function POST(
     }
   }
 
-  return NextResponse.json({ success: true, results });
+  // Compute new max price and diff
+  const newPrices = results.filter((r) => r.price !== null).map((r) => r.price!);
+  const newMaxPrice = newPrices.length > 0 ? Math.max(...newPrices) : null;
+  const diff = prevMaxPrice !== null && newMaxPrice !== null
+    ? {
+        prevPrice: prevMaxPrice,
+        newPrice: newMaxPrice,
+        changeAmount: newMaxPrice - prevMaxPrice,
+        changePercent: prevMaxPrice > 0 ? ((newMaxPrice - prevMaxPrice) / prevMaxPrice) * 100 : null,
+      }
+    : null;
+
+  return NextResponse.json({ success: true, results, diff });
 }

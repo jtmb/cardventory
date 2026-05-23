@@ -65,6 +65,13 @@ export function migrate(sqlite: InstanceType<typeof Database>) {
   // Additional indexes for new columns
   try { sqlite.exec("CREATE INDEX IF NOT EXISTS idx_cards_status ON cards(status)"); } catch {}
 
+  // Public profiles + trade bait
+  try { sqlite.exec("ALTER TABLE users ADD COLUMN username TEXT"); } catch {}
+  try { sqlite.exec("ALTER TABLE users ADD COLUMN profile_public INTEGER NOT NULL DEFAULT 0"); } catch {}
+  try { sqlite.exec("ALTER TABLE cards ADD COLUMN is_trade_bait INTEGER NOT NULL DEFAULT 0"); } catch {}
+  try { sqlite.exec("CREATE UNIQUE INDEX IF NOT EXISTS idx_users_username ON users(username) WHERE username IS NOT NULL"); } catch {}
+  try { sqlite.exec("CREATE INDEX IF NOT EXISTS idx_cards_trade_bait ON cards(is_trade_bait)"); } catch {}
+
   // Banned users table
   try {
     sqlite.exec(`

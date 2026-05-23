@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
+import { db } from "@/lib/db";
+import { users } from "@/lib/db/schema";
+import { eq } from "drizzle-orm";
 import { getAllSettings, setSetting } from "@/lib/actions";
 
 // Allowlist prevents storing arbitrary keys that could bloat the DB
@@ -38,8 +41,19 @@ export async function GET(_req: NextRequest) {
   const session = await auth();
   if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const all = await getAllSettings();
-  return NextResponse.json(all);
+  const [all, profileRow] = await Promise.all([
+    getAllSettings(),
+    db.select({ username: users.username, profilePublic: users.profilePublic })
+      .from(users)
+      .where(eq(users.id, session.user.id))
+      .get(),
+  ]);
+
+  return NextResponse.json({
+    ...all,
+    _username: profileRow?.username ?? null,
+    _profilePublic: profileRow?.profilePublic ?? false,
+  });
 }
 
 export async function POST(req: NextRequest) {

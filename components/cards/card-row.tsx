@@ -353,6 +353,11 @@ function CardInner({
         {setLine && (
           <p className="text-xs text-muted-foreground truncate">{setLine}</p>
         )}
+        {card.isTradeBait && (
+          <span className="inline-flex items-center gap-0.5 text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-emerald-500/15 text-emerald-500 border border-emerald-500/25">
+            🔄 Trade Bait
+          </span>
+        )}
         <div className="pt-1">
           {loading ? (
             <div className="h-3.5 w-4/5 bg-muted rounded animate-pulse" />

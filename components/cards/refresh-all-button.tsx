@@ -15,9 +15,26 @@ export function RefreshAllButton() {
     try {
       const res = await fetch("/api/pricing/refresh-all", { method: "POST" });
       if (res.ok) {
-        const data = await res.json();
-        toast.success(`Refreshed ${data.refreshed} of ${data.total} cards`);
+        const data = await res.json() as { refreshed: number; total: number; changes?: { up: number; down: number; unchanged: number } };
+        const changes = data.changes;
+        let msg = `Refreshed ${data.refreshed} of ${data.total} cards`;
+        if (changes && (changes.up > 0 || changes.down > 0)) {
+          const parts: string[] = [];
+          if (changes.up > 0) parts.push(`${changes.up} ↑`);
+          if (changes.down > 0) parts.push(`${changes.down} ↓`);
+          if (changes.unchanged > 0) parts.push(`${changes.unchanged} unchanged`);
+          msg += ` — ${parts.join(", ")}`;
+        }
+        toast.success(msg);
         router.refresh();
+      } else if (res.status === 429) {
+        const data = await res.json() as { nextAllowedAt?: string };
+        if (data.nextAllowedAt) {
+          const next = new Date(data.nextAllowedAt);
+          toast.error(`Rate limited — next refresh available at ${next.toLocaleTimeString()}`);
+        } else {
+          toast.error("Rate limited — try again later");
+        }
       } else {
         toast.error("Refresh failed");
       }

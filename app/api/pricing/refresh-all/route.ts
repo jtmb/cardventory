@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { db } from "@/lib/db";
 import { cards, priceHistory, settings } from "@/lib/db/schema";
-import { eq, and } from "drizzle-orm";
+import { eq, and, isNotNull, desc } from "drizzle-orm";
 import { fetchAllPrices } from "@/lib/scrapers";
 
 const REFRESH_COOLDOWN_MS = 24 * 60 * 60 * 1000; // 24 hours
@@ -43,7 +43,25 @@ export async function POST(_req: NextRequest) {
     .where(eq(cards.userId, session.user.id))
     .all();
 
+  // Snapshot prev max prices per card
+  const prevPriceMap = new Map<string, number>();
+  for (const card of allCards) {
+    const rows = await db
+      .select({ price: priceHistory.price })
+      .from(priceHistory)
+      .where(and(eq(priceHistory.cardId, card.id), isNotNull(priceHistory.price)))
+      .orderBy(desc(priceHistory.fetchedAt))
+      .all();
+    const recentRows = rows.slice(0, 8);
+    if (recentRows.length > 0) {
+      prevPriceMap.set(card.id, Math.max(...recentRows.map((r) => r.price!)));
+    }
+  }
+
   let refreshed = 0;
+  let up = 0;
+  let down = 0;
+  let unchanged = 0;
 
   for (const card of allCards) {
     try {
@@ -82,6 +100,18 @@ export async function POST(_req: NextRequest) {
         }
       }
 
+      // Track price diff
+      const newPrices = results.filter((r) => r.price !== null).map((r) => r.price!);
+      if (newPrices.length > 0) {
+        const newMax = Math.max(...newPrices);
+        const prevMax = prevPriceMap.get(card.id);
+        if (prevMax !== undefined) {
+          if (newMax > prevMax) up++;
+          else if (newMax < prevMax) down++;
+          else unchanged++;
+        }
+      }
+
       refreshed++;
     } catch {
       // Continue on individual card failure
@@ -104,5 +134,5 @@ export async function POST(_req: NextRequest) {
     }
   }
 
-  return NextResponse.json({ success: true, refreshed, total: allCards.length });
+  return NextResponse.json({ success: true, refreshed, total: allCards.length, changes: { up, down, unchanged } });
 }

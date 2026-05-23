@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
-import { getCard, getLatestPrices, getCardPriceHistory, getCardNeighbors, deleteCard } from "@/lib/actions";
+import { getCard, getLatestPrices, getCardPriceHistory, getCardNeighbors, deleteCard, updateCard } from "@/lib/actions";
 import type { Card } from "@/lib/db/schema";
 import Link from "next/link";
 import { toast } from "sonner";
@@ -14,7 +14,7 @@ import { PriceChart } from "@/components/cards/price-chart";
 import { SmartCardImage } from "@/components/cards/smart-card-image";
 import {
   XIcon, ChevronLeftIcon, ChevronRightIcon,
-  ExternalLinkIcon, PencilIcon, RefreshCwIcon, Trash2Icon,
+  ExternalLinkIcon, PencilIcon, RefreshCwIcon, Trash2Icon, ArrowRightLeftIcon,
 } from "lucide-react";
 
 type PriceEntry = Awaited<ReturnType<typeof getLatestPrices>>[number];
@@ -57,6 +57,7 @@ export function CardDetailPanel({
   const [refreshing, setRefreshing] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [tradeBaitPending, setTradeBaitPending] = useState(false);
   const router = useRouter();
 
   useEffect(() => {
@@ -122,6 +123,20 @@ export function CardDetailPanel({
     } catch {
       toast.error("Delete failed");
       setDeleting(false);
+    }
+  }
+
+  async function handleToggleTradeBait() {
+    if (!card) return;
+    setTradeBaitPending(true);
+    try {
+      const updated = await updateCard(card.id, { isTradeBait: !card.isTradeBait });
+      setCard((prev) => prev ? { ...prev, isTradeBait: updated.isTradeBait } : prev);
+      toast.success(updated.isTradeBait ? "Marked as trade bait" : "Removed from trade bait");
+    } catch {
+      toast.error("Failed to update");
+    } finally {
+      setTradeBaitPending(false);
     }
   }
 
@@ -381,7 +396,20 @@ export function CardDetailPanel({
             )}
 
             {/* Delete — at the bottom, out of the way */}
-            <div className="flex justify-center pt-2 pb-2">
+            <div className="flex justify-center gap-2 pt-2 pb-2 flex-wrap">
+              <button
+                onClick={handleToggleTradeBait}
+                disabled={tradeBaitPending || card.status !== "owned"}
+                className={cn(
+                  "flex items-center gap-1.5 text-xs transition-colors py-1.5 px-3 rounded-md",
+                  card.isTradeBait
+                    ? "text-emerald-500 bg-emerald-500/10 hover:bg-emerald-500/20"
+                    : "text-muted-foreground/60 hover:text-emerald-500 hover:bg-muted"
+                )}
+              >
+                <ArrowRightLeftIcon className="h-3 w-3" />
+                {card.isTradeBait ? "Available to Trade" : "Mark as Trade Bait"}
+              </button>
               <button
                 onClick={handleDelete}
                 disabled={deleting}

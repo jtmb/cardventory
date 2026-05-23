@@ -13,6 +13,8 @@ export const users = sqliteTable("users", {
   lockedAt: integer("locked_at", { mode: "timestamp" }),
   status: text("status", { enum: ["active", "pending"] }).notNull().default("active"),
   sessionVersion: integer("session_version").notNull().default(0),
+  username: text("username").unique(),
+  profilePublic: integer("profile_public", { mode: "boolean" }).notNull().default(false),
   createdAt: integer("created_at", { mode: "timestamp" })
     .notNull()
     .$defaultFn(() => new Date()),
@@ -38,6 +40,7 @@ export const cards = sqliteTable("cards", {
   notes: text("notes"),
   photoUrl: text("photo_url"),
   status: text("status").notNull().default("owned"), // 'owned' | 'wanted'
+  isTradeBait: integer("is_trade_bait", { mode: "boolean" }).notNull().default(false),
   createdAt: integer("created_at", { mode: "timestamp" })
     .notNull()
     .$defaultFn(() => new Date()),

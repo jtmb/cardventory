@@ -23,6 +23,7 @@ import {
   BarChart3Icon,
   UserCircleIcon,
   GaugeIcon,
+  ArrowRightLeftIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -34,6 +35,7 @@ const navItems = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboardIcon },
   { href: "/cards", label: "My Cards", icon: LayersIcon },
   { href: "/watchlist", label: "Watchlist", icon: BookmarkIcon },
+  { href: "/trade", label: "Trade Board", icon: ArrowRightLeftIcon },
   { href: "/cards/add", label: "Add Card", icon: PlusCircleIcon },
   { href: "/settings", label: "Settings", icon: SettingsIcon },
 ];

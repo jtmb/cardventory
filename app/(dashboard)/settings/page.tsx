@@ -162,6 +162,10 @@ function SettingsContent() {
   const [accountNewPw, setAccountNewPw] = useState("");
   const [accountConfirmPw, setAccountConfirmPw] = useState("");
   const [accountSaving, setAccountSaving] = useState(false);
+  // Public profile
+  const [usernameInput, setUsernameInput] = useState("");
+  const [profilePublic, setProfilePublic] = useState(false);
+  const [profileSaving, setProfileSaving] = useState(false);
 
   // Sync name from session when session loads
   useEffect(() => {
@@ -288,6 +292,9 @@ function SettingsContent() {
         if (data.notif_discord_user_id) setNotifDiscordUserId(data.notif_discord_user_id);
         if (data.notif_on_new_high !== undefined) setNotifOnNewHigh(data.notif_on_new_high === "true");
         if (data.notif_on_price_change !== undefined) setNotifOnPriceChange(data.notif_on_price_change === "true");
+        // Public profile
+        if (data._username) setUsernameInput(data._username);
+        if (data._profilePublic !== undefined) setProfilePublic(Boolean(data._profilePublic));
       })
       .catch(() => {});
 
@@ -801,6 +808,87 @@ function SettingsContent() {
                   }}
                 >
                   Change password
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Public Profile */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">Public Collection</CardTitle>
+              <CardDescription>
+                Share your collection with a public link. Anyone with the link can view your owned cards.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-1.5">
+                <Label>Username</Label>
+                <input
+                  value={usernameInput}
+                  onChange={(e) => setUsernameInput(e.target.value)}
+                  placeholder="e.g. jordan23"
+                  maxLength={30}
+                  className="w-full h-9 rounded-md border border-border bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                />
+                <p className="text-xs text-muted-foreground">3–30 characters: letters, numbers, _ and - only.</p>
+              </div>
+              <div className="flex items-center justify-between rounded-md border border-border px-3 py-2.5">
+                <div>
+                  <p className="text-sm font-medium">Make collection public</p>
+                  <p className="text-xs text-muted-foreground">Your owned cards will be visible at your profile URL.</p>
+                </div>
+                <button
+                  role="switch"
+                  aria-checked={profilePublic}
+                  onClick={() => setProfilePublic((v) => !v)}
+                  className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 ${profilePublic ? "bg-primary" : "bg-muted"}`}
+                >
+                  <span className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow-lg transition-transform ${profilePublic ? "translate-x-4" : "translate-x-0"}`} />
+                </button>
+              </div>
+              {usernameInput && profilePublic && (
+                <div className="flex items-center gap-2 rounded-md bg-muted px-3 py-2 text-xs text-muted-foreground overflow-hidden">
+                  <span className="truncate font-mono">{typeof window !== "undefined" ? window.location.origin : ""}/u/{usernameInput}</span>
+                  <button
+                    className="shrink-0 underline hover:text-foreground transition-colors"
+                    onClick={() => {
+                      const url = `${window.location.origin}/u/${usernameInput}`;
+                      navigator.clipboard.writeText(url).then(() => toast.success("Link copied!")).catch(() => {});
+                    }}
+                  >
+                    Copy
+                  </button>
+                </div>
+              )}
+              <div className="flex justify-end">
+                <Button
+                  size="sm"
+                  disabled={profileSaving}
+                  onClick={async () => {
+                    const u = usernameInput.trim();
+                    if (u && !/^[a-zA-Z0-9_-]{3,30}$/.test(u)) {
+                      toast.error("Username must be 3–30 characters: letters, numbers, _ and - only.");
+                      return;
+                    }
+                    setProfileSaving(true);
+                    try {
+                      const res = await fetch("/api/profile", {
+                        method: "PATCH",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ action: "update_public_profile", username: u || null, profilePublic }),
+                      });
+                      const data = await res.json();
+                      if (!res.ok) throw new Error(data.error);
+                      toast.success("Public profile updated");
+                    } catch (e) {
+                      toast.error(e instanceof Error ? e.message : "Failed");
+                    } finally {
+                      setProfileSaving(false);
+                    }
+                  }}
+                >
+                  Save
                 </Button>
               </div>
             </CardContent>
