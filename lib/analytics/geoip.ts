@@ -1,4 +1,12 @@
-import geoip from "geoip-lite";
+// geoip-lite requires data files that may not be present at build time.
+// Load lazily and fall back to null lookups if the files are missing.
+let geoip: { lookup: (ip: string) => { country?: string; region?: string; city?: string } | null } | null = null;
+try {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  geoip = require("geoip-lite") as typeof geoip;
+} catch {
+  // data files not installed — geo lookups will return null
+}
 
 type GeoResult = { country: string; region: string; city: string } | null;
 
@@ -43,7 +51,7 @@ export function lookupGeo(ip: string): GeoResult {
   const cached = cacheGet(ip);
   if (cached !== undefined) return cached;
 
-  const result = geoip.lookup(ip);
+  const result = geoip?.lookup(ip) ?? null;
   const geo: GeoResult = result
     ? { country: result.country ?? "", region: result.region ?? "", city: result.city ?? "" }
     : null;
