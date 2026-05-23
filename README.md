@@ -1,7 +1,6 @@
 <div align="center">
 
-<img src="public/image.png" alt="Cardventory" width="25%" />
-<br> </br>
+<img src="./public/branding/cardventory-rookie-mark-icon-dark.svg" alt="Cardventory" width="%" />
 
 
 **Self-hosted trading card collection manager with live market pricing**
