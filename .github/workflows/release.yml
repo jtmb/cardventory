@@ -60,7 +60,7 @@ jobs:
             ]
           }]}
           try:
-            r = urllib.request.Request(os.environ['DISCORD_WEBHOOK'], json.dumps(p).encode(), {'Content-Type': 'application/json'})
+            r = urllib.request.Request(os.environ['DISCORD_WEBHOOK'], json.dumps(p).encode(), {'Content-Type': 'application/json', 'User-Agent': 'curl/7.68.0'})
             urllib.request.urlopen(r, timeout=10)
           except Exception as e:
             print('Discord notify failed:', e)
@@ -116,7 +116,7 @@ jobs:
             'color': 3066993,
           }]}
           try:
-            r = urllib.request.Request(os.environ['DISCORD_WEBHOOK'], json.dumps(p).encode(), {'Content-Type': 'application/json'})
+            r = urllib.request.Request(os.environ['DISCORD_WEBHOOK'], json.dumps(p).encode(), {'Content-Type': 'application/json', 'User-Agent': 'curl/7.68.0'})
             urllib.request.urlopen(r, timeout=10)
           except Exception as e:
             print('Discord notify failed:', e)
@@ -137,7 +137,7 @@ jobs:
             'color': 15158332,
           }]}
           try:
-            r = urllib.request.Request(os.environ['DISCORD_WEBHOOK'], json.dumps(p).encode(), {'Content-Type': 'application/json'})
+            r = urllib.request.Request(os.environ['DISCORD_WEBHOOK'], json.dumps(p).encode(), {'Content-Type': 'application/json', 'User-Agent': 'curl/7.68.0'})
             urllib.request.urlopen(r, timeout=10)
           except Exception as e:
             print('Discord notify failed:', e)
@@ -173,7 +173,7 @@ jobs:
             'color': 3066993,
           }]}
           try:
-            r = urllib.request.Request(os.environ['DISCORD_WEBHOOK'], json.dumps(p).encode(), {'Content-Type': 'application/json'})
+            r = urllib.request.Request(os.environ['DISCORD_WEBHOOK'], json.dumps(p).encode(), {'Content-Type': 'application/json', 'User-Agent': 'curl/7.68.0'})
             urllib.request.urlopen(r, timeout=10)
           except Exception as e:
             print('Discord notify failed:', e)
@@ -217,7 +217,7 @@ jobs:
             'color': 3066993,
           }]}
           try:
-            r = urllib.request.Request(os.environ['DISCORD_WEBHOOK'], json.dumps(p).encode(), {'Content-Type': 'application/json'})
+            r = urllib.request.Request(os.environ['DISCORD_WEBHOOK'], json.dumps(p).encode(), {'Content-Type': 'application/json', 'User-Agent': 'curl/7.68.0'})
             urllib.request.urlopen(r, timeout=10)
           except Exception as e:
             print('Discord notify failed:', e)
@@ -238,7 +238,7 @@ jobs:
             'color': 15158332,
           }]}
           try:
-            r = urllib.request.Request(os.environ['DISCORD_WEBHOOK'], json.dumps(p).encode(), {'Content-Type': 'application/json'})
+            r = urllib.request.Request(os.environ['DISCORD_WEBHOOK'], json.dumps(p).encode(), {'Content-Type': 'application/json', 'User-Agent': 'curl/7.68.0'})
             urllib.request.urlopen(r, timeout=10)
           except Exception as e:
             print('Discord notify failed:', e)
