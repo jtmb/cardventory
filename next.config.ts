@@ -8,11 +8,23 @@ const nextConfig: NextConfig = {
   serverExternalPackages: ["tesseract.js", "sharp"],
   // standalone output only copies statically-traced files; tesseract.js worker
   // scripts use require('..') at runtime inside worker_threads which the tracer
-  // misses — force-include the whole package so the relative require resolves.
+  // misses — force-include the full transitive dep tree so all relative requires
+  // resolve. Run: node -e "..." to regenerate (see CODEBASE.md).
   outputFileTracingIncludes: {
     "**": [
       "./node_modules/tesseract.js/**",
       "./node_modules/tesseract.js-core/**",
+      "./node_modules/bmp-js/**",
+      "./node_modules/fetch-blob/**",
+      "./node_modules/formdata-polyfill/**",
+      "./node_modules/idb-keyval/**",
+      "./node_modules/is-url/**",
+      "./node_modules/node-domexception/**",
+      "./node_modules/node-fetch/**",
+      "./node_modules/regenerator-runtime/**",
+      "./node_modules/wasm-feature-detect/**",
+      "./node_modules/web-streams-polyfill/**",
+      "./node_modules/zlibjs/**",
     ],
   },
   env: {
