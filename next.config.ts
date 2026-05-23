@@ -6,6 +6,15 @@ const nextConfig: NextConfig = {
   // tesseract.js and sharp use __dirname-relative paths / native binaries;
   // bundling them breaks those paths, so keep them as native node_modules requires.
   serverExternalPackages: ["tesseract.js", "sharp"],
+  // standalone output only copies statically-traced files; tesseract.js worker
+  // scripts use require('..') at runtime inside worker_threads which the tracer
+  // misses — force-include the whole package so the relative require resolves.
+  outputFileTracingIncludes: {
+    "**": [
+      "./node_modules/tesseract.js/**",
+      "./node_modules/tesseract.js-core/**",
+    ],
+  },
   env: {
     NEXT_PUBLIC_APP_VERSION: version,
   },
