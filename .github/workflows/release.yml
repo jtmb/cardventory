@@ -40,6 +40,32 @@ jobs:
             echo "version=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
           fi
 
+      - name: Notify Discord — Build started
+        env:
+          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
+          VERSION: ${{ steps.version.outputs.version }}
+          ACTOR: ${{ github.actor }}
+          REPO: ${{ github.repository }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          python3 -c "
+          import json, os, urllib.request
+          p = {'embeds': [{
+            'title': '\U0001f528 Build Started',
+            'description': f'Building \`v{os.environ[\"VERSION\"]}\` in \`{os.environ[\"REPO\"]}\`',
+            'color': 3447003,
+            'fields': [
+              {'name': 'Actor', 'value': os.environ['ACTOR'], 'inline': True},
+              {'name': 'Run', 'value': f'[View]({os.environ[\"RUN_URL\"]})', 'inline': True},
+            ]
+          }]}
+          try:
+            r = urllib.request.Request(os.environ['DISCORD_WEBHOOK'], json.dumps(p).encode(), {'Content-Type': 'application/json'})
+            urllib.request.urlopen(r, timeout=10)
+          except Exception as e:
+            print('Discord notify failed:', e)
+          " || true
+
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
@@ -62,6 +88,7 @@ jobs:
             type=raw,value=${{ steps.version.outputs.version }},enable=${{ github.event_name == 'workflow_dispatch' }}
 
       - name: Build and push Docker image
+        id: docker_build
         uses: docker/build-push-action@v5
         with:
           context: .
@@ -73,6 +100,48 @@ jobs:
           platforms: linux/amd64
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+      - name: Notify Discord — Docker image pushed
+        if: success()
+        env:
+          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
+          VERSION: ${{ steps.version.outputs.version }}
+          IMAGE: ghcr.io/${{ env.IMAGE_NAME }}
+        run: |
+          python3 -c "
+          import json, os, urllib.request
+          p = {'embeds': [{
+            'title': '\U0001f4e6 Docker Image Pushed',
+            'description': f'\`{os.environ[\"IMAGE\"]}:v{os.environ[\"VERSION\"]}\` pushed to GHCR',
+            'color': 3066993,
+          }]}
+          try:
+            r = urllib.request.Request(os.environ['DISCORD_WEBHOOK'], json.dumps(p).encode(), {'Content-Type': 'application/json'})
+            urllib.request.urlopen(r, timeout=10)
+          except Exception as e:
+            print('Discord notify failed:', e)
+          " || true
+
+      - name: Notify Discord — Docker build failed
+        if: failure()
+        env:
+          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
+          VERSION: ${{ steps.version.outputs.version }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          python3 -c "
+          import json, os, urllib.request
+          p = {'embeds': [{
+            'title': '\u274c Docker Build Failed',
+            'description': f'Build failed for \`v{os.environ[\"VERSION\"]}\` — [view logs]({os.environ[\"RUN_URL\"]})',
+            'color': 15158332,
+          }]}
+          try:
+            r = urllib.request.Request(os.environ['DISCORD_WEBHOOK'], json.dumps(p).encode(), {'Content-Type': 'application/json'})
+            urllib.request.urlopen(r, timeout=10)
+          except Exception as e:
+            print('Discord notify failed:', e)
+          " || true
 
       - name: Scan image for vulnerabilities
         uses: aquasecurity/trivy-action@v0.36.0
@@ -89,6 +158,26 @@ jobs:
         uses: github/codeql-action/upload-sarif@v3
         with:
           sarif_file: trivy-results.sarif
+
+      - name: Notify Discord — Security scan complete
+        if: success()
+        env:
+          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          python3 -c "
+          import json, os, urllib.request
+          p = {'embeds': [{
+            'title': '\U0001f6e1\ufe0f Security Scan Passed',
+            'description': f'No critical/high unfixed vulnerabilities in \`v{os.environ[\"VERSION\"]}\`',
+            'color': 3066993,
+          }]}
+          try:
+            r = urllib.request.Request(os.environ['DISCORD_WEBHOOK'], json.dumps(p).encode(), {'Content-Type': 'application/json'})
+            urllib.request.urlopen(r, timeout=10)
+          except Exception as e:
+            print('Discord notify failed:', e)
+          " || true
 
       - name: Create GitHub Release
         if: success()
@@ -112,3 +201,45 @@ jobs:
             "https://api.github.com/repos/${{ github.repository }}/actions/workflows/deploy.yml/dispatches" \
             -d '{"ref":"main"}'
           echo "Dispatched deploy.yml"
+
+      - name: Notify Discord — Release published
+        if: success()
+        env:
+          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
+          VERSION: ${{ steps.version.outputs.version }}
+          RELEASE_URL: ${{ github.server_url }}/${{ github.repository }}/releases/tag/v${{ steps.version.outputs.version }}
+        run: |
+          python3 -c "
+          import json, os, urllib.request
+          p = {'embeds': [{
+            'title': '\u2705 Release v' + os.environ['VERSION'] + ' Published',
+            'description': f'Image pushed, scan passed, release created. Deployment triggered.\n[View Release]({os.environ[\"RELEASE_URL\"]})',
+            'color': 3066993,
+          }]}
+          try:
+            r = urllib.request.Request(os.environ['DISCORD_WEBHOOK'], json.dumps(p).encode(), {'Content-Type': 'application/json'})
+            urllib.request.urlopen(r, timeout=10)
+          except Exception as e:
+            print('Discord notify failed:', e)
+          " || true
+
+      - name: Notify Discord — Release pipeline failed
+        if: failure()
+        env:
+          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
+          VERSION: ${{ steps.version.outputs.version }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          python3 -c "
+          import json, os, urllib.request
+          p = {'embeds': [{
+            'title': '\u274c Release Pipeline Failed',
+            'description': f'Release \`v{os.environ[\"VERSION\"]}\` failed — [view logs]({os.environ[\"RUN_URL\"]})',
+            'color': 15158332,
+          }]}
+          try:
+            r = urllib.request.Request(os.environ['DISCORD_WEBHOOK'], json.dumps(p).encode(), {'Content-Type': 'application/json'})
+            urllib.request.urlopen(r, timeout=10)
+          except Exception as e:
+            print('Discord notify failed:', e)
+          " || true

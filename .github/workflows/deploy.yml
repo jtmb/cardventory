@@ -11,6 +11,25 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      - name: Notify Discord — Deploy started
+        env:
+          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          python3 -c "
+          import json, os, urllib.request
+          p = {'embeds': [{
+            'title': '\U0001f680 Deploying to Linode',
+            'description': f'Pulling latest image and restarting — [view run]({os.environ[\"RUN_URL\"]})',
+            'color': 3447003,
+          }]}
+          try:
+            r = urllib.request.Request(os.environ['DISCORD_WEBHOOK'], json.dumps(p).encode(), {'Content-Type': 'application/json'})
+            urllib.request.urlopen(r, timeout=10)
+          except Exception as e:
+            print('Discord notify failed:', e)
+          " || true
+
       - name: Deploy to Linode
         uses: appleboy/ssh-action@v1.0.3
         with:
@@ -23,3 +42,43 @@ jobs:
             docker compose pull
             docker compose up -d --remove-orphans
             docker image prune -f
+
+      - name: Notify Discord — Deploy succeeded
+        if: success()
+        env:
+          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
+          HOST: ${{ vars.LINODE_HOST }}
+        run: |
+          python3 -c "
+          import json, os, urllib.request
+          p = {'embeds': [{
+            'title': '\u2705 Deployment Complete',
+            'description': f'Cardventory is live on \`{os.environ[\"HOST\"]}\`',
+            'color': 3066993,
+          }]}
+          try:
+            r = urllib.request.Request(os.environ['DISCORD_WEBHOOK'], json.dumps(p).encode(), {'Content-Type': 'application/json'})
+            urllib.request.urlopen(r, timeout=10)
+          except Exception as e:
+            print('Discord notify failed:', e)
+          " || true
+
+      - name: Notify Discord — Deploy failed
+        if: failure()
+        env:
+          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          python3 -c "
+          import json, os, urllib.request
+          p = {'embeds': [{
+            'title': '\u274c Deployment Failed',
+            'description': f'Deploy to Linode failed — [view logs]({os.environ[\"RUN_URL\"]})',
+            'color': 15158332,
+          }]}
+          try:
+            r = urllib.request.Request(os.environ['DISCORD_WEBHOOK'], json.dumps(p).encode(), {'Content-Type': 'application/json'})
+            urllib.request.urlopen(r, timeout=10)
+          except Exception as e:
+            print('Discord notify failed:', e)
+          " || true

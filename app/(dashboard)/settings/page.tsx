@@ -13,7 +13,7 @@ import {
   SaveIcon, RefreshCwIcon, FlaskConicalIcon, RotateCcwIcon,
   CheckIcon, DownloadIcon, UploadIcon, SparklesIcon, EyeIcon, ShieldIcon,
   BellIcon, MailIcon, MessageSquareIcon, EyeOffIcon, SendIcon,
-  DatabaseIcon, Trash2Icon, StarIcon,
+  DatabaseIcon, Trash2Icon, StarIcon, ServerIcon, ClockIcon, CpuIcon,
 } from "lucide-react";
 import { seedTestData } from "@/lib/actions";
 import { UserManagementSection } from "@/components/user-management-section";
@@ -159,6 +159,15 @@ function SettingsContent() {
   const [settingsArrangement, setSettingsArrangement] = useState<SettingsArrangementKey>("single");
   // Appearance extras
   const [priceBadges, setPriceBadges] = useState(true);
+  // System info (admin)
+  const [systemInfo, setSystemInfo] = useState<{
+    version: string;
+    nodeVersion: string;
+    platform: string;
+    startedAt: string;
+    uptimeSeconds: number;
+    dbSizeBytes: number | null;
+  } | null>(null);
   // Logo state (admin)
   const [logoPreview, setLogoPreview] = useState<string | null>(null);
   const [logoUploading, setLogoUploading] = useState(false);
@@ -346,6 +355,11 @@ function SettingsContent() {
       fetch("/api/admin/logo")
         .then((r) => r.json())
         .then((data) => { if (data.url) setLogoPreview(data.url); })
+        .catch(() => {});
+      // Load system info
+      fetch("/api/system-info")
+        .then((r) => r.ok ? r.json() : null)
+        .then((data) => { if (data) setSystemInfo(data); })
         .catch(() => {});
     }
   }, [activeSection, isActualAdmin]);
@@ -2048,11 +2062,62 @@ function SettingsContent() {
         )}
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">Release Version</CardTitle>
-            <CardDescription>The currently running build of Cardventory.</CardDescription>
+            <CardTitle className="text-base flex items-center gap-2">
+              <ServerIcon className="h-4 w-4" /> About
+            </CardTitle>
+            <CardDescription>Runtime information for the currently running instance.</CardDescription>
           </CardHeader>
           <CardContent>
-            <p className="font-mono text-sm">v{process.env.NEXT_PUBLIC_APP_VERSION ?? "unknown"}</p>
+            <dl className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-3 text-sm">
+              <div className="space-y-0.5">
+                <dt className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Release Version</dt>
+                <dd className="font-mono">{systemInfo ? `v${systemInfo.version}` : `v${process.env.NEXT_PUBLIC_APP_VERSION ?? "unknown"}`}</dd>
+              </div>
+              <div className="space-y-0.5">
+                <dt className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Node.js</dt>
+                <dd className="font-mono">{systemInfo?.nodeVersion ?? "—"}</dd>
+              </div>
+              <div className="space-y-0.5">
+                <dt className="text-xs font-medium text-muted-foreground uppercase tracking-wide flex items-center gap-1">
+                  <ClockIcon className="h-3 w-3" /> Last Restart
+                </dt>
+                <dd>
+                  {systemInfo
+                    ? new Date(systemInfo.startedAt).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" })
+                    : "—"}
+                </dd>
+              </div>
+              <div className="space-y-0.5">
+                <dt className="text-xs font-medium text-muted-foreground uppercase tracking-wide flex items-center gap-1">
+                  <CpuIcon className="h-3 w-3" /> Uptime
+                </dt>
+                <dd>
+                  {systemInfo
+                    ? (() => {
+                        const s = systemInfo.uptimeSeconds;
+                        const d = Math.floor(s / 86400);
+                        const h = Math.floor((s % 86400) / 3600);
+                        const m = Math.floor((s % 3600) / 60);
+                        return [d && `${d}d`, h && `${h}h`, `${m}m`].filter(Boolean).join(" ");
+                      })()
+                    : "—"}
+                </dd>
+              </div>
+              <div className="space-y-0.5">
+                <dt className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Database Size</dt>
+                <dd>
+                  {systemInfo?.dbSizeBytes != null
+                    ? systemInfo.dbSizeBytes < 1024 * 1024
+                      ? `${(systemInfo.dbSizeBytes / 1024).toFixed(1)} KB`
+                      : `${(systemInfo.dbSizeBytes / (1024 * 1024)).toFixed(2)} MB`
+                    : "—"}
+                </dd>
+              </div>
+              <div className="space-y-0.5">
+                <dt className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Platform</dt>
+                <dd className="font-mono">{systemInfo?.platform ?? "—"}</dd>
+              </div>
+            </dl>
           </CardContent>
         </Card>
         {/* Database Backups */}
