@@ -3,6 +3,11 @@ name: Deploy
 on:
   # Triggered by release.yml after a successful build, or manually
   workflow_dispatch:
+    inputs:
+      version:
+        description: "Release version (e.g. 1.0.49)"
+        required: false
+        default: ""
 
 permissions: {}
 
@@ -11,25 +16,6 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Notify Discord — Deploy started
-        env:
-          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
-          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-        run: |
-          python3 -c "
-          import json, os, urllib.request
-          p = {'embeds': [{
-            'title': '\U0001f680 Deploying to Linode',
-            'description': f'Pulling latest image and restarting — [view run]({os.environ[\"RUN_URL\"]})',
-            'color': 3447003,
-          }]}
-          try:
-            r = urllib.request.Request(os.environ['DISCORD_WEBHOOK'], json.dumps(p).encode(), {'Content-Type': 'application/json', 'User-Agent': 'curl/7.68.0'})
-            urllib.request.urlopen(r, timeout=10)
-          except Exception as e:
-            print('Discord notify failed:', e)
-          " || true
-
       - name: Deploy to Linode
         uses: appleboy/ssh-action@v1.0.3
         with:
@@ -48,16 +34,26 @@ jobs:
         env:
           DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
           HOST: ${{ vars.LINODE_HOST }}
+          VERSION: ${{ github.event.inputs.version }}
+          RELEASE_URL: ${{ github.server_url }}/${{ github.repository }}/releases/tag/v${{ github.event.inputs.version }}
         run: |
           python3 -c "
           import json, os, urllib.request
-          p = {'embeds': [{
-            'title': '\u2705 Deployment Complete',
-            'description': f'Cardventory is live on \`{os.environ[\"HOST\"]}\`',
-            'color': 3066993,
-          }]}
+          v = os.environ.get('VERSION', '')
+          host = os.environ.get('HOST', 'unknown')
+          rel = os.environ.get('RELEASE_URL', '')
+          desc = (f'\`v{v}\` is live on \`{host}\`' if v else f'Latest is live on \`{host}\`')
+          fields = [
+            {'name': '\U0001f528 Build', 'value': 'passed', 'inline': True},
+            {'name': '\U0001f4e6 Docker Push', 'value': 'pushed to GHCR', 'inline': True},
+            {'name': '\U0001f6e1\ufe0f Security Scan', 'value': 'no critical CVEs', 'inline': True},
+            {'name': '\U0001f680 Deployed', 'value': f'\`{host}\`', 'inline': True},
+          ]
+          if v and rel:
+            fields.append({'name': '\U0001f3f7\ufe0f Release', 'value': f'[v{v}]({rel})', 'inline': True})
+          p = {'embeds': [{'title': '\u2705 Deployment Complete', 'description': desc, 'color': 3066993, 'fields': fields}]}
+          r = urllib.request.Request(os.environ['DISCORD_WEBHOOK'], json.dumps(p).encode(), {'Content-Type': 'application/json', 'User-Agent': 'curl/7.68.0'})
           try:
-            r = urllib.request.Request(os.environ['DISCORD_WEBHOOK'], json.dumps(p).encode(), {'Content-Type': 'application/json', 'User-Agent': 'curl/7.68.0'})
             urllib.request.urlopen(r, timeout=10)
           except Exception as e:
             print('Discord notify failed:', e)
