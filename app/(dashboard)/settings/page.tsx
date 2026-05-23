@@ -18,9 +18,10 @@ import {
   CheckIcon, DownloadIcon, UploadIcon, SparklesIcon, EyeIcon, ShieldIcon,
   BellIcon, MailIcon, MessageSquareIcon, EyeOffIcon, SendIcon,
   DatabaseIcon, Trash2Icon, StarIcon, ServerIcon, ClockIcon, CpuIcon,
-  TriangleAlertIcon,
+  TriangleAlertIcon, ChevronUpIcon, ChevronDownIcon, ChevronLeftIcon, ChevronRightIcon,
 } from "lucide-react";
 import { seedTestData } from "@/lib/actions";
+import { cn } from "@/lib/utils";
 import { UserManagementSection } from "@/components/user-management-section";
 import {
   THEME_VARS, type ThemeColors, THEME_LS_KEY, applyThemeColors,
@@ -180,6 +181,9 @@ function SettingsContent() {
   // Banner state (admin)
   const [bannerPreview, setBannerPreview] = useState<string | null>(null);
   const [bannerUploading, setBannerUploading] = useState(false);
+  const [bannerSize, setBannerSize] = useState("sm");
+  const [bannerOffset, setBannerOffset] = useState({ x: 0, y: 0 });
+  const [bannerUrlInput, setBannerUrlInput] = useState("");
   // Account panel state
   const [accountName, setAccountName] = useState(session?.user?.name ?? "");
   const [accountCurrentPw, setAccountCurrentPw] = useState("");
@@ -367,7 +371,11 @@ function SettingsContent() {
       // Load current banner
       fetch("/api/admin/banner")
         .then((r) => r.json())
-        .then((data) => { if (data.url) setBannerPreview(data.url); })
+        .then((data) => {
+          if (data.url) setBannerPreview(data.url);
+          setBannerSize(data.size ?? "sm");
+          if (data.offset) setBannerOffset(data.offset);
+        })
         .catch(() => {});
       // Load system info
       fetch("/api/system-info")
@@ -1923,18 +1931,14 @@ function SettingsContent() {
         {isAdmin && (
           <Card>
             <CardHeader>
-              <CardTitle className="text-base flex items-center gap-2">
-                <FlaskConicalIcon className="h-4 w-4" /> Demo Mode
-              </CardTitle>
-              <CardDescription>
-                Show a visible banner indicating this is a demonstration instance. Useful when sharing the app with others.
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
               <div className="flex items-center justify-between gap-4">
-                <div>
-                  <p className="text-sm font-medium">Enable demo mode</p>
-                  <p className="text-xs text-muted-foreground mt-0.5">Displays a &ldquo;Demo Mode&rdquo; banner across the top of the dashboard for all users.</p>
+                <div className="space-y-1">
+                  <CardTitle className="text-base flex items-center gap-2">
+                    <FlaskConicalIcon className="h-4 w-4" /> Demo Mode
+                  </CardTitle>
+                  <CardDescription>
+                    Show a visible banner indicating this is a demonstration instance. Useful when sharing the app with others.
+                  </CardDescription>
                 </div>
                 <label className="relative inline-flex items-center cursor-pointer shrink-0">
                   <input
@@ -1946,7 +1950,7 @@ function SettingsContent() {
                   <div className="w-10 h-5.5 bg-muted border border-border rounded-full peer peer-checked:bg-primary transition-colors after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:bg-white after:rounded-full after:h-4.5 after:w-4.5 after:transition-all peer-checked:after:translate-x-4.5" />
                 </label>
               </div>
-            </CardContent>
+            </CardHeader>
           </Card>
         )}
         {/* App Logo */}
@@ -1964,7 +1968,7 @@ function SettingsContent() {
                 // eslint-disable-next-line @next/next/no-img-element
                 <img src={logoPreview} alt="Logo preview" className="w-12 h-12 rounded-xl object-contain border border-border bg-muted" />
               ) : (
-                <div className="w-12 h-12 rounded-xl border border-dashed border-border bg-muted flex items-center justify-center text-muted-foreground text-xl">&#128247;</div>
+                <div className="w-12 h-12 rounded-xl border border-dashed border-border bg-muted flex items-center justify-center text-muted-foreground text-xs">No logo set</div>
               )}
               <div className="flex flex-col gap-2">
                 <label className="cursor-pointer">
@@ -2103,6 +2107,7 @@ function SettingsContent() {
                         const data = await res.json();
                         if (!res.ok) throw new Error(data.error);
                         setBannerPreview(data.url);
+                        window.dispatchEvent(new CustomEvent("banner-changed", { detail: { url: data.url, size: bannerSize, offset: bannerOffset } }));
                         toast.success("Banner updated");
                       } catch (err) {
                         toast.error(err instanceof Error ? err.message : "Upload failed");
@@ -2123,6 +2128,7 @@ function SettingsContent() {
                       try {
                         await fetch("/api/admin/banner", { method: "DELETE" });
                         setBannerPreview(null);
+                        window.dispatchEvent(new CustomEvent("banner-changed", { detail: { url: null, size: bannerSize, offset: bannerOffset } }));
                         toast.success("Banner removed");
                       } finally { setBannerUploading(false); }
                     }}
@@ -2130,6 +2136,177 @@ function SettingsContent() {
                     Remove banner
                   </button>
                 )}
+              </div>
+            </div>
+            <div className="space-y-1.5">
+              <p className="type-label-large font-medium">Or use an image URL</p>
+              <div className="flex gap-2">
+                <input
+                  type="url"
+                  placeholder="https://example.com/banner.png"
+                  value={bannerUrlInput}
+                  onChange={(e) => setBannerUrlInput(e.target.value)}
+                  className="flex-1 h-9 rounded-md border border-border bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                />
+                <Button
+                  size="sm"
+                  variant="outline"
+                  disabled={!bannerUrlInput.trim() || bannerUploading}
+                  onClick={async () => {
+                    const url = bannerUrlInput.trim();
+                    if (!url.startsWith("http://") && !url.startsWith("https://")) {
+                      toast.error("URL must start with http:// or https://");
+                      return;
+                    }
+                    setBannerUploading(true);
+                    try {
+                      const res = await fetch("/api/admin/banner", {
+                        method: "PATCH",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ url }),
+                      });
+                      const data = await res.json();
+                      if (!res.ok) throw new Error(data.error);
+                      setBannerPreview(data.url);
+                      setBannerUrlInput("");
+                      window.dispatchEvent(new CustomEvent("banner-changed", { detail: { url: data.url, size: bannerSize, offset: bannerOffset } }));
+                      toast.success("Banner updated");
+                    } catch (err) {
+                      toast.error(err instanceof Error ? err.message : "Failed");
+                    } finally {
+                      setBannerUploading(false);
+                    }
+                  }}
+                >
+                  Apply
+                </Button>
+              </div>
+            </div>
+            <div className="flex items-center gap-3">
+              <span className="text-sm text-muted-foreground w-28 shrink-0">Banner size</span>
+              <div className="flex gap-1.5">
+                {([{ key: "sm", label: "Small" }, { key: "md", label: "Medium" }, { key: "lg", label: "Large" }, { key: "2xl", label: "2XL" }, { key: "xl", label: "XL" }] as const).map((opt) => (
+                  <button
+                    key={opt.key}
+                    type="button"
+                    disabled={bannerUploading}
+                    onClick={async () => {
+                      setBannerSize(opt.key);
+                      window.dispatchEvent(new CustomEvent("banner-changed", { detail: { url: bannerPreview, size: opt.key, offset: bannerOffset } }));
+                      try {
+                        await fetch("/api/admin/banner", {
+                          method: "PATCH",
+                          headers: { "Content-Type": "application/json" },
+                          body: JSON.stringify({ size: opt.key }),
+                        });
+                      } catch { /* non-critical */ }
+                    }}
+                    className={cn(
+                      "px-3 py-1.5 rounded text-sm transition-colors",
+                      bannerSize === opt.key
+                        ? "bg-primary text-primary-foreground"
+                        : "bg-muted hover:bg-accent text-foreground"
+                    )}
+                  >
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className="flex items-center gap-3">
+              <span className="text-sm text-muted-foreground w-28 shrink-0">Banner position</span>
+              <div className="flex items-center gap-4">
+                <div className="grid grid-cols-3 gap-0.5">
+                  <div />
+                  <button
+                    type="button"
+                    title="Move up"
+                    onClick={async () => {
+                      const next = { x: bannerOffset.x, y: Math.max(-48, bannerOffset.y - 1) };
+                      setBannerOffset(next);
+                      window.dispatchEvent(new CustomEvent("banner-changed", { detail: { url: bannerPreview, size: bannerSize, offset: next } }));
+                      try { await fetch("/api/admin/banner", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ offset: next }) }); } catch { /* non-critical */ }
+                    }}
+                    className="flex items-center justify-center w-7 h-7 rounded border border-border hover:bg-accent"
+                  >
+                    <ChevronUpIcon className="h-4 w-4" />
+                  </button>
+                  <div />
+                  <button
+                    type="button"
+                    title="Move left"
+                    onClick={async () => {
+                      const next = { x: Math.max(-48, bannerOffset.x - 1), y: bannerOffset.y };
+                      setBannerOffset(next);
+                      window.dispatchEvent(new CustomEvent("banner-changed", { detail: { url: bannerPreview, size: bannerSize, offset: next } }));
+                      try { await fetch("/api/admin/banner", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ offset: next }) }); } catch { /* non-critical */ }
+                    }}
+                    className="flex items-center justify-center w-7 h-7 rounded border border-border hover:bg-accent"
+                  >
+                    <ChevronLeftIcon className="h-4 w-4" />
+                  </button>
+                  <button
+                    type="button"
+                    title="Reset position"
+                    onClick={async () => {
+                      const next = { x: 0, y: 0 };
+                      setBannerOffset(next);
+                      window.dispatchEvent(new CustomEvent("banner-changed", { detail: { url: bannerPreview, size: bannerSize, offset: next } }));
+                      try { await fetch("/api/admin/banner", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ offset: next }) }); } catch { /* non-critical */ }
+                    }}
+                    className="flex items-center justify-center w-7 h-7 rounded border border-border hover:bg-accent text-muted-foreground text-base leading-none"
+                  >
+                    ·
+                  </button>
+                  <button
+                    type="button"
+                    title="Move right"
+                    onClick={async () => {
+                      const next = { x: Math.min(48, bannerOffset.x + 1), y: bannerOffset.y };
+                      setBannerOffset(next);
+                      window.dispatchEvent(new CustomEvent("banner-changed", { detail: { url: bannerPreview, size: bannerSize, offset: next } }));
+                      try { await fetch("/api/admin/banner", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ offset: next }) }); } catch { /* non-critical */ }
+                    }}
+                    className="flex items-center justify-center w-7 h-7 rounded border border-border hover:bg-accent"
+                  >
+                    <ChevronRightIcon className="h-4 w-4" />
+                  </button>
+                  <div />
+                  <button
+                    type="button"
+                    title="Move down"
+                    onClick={async () => {
+                      const next = { x: bannerOffset.x, y: Math.min(48, bannerOffset.y + 1) };
+                      setBannerOffset(next);
+                      window.dispatchEvent(new CustomEvent("banner-changed", { detail: { url: bannerPreview, size: bannerSize, offset: next } }));
+                      try { await fetch("/api/admin/banner", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ offset: next }) }); } catch { /* non-critical */ }
+                    }}
+                    className="flex items-center justify-center w-7 h-7 rounded border border-border hover:bg-accent"
+                  >
+                    <ChevronDownIcon className="h-4 w-4" />
+                  </button>
+                  <div />
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <span className="text-xs text-muted-foreground tabular-nums">
+                    {bannerOffset.x === 0 && bannerOffset.y === 0
+                      ? "no offset"
+                      : `x: ${bannerOffset.x}px, y: ${bannerOffset.y}px`}
+                  </span>
+                  <button
+                    type="button"
+                    disabled={bannerOffset.x === 0 && bannerOffset.y === 0}
+                    onClick={async () => {
+                      const next = { x: 0, y: 0 };
+                      setBannerOffset(next);
+                      window.dispatchEvent(new CustomEvent("banner-changed", { detail: { url: bannerPreview, size: bannerSize, offset: next } }));
+                      try { await fetch("/api/admin/banner", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ offset: next }) }); } catch { /* non-critical */ }
+                    }}
+                    className="text-xs text-muted-foreground hover:text-foreground disabled:opacity-40 disabled:cursor-not-allowed text-left"
+                  >
+                    Reset position
+                  </button>
+                </div>
               </div>
             </div>
           </CardContent>

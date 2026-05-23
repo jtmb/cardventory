@@ -62,7 +62,7 @@ export default async function PublicProfilePage(
       <header className="sticky top-0 z-30 border-b" style={{ borderColor: "oklch(0.2 0.01 260)", background: "oklch(0.08 0.01 260 / 0.85)", backdropFilter: "blur(12px)" }}>
         <div className="max-w-6xl mx-auto px-5 py-3 flex items-center justify-between">
           <Link href="/" className="flex items-center gap-2 text-sm font-bold tracking-tight">
-            <AppBanner logoSize="sm" textStyle={{ color: "oklch(0.914 0 0)" }} />
+            <AppBanner logoSize="sm" textStyle={{ color: "oklch(0.914 0 0)" }} maxSize="2xl" />
           </Link>
           {isSignedIn ? (
             <Link

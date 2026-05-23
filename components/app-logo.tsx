@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from "react";
 import Image from "next/image";
-import { TrendingUpIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface AppLogoProps {
@@ -38,6 +37,13 @@ export function AppLogo({ size = "md", className }: AppLogoProps) {
       unoptimized
     />
   ) : (
-    <TrendingUpIcon className={cn(`${cls} text-primary`, className)} aria-hidden />
+    <Image
+      src="/branding/cardventory-rookie-mark-icon-dark.svg"
+      alt="Cardventory"
+      width={px}
+      height={px}
+      className={cn(`${cls} object-contain`, className)}
+      unoptimized
+    />
   );
 }
