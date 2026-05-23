@@ -85,6 +85,14 @@ function formatBytes(bytes: number): string {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
+function toDefaultUsername(name: string): string {
+  return name
+    .toLowerCase()
+    .replace(/\s+/g, "_")
+    .replace(/[^a-z0-9_-]/g, "")
+    .slice(0, 30);
+}
+
 function SettingsContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -151,7 +159,6 @@ function SettingsContent() {
   const [settingsArrangement, setSettingsArrangement] = useState<SettingsArrangementKey>("single");
   // Appearance extras
   const [priceBadges, setPriceBadges] = useState(true);
-  const [showRefreshWheel, setShowRefreshWheel] = useState(true);
   // Logo state (admin)
   const [logoPreview, setLogoPreview] = useState<string | null>(null);
   const [logoUploading, setLogoUploading] = useState(false);
@@ -163,8 +170,9 @@ function SettingsContent() {
   const [accountConfirmPw, setAccountConfirmPw] = useState("");
   const [accountSaving, setAccountSaving] = useState(false);
   // Public profile
-  const [usernameInput, setUsernameInput] = useState("");
+  const [usernameInput, setUsernameInput] = useState(() => toDefaultUsername(session?.user?.name ?? ""));
   const [profilePublic, setProfilePublic] = useState(false);
+  const [profileTradeBaitOnly, setProfileTradeBaitOnly] = useState(false);
   const [profileSaving, setProfileSaving] = useState(false);
 
   // Sync name from session when session loads
@@ -271,7 +279,6 @@ function SettingsContent() {
           localStorage.setItem(SETTINGS_ARRANGEMENT_LS_KEY, sa);
         }
         if (data.price_badges !== undefined) setPriceBadges(data.price_badges !== "false");
-        if (data.show_refresh_wheel !== undefined) setShowRefreshWheel(data.show_refresh_wheel !== "false");
         if (data.manual_refresh_last) {
           const nextAllowed = new Date(new Date(data.manual_refresh_last).getTime() + 24 * 60 * 60 * 1000);
           setRefreshCooldownUntil(nextAllowed);
@@ -293,8 +300,9 @@ function SettingsContent() {
         if (data.notif_on_new_high !== undefined) setNotifOnNewHigh(data.notif_on_new_high === "true");
         if (data.notif_on_price_change !== undefined) setNotifOnPriceChange(data.notif_on_price_change === "true");
         // Public profile
-        if (data._username) setUsernameInput(data._username);
+        setUsernameInput(data._username || toDefaultUsername(session?.user?.name ?? ""));
         if (data._profilePublic !== undefined) setProfilePublic(Boolean(data._profilePublic));
+        if (data.profile_trade_bait_only !== undefined) setProfileTradeBaitOnly(data.profile_trade_bait_only === "true");
       })
       .catch(() => {});
 
@@ -418,7 +426,6 @@ function SettingsContent() {
     setBtnStyle("filled");
     setZoomScale("natural");
     setPriceBadges(true);
-    setShowRefreshWheel(true);
     setSettingsLayout("centered");
     setSettingsArrangement("single");
     // Apply CSS immediately
@@ -453,7 +460,6 @@ function SettingsContent() {
           btn_style: "filled",
           zoom_scale: "natural",
           price_badges: true,
-          show_refresh_wheel: true,
           settings_layout: "centered",
           settings_arrangement: "single",
         }),
@@ -480,7 +486,6 @@ function SettingsContent() {
       settings_layout: settingsLayout,
       settings_arrangement: settingsArrangement,
       price_badges: priceBadges,
-      show_refresh_wheel: showRefreshWheel,
       refresh_interval: refreshInterval,
       notif_email_enabled: notifEmailEnabled,
       notif_smtp_host: notifSmtpHost,
@@ -565,7 +570,6 @@ function SettingsContent() {
           settings_layout: s.settings_layout,
           settings_arrangement: s.settings_arrangement,
           price_badges: String(s.price_badges),
-          show_refresh_wheel: String(s.show_refresh_wheel),
           notif_email_enabled: String(s.notif_email_enabled),
           notif_smtp_host: s.notif_smtp_host,
           notif_smtp_port: s.notif_smtp_port,
@@ -847,9 +851,31 @@ function SettingsContent() {
                   <span className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow-lg transition-transform ${profilePublic ? "translate-x-4" : "translate-x-0"}`} />
                 </button>
               </div>
+              <div className="flex items-center justify-between rounded-md border border-border px-3 py-2.5">
+                <div>
+                  <p className="text-sm font-medium">Show trade bait only</p>
+                  <p className="text-xs text-muted-foreground">Public profile shows only cards marked for trade.</p>
+                </div>
+                <button
+                  role="switch"
+                  aria-checked={profileTradeBaitOnly}
+                  onClick={() => setProfileTradeBaitOnly((v) => !v)}
+                  className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 ${profileTradeBaitOnly ? "bg-primary" : "bg-muted"}`}
+                >
+                  <span className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow-lg transition-transform ${profileTradeBaitOnly ? "translate-x-4" : "translate-x-0"}`} />
+                </button>
+              </div>
               {usernameInput && profilePublic && (
                 <div className="flex items-center gap-2 rounded-md bg-muted px-3 py-2 text-xs text-muted-foreground overflow-hidden">
                   <span className="truncate font-mono">{typeof window !== "undefined" ? window.location.origin : ""}/u/{usernameInput}</span>
+                  <a
+                    href={`/u/${usernameInput}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="shrink-0 underline hover:text-foreground transition-colors"
+                  >
+                    View
+                  </a>
                   <button
                     className="shrink-0 underline hover:text-foreground transition-colors"
                     onClick={() => {
@@ -880,6 +906,12 @@ function SettingsContent() {
                       });
                       const data = await res.json();
                       if (!res.ok) throw new Error(data.error);
+                      // Save profile_trade_bait_only to settings
+                      await fetch("/api/settings", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ profile_trade_bait_only: String(profileTradeBaitOnly) }),
+                      });
                       toast.success("Public profile updated");
                     } catch (e) {
                       toast.error(e instanceof Error ? e.message : "Failed");
@@ -1076,41 +1108,6 @@ function SettingsContent() {
                 <span
                   className={`inline-block h-4 w-4 rounded-full bg-white shadow transition-transform ${
                     priceBadges ? "translate-x-5" : "translate-x-0.5"
-                  }`}
-                />
-              </button>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Refresh Wheel */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Refresh Wheel</CardTitle>
-            <CardDescription>
-              Show the &quot;Refresh All Prices&quot; spinning wheel button in the toolbar on My Cards and Watchlist.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="type-label-large font-medium">Refresh wheel</p>
-                <p className="type-label-small text-muted-foreground mt-0.5">
-                  {showRefreshWheel ? "On — button shown in toolbar" : "Off — button hidden"}
-                </p>
-              </div>
-              <button
-                type="button"
-                role="switch"
-                aria-checked={showRefreshWheel}
-                onClick={() => setShowRefreshWheel((v) => !v)}
-                className={`relative inline-flex h-6 w-11 items-center rounded-full border-2 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
-                  showRefreshWheel ? "bg-primary border-primary" : "bg-muted border-border"
-                }`}
-              >
-                <span
-                  className={`inline-block h-4 w-4 rounded-full bg-white shadow transition-transform ${
-                    showRefreshWheel ? "translate-x-5" : "translate-x-0.5"
                   }`}
                 />
               </button>

@@ -23,7 +23,6 @@ import { TrendingUpIcon, TrendingDownIcon, LayersIcon, DollarSignIcon, PlusCircl
 import { Card, CardContent } from "@/components/ui/card";
 import { ButtonLink } from "@/components/ui/button-link";
 import { Badge } from "@/components/ui/badge";
-import { RefreshAllButton } from "@/components/cards/refresh-all-button";
 import { RecentCardsSection } from "@/components/cards/recent-cards-section";
 import { PortfolioChart } from "@/components/cards/portfolio-chart";
 import type { Card as CardType } from "@/lib/db/schema";

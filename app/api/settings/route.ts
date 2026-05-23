@@ -18,7 +18,7 @@ const ALLOWED_USER_SETTING_KEYS = new Set([
   "settings_layout",
   "settings_arrangement",
   "price_badges",
-  "show_refresh_wheel",
+  "profile_trade_bait_only",
   "manual_refresh_last",
   "notif_email_enabled",
   "notif_smtp_host",

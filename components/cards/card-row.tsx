@@ -7,7 +7,7 @@ import { useCardPanel } from "@/components/cards/card-panel-context";
 import { SmartCardImage } from "@/components/cards/smart-card-image";
 import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { CheckIcon, PencilIcon, Trash2Icon, TrendingUpIcon, TrendingDownIcon } from "lucide-react";
+import { ArrowRightLeftIcon, CheckIcon, PencilIcon, Trash2Icon, TrendingUpIcon, TrendingDownIcon } from "lucide-react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -19,7 +19,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { deleteCard } from "@/lib/actions";
+import { deleteCard, updateCardsTradeBait } from "@/lib/actions";
 
 function fmt(n: number | null | undefined) {
   if (n == null) return "—";
@@ -113,6 +113,13 @@ export function CardRow({
     });
   }
 
+  function handleToggleTradeBait() {
+    startTransition(async () => {
+      await updateCardsTradeBait([card.id], !card.isTradeBait);
+      router.refresh();
+    });
+  }
+
   const rowProps: RowLayoutProps = {
     card, setLine, selectable, selected, onToggle, isPending,
     loading, currentValue, handleDelete,
@@ -134,6 +141,20 @@ export function CardRow({
           >
             <PencilIcon className="h-3.5 w-3.5" />
           </Link>
+
+          <button
+            type="button"
+            onClick={(e) => { e.stopPropagation(); handleToggleTradeBait(); }}
+            disabled={isPending}
+            title={card.isTradeBait ? "Remove from trade" : "Mark for trade"}
+            className={`flex items-center justify-center w-7 h-7 rounded-md backdrop-blur-sm transition-colors disabled:opacity-50 ${
+              card.isTradeBait
+                ? "bg-emerald-600/80 hover:bg-emerald-700/90 text-white"
+                : "bg-black/60 hover:bg-emerald-600/80 text-white"
+            }`}
+          >
+            <ArrowRightLeftIcon className="h-3.5 w-3.5" />
+          </button>
 
           <AlertDialog>
             <AlertDialogTrigger
@@ -300,6 +321,11 @@ function CardInner({
               <span className="text-[10px] font-medium text-white/85 leading-tight">{conditionLabel(card.condition)!.short}</span>
             </div>
           )}
+          {card.isTradeBait && (
+            <div className="flex items-center bg-emerald-500/75 backdrop-blur-sm shadow-md rounded-md px-1.5 py-0.5">
+              <ArrowRightLeftIcon className="h-2.5 w-2.5 text-white" />
+            </div>
+          )}
         </div>
         {!loading && priceChange7d !== null && priceChange7d !== 0 && (
           <div className="absolute top-2 left-2 hidden @[130px]:flex items-center gap-0.5 bg-black/65 backdrop-blur-sm shadow-md rounded-md px-1.5 py-0.5">
@@ -352,11 +378,6 @@ function CardInner({
         <p className="type-title-small font-semibold leading-tight line-clamp-1 tracking-tight">{card.name}</p>
         {setLine && (
           <p className="text-xs text-muted-foreground truncate">{setLine}</p>
-        )}
-        {card.isTradeBait && (
-          <span className="inline-flex items-center gap-0.5 text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-emerald-500/15 text-emerald-500 border border-emerald-500/25">
-            🔄 Trade Bait
-          </span>
         )}
         <div className="pt-1">
           {loading ? (

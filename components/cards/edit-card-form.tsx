@@ -42,7 +42,7 @@ const CONDITION_OPTIONS = [
   ...CONDITIONS.map((c) => ({ value: c.toLowerCase().replace(/ /g, "_"), label: c })),
 ];
 
-export function EditCardForm({ card }: { card: Card }) {
+export function EditCardForm({ card, inOverlay = false }: { card: Card; inOverlay?: boolean }) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [photoPreview, setPhotoPreview] = useState<string | null>(card.photoUrl);
@@ -113,7 +113,11 @@ export function EditCardForm({ card }: { card: Card }) {
         isTradeBait: status === "owned" ? isTradeBait : false,
       });
       toast.success("Card updated");
-      router.push(`/cards/${card.id}`);
+      if (inOverlay) {
+        router.back();
+      } else {
+        router.push(`/cards/${card.id}`);
+      }
     } catch {
       toast.error("Update failed");
       setLoading(false);
@@ -122,13 +126,17 @@ export function EditCardForm({ card }: { card: Card }) {
 
   return (
     <div className="space-y-6">
-      <ButtonLink href={`/cards/${card.id}`} variant="ghost" size="sm" className="gap-2 -ml-2 inline-flex items-center">
-        <ArrowLeftIcon className="h-4 w-4" /> Back
-      </ButtonLink>
-      <div>
-        <h1 className="text-2xl font-bold">Edit Card</h1>
-        <p className="text-muted-foreground text-sm mt-0.5">{card.name}</p>
-      </div>
+      {!inOverlay && (
+        <>
+          <ButtonLink href={`/cards/${card.id}`} variant="ghost" size="sm" className="gap-2 -ml-2 inline-flex items-center">
+            <ArrowLeftIcon className="h-4 w-4" /> Back
+          </ButtonLink>
+          <div>
+            <h1 className="text-2xl font-bold">Edit Card</h1>
+            <p className="text-muted-foreground text-sm mt-0.5">{card.name}</p>
+          </div>
+        </>
+      )}
       {/* Status toggle */}
       <div className="flex items-center gap-2">
         <button

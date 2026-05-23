@@ -25,16 +25,8 @@ const nextConfig: NextConfig = {
   images: {
     minimumCacheTTL: 86400, // cache optimised remote images for 24 h
     remotePatterns: [
-      { protocol: "https", hostname: "**.ebayimg.com" },
-      { protocol: "https", hostname: "**.ebay.com" },
-      { protocol: "https", hostname: "**.sportscardinvestor.com" },
-      { protocol: "https", hostname: "**.cardladder.com" },
-      { protocol: "https", hostname: "**.sportscardspro.com" },
-      { protocol: "https", hostname: "i.ebayimg.com" },
-      { protocol: "https", hostname: "**.pristineauction.com" },
-      { protocol: "https", hostname: "**.cloudfront.net" },
-      { protocol: "https", hostname: "**.myslabs.com" },
-      { protocol: "https", hostname: "storage.googleapis.com" },
+      { protocol: "https", hostname: "**" },
+      { protocol: "http",  hostname: "localhost" },
     ],
   },
 };

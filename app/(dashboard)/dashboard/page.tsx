@@ -1,18 +1,18 @@
 import { getDashboardStats, getGradeStats, getPortfolioHistory } from "@/lib/actions";
 import { auth } from "@/auth";
+import { redirect } from "next/navigation";
 import { LayersIcon } from "lucide-react";
 import { AddCardButton } from "@/components/cards/add-card-button";
-import { RefreshAllButton } from "@/components/cards/refresh-all-button";
 import { DraggableDashboard } from "@/components/dashboard/draggable-dashboard";
 
 export default async function DashboardPage() {
   const session = await auth();
+  if (!session?.user?.id) redirect("/login");
   const [stats, gradeStats, portfolioHistory] = await Promise.all([
     getDashboardStats(),
     getGradeStats(),
     getPortfolioHistory(),
   ]);
-
   return (
     <div className="p-6 space-y-8 max-w-7xl mx-auto">
       {/* Header */}
@@ -23,7 +23,6 @@ export default async function DashboardPage() {
         </div>
         <div className="flex items-center gap-1 shrink-0 mt-1">
           <AddCardButton iconOnly label="Add Card" />
-          <RefreshAllButton />
         </div>
       </div>
 

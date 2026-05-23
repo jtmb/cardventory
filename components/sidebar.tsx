@@ -45,7 +45,6 @@ const settingsSubItems = [
   { key: "appearance",    label: "Appearance",    icon: PaletteIcon  },
   { key: "data",          label: "Data",          icon: DatabaseIcon },
   { key: "notifications", label: "Notifications", icon: BellIcon     },
-  { key: "account",       label: "Account",       icon: UserCircleIcon },
 ];
 
 const adminSubItems = [
@@ -200,7 +199,20 @@ function NavContent({ onNavigate }: { onNavigate?: () => void }) {
         </nav>
       </ScrollFade>
 
-      <div className="px-3 py-4 border-t border-sidebar-border shrink-0">
+      <div className="px-3 py-4 border-t border-sidebar-border shrink-0 space-y-1">
+        <Link
+          href="/settings?s=account"
+          onClick={onNavigate}
+          className="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-sidebar-accent transition-colors group"
+        >
+          <div className="w-7 h-7 rounded-full bg-primary/20 flex items-center justify-center text-xs font-bold text-primary shrink-0">
+            {session?.user?.name?.[0]?.toUpperCase() ?? "?"}
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-xs font-medium text-sidebar-foreground truncate">{session?.user?.name}</p>
+            <p className="text-[10px] text-sidebar-foreground/50 truncate">Account &amp; Profile</p>
+          </div>
+        </Link>
         <Button
           variant="ghost"
           className="w-full justify-start gap-3 text-sidebar-foreground/60 hover:text-sidebar-foreground hover:bg-sidebar-accent text-sm"

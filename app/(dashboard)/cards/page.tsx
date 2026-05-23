@@ -4,6 +4,7 @@ import { CardGrid } from "@/components/cards/card-grid";
 import { PaginationControls } from "@/components/cards/pagination-controls";
 import { CardsPageShell } from "@/components/cards/cards-page-shell";
 import { DuplicatesBanner } from "@/components/cards/duplicates-banner";
+import { AddCardButton } from "@/components/cards/add-card-button";
 
 const DEFAULT_PAGE_SIZE = 24;
 
@@ -23,8 +24,6 @@ export default async function CardsPage({
     getAllSettings(),
     getDuplicateGroups(),
   ]);
-  const showRefreshWheel = userSettings.show_refresh_wheel !== "false";
-
   // In duplicate view, flatten all duplicated cards and show only them
   const isDuplicateView = view === "duplicates";
   const duplicateCardIds = isDuplicateView
@@ -51,7 +50,6 @@ export default async function CardsPage({
       genre={genre}
       sort={sort}
       grade={grade}
-      showRefresh={showRefreshWheel}
       tourId="tour-cards-toolbar"
     >
       <div data-tour-id="tour-cards-grid" className="p-6 max-w-7xl mx-auto">
@@ -66,14 +64,25 @@ export default async function CardsPage({
             </a>
           </div>
         )}
-        <CardGrid cards={displayCards} exportHref={exportHref} />
-        {!isDuplicateView && (
-          <PaginationControls
-            page={page}
-            totalPages={totalPages}
-            totalItems={total}
-            pageSize={pageSize}
-          />
+        {total === 0 && !q && !genre && !isDuplicateView ? (
+          <div className="flex flex-col items-center justify-center py-24 text-center">
+            <LayersIcon className="h-16 w-16 text-muted-foreground/30 mb-4" />
+            <h2 className="text-xl font-semibold text-muted-foreground">No cards yet</h2>
+            <p className="text-muted-foreground/60 mt-2 mb-6">Add your first card to start tracking its value</p>
+            <AddCardButton label="Add Your First Card" />
+          </div>
+        ) : (
+          <>
+            <CardGrid cards={displayCards} exportHref={exportHref} />
+            {!isDuplicateView && (
+              <PaginationControls
+                page={page}
+                totalPages={totalPages}
+                totalItems={total}
+                pageSize={pageSize}
+              />
+            )}
+          </>
         )}
       </div>
     </CardsPageShell>

@@ -4,7 +4,8 @@ import { cards, users } from "@/lib/db/schema";
 import { eq, and } from "drizzle-orm";
 import { redirect } from "next/navigation";
 import { TradeBoardClient } from "./trade-board-client";
-import { ArrowRightLeftIcon } from "lucide-react";
+import { ArrowRightLeftIcon, ExternalLinkIcon } from "lucide-react";
+import Link from "next/link";
 
 export const metadata = { title: "Trade Board · Cardventory" };
 
@@ -43,14 +44,31 @@ export default async function TradeBoardPage() {
 
   const trade = rows.filter((r) => r.userId !== session.user!.id);
 
+  // Fetch own user record for profile link
+  const ownUser = await db
+    .select({ username: users.username, profilePublic: users.profilePublic })
+    .from(users)
+    .where(eq(users.id, session.user!.id))
+    .get();
+
   return (
     <div className="p-6 max-w-6xl mx-auto">
       <div className="flex items-center gap-3 mb-6">
         <ArrowRightLeftIcon className="h-6 w-6 text-primary" />
-        <div>
+        <div className="flex-1">
           <h1 className="text-2xl font-bold">Trade Board</h1>
           <p className="text-sm text-muted-foreground">Cards other collectors are willing to trade</p>
         </div>
+        {ownUser?.profilePublic && ownUser?.username && (
+          <Link
+            href={`/u/${ownUser.username}`}
+            target="_blank"
+            className="flex items-center gap-1.5 text-sm font-medium text-primary hover:text-primary/80 transition-colors"
+          >
+            <ExternalLinkIcon className="h-4 w-4" />
+            My Profile
+          </Link>
+        )}
       </div>
       <TradeBoardClient trade={trade} />
     </div>

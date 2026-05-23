@@ -4,7 +4,6 @@ import { useState } from "react";
 import type { ReactNode } from "react";
 import Link from "next/link";
 import { PlusCircleIcon, ChevronDownIcon } from "lucide-react";
-import { RefreshAllButton } from "@/components/cards/refresh-all-button";
 import { SearchInput } from "@/components/cards/search-input";
 import { FiltersButton } from "@/components/cards/filters-button";
 import { CsvButton } from "@/components/cards/csv-button";
@@ -33,8 +32,6 @@ export interface CardsToolbarProps {
   sort?: string;
   /** Current grade filter */
   grade?: string;
-  /** Show the Refresh All Prices button (owned cards only) */
-  showRefresh?: boolean;
   /** data-tour-id for e2e / onboarding */
   tourId?: string;
   /** When provided, renders a button instead of a Link for the Add action */
@@ -53,7 +50,6 @@ export function CardsToolbar({
   genre,
   sort,
   grade,
-  showRefresh = false,
   tourId,
   onAddClick,
 }: CardsToolbarProps) {
@@ -131,13 +127,11 @@ export function CardsToolbar({
                 <PlusCircleIcon className="h-4 w-4" />
               </Link>
             )}
-            {showRefresh && <RefreshAllButton />}
           </div>
         </div>
 
         {/* Mobile: refresh + add button always visible on the far right */}
         <div className="md:hidden ml-auto flex items-center gap-1.5 shrink-0">
-          {showRefresh && <RefreshAllButton />}
           {onAddClick ? (
             <button
               type="button"

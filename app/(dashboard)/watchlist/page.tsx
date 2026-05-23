@@ -22,8 +22,6 @@ export default async function WatchlistPage({
     getActiveGenres(),
     getAllSettings(),
   ]);
-  const showRefreshWheel = userSettings.show_refresh_wheel !== "false";
-
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
 
   const exportHref = `/api/cards/export?status=wanted${genre && genre !== "all" ? `&genre=${genre}` : ""}${q ? `&q=${encodeURIComponent(q)}` : ""}${grade && grade !== "all" ? `&grade=${grade}` : ""}`;
@@ -43,7 +41,6 @@ export default async function WatchlistPage({
         genre={genre}
         sort={sort}
         grade={grade}
-        showRefresh={showRefreshWheel}
       >
 
       <div className="p-6 max-w-7xl mx-auto">
