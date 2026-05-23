@@ -28,6 +28,7 @@ import {
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { AppLogo } from "@/components/app-logo";
+import { AppBanner } from "@/components/app-banner";
 import { ScrollFade } from "@/components/ui/scroll-fade";
 import { AddCardDialog } from "@/components/cards/add-card-dialog";
 
@@ -235,8 +236,7 @@ export function Sidebar() {
       {/* ── Desktop sidebar (md and up) ──────────────────────────────────── */}
           <aside className="hidden md:flex w-60 shrink-0 bg-sidebar border-r border-sidebar-border flex-col sticky top-0 h-dvh overflow-hidden">
         <div className="flex items-center gap-2 px-5 py-5 border-b border-sidebar-border shrink-0">
-          <AppLogo size="md" />
-          <span className="font-bold text-lg text-sidebar-foreground tracking-tight">Cardventory</span>
+          <AppBanner logoSize="md" textClassName="font-bold text-lg text-sidebar-foreground tracking-tight" />
         </div>
         <NavContent />
       </aside>
@@ -251,8 +251,7 @@ export function Sidebar() {
         >
           <MenuIcon className="h-5 w-5" />
         </button>
-        <AppLogo size="sm" />
-        <span className="font-bold text-base text-sidebar-foreground tracking-tight">Cardventory</span>
+        <AppBanner logoSize="sm" textClassName="font-bold text-base text-sidebar-foreground tracking-tight" />
       </div>
 
       {/* ── Mobile backdrop ───────────────────────────────────────────────── */}
@@ -273,8 +272,7 @@ export function Sidebar() {
       >
         <div className="flex items-center justify-between px-5 py-4 border-b border-sidebar-border shrink-0">
           <div className="flex items-center gap-2">
-            <AppLogo size="sm" />
-            <span className="font-bold text-base text-sidebar-foreground tracking-tight">Cardventory</span>
+            <AppBanner logoSize="sm" textClassName="font-bold text-base text-sidebar-foreground tracking-tight" />
           </div>
           <button
             type="button"

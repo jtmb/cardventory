@@ -4,7 +4,9 @@ import { users, cards, settings } from "@/lib/db/schema";
 import { eq, and } from "drizzle-orm";
 import Link from "next/link";
 import type { Metadata } from "next";
+import { auth } from "@/auth";
 import { PublicCollectionClient } from "./public-collection-client";
+import { AppBanner } from "@/components/app-banner";
 import { LayersIcon, ArrowRightLeftIcon, SparklesIcon } from "lucide-react";
 
 export async function generateMetadata(
@@ -17,13 +19,15 @@ export async function generateMetadata(
     .where(eq(users.username, username))
     .get();
   if (!user?.profilePublic) return { title: "Collection Not Found" };
-  return { title: `${user.name}'s Collection · Cardventory` };
+  return { title: `@${username}'s Collection · Cardventory` };
 }
 
 export default async function PublicProfilePage(
   { params }: { params: Promise<{ username: string }> }
 ) {
   const { username } = await params;
+  const session = await auth();
+  const isSignedIn = !!session?.user;
 
   const user = await db
     .select({ id: users.id, name: users.name, username: users.username, profilePublic: users.profilePublic })
@@ -50,29 +54,33 @@ export default async function PublicProfilePage(
 
   const tradeBaitCount = collection.filter((c) => c.isTradeBait).length;
   const genres = [...new Set(collection.map((c) => c.sportGenre).filter(Boolean))];
-  const initials = user.name
-    .split(" ")
-    .map((w) => w[0])
-    .slice(0, 2)
-    .join("")
-    .toUpperCase();
+  const initials = (user.username ?? username).slice(0, 2).toUpperCase();
 
   return (
     <div className="min-h-dvh" style={{ background: "oklch(0.08 0.01 260)" }}>
       {/* Nav */}
       <header className="sticky top-0 z-30 border-b" style={{ borderColor: "oklch(0.2 0.01 260)", background: "oklch(0.08 0.01 260 / 0.85)", backdropFilter: "blur(12px)" }}>
         <div className="max-w-6xl mx-auto px-5 py-3 flex items-center justify-between">
-          <Link href="/" className="flex items-center gap-2 text-sm font-bold tracking-tight" style={{ color: "oklch(0.85 0.06 260)" }}>
-            <span className="text-lg">🃏</span>
-            Cardventory
+          <Link href="/" className="flex items-center gap-2 text-sm font-bold tracking-tight">
+            <AppBanner logoSize="sm" textStyle={{ color: "oklch(0.914 0 0)" }} />
           </Link>
-          <Link
-            href="/login"
-            className="text-xs font-medium px-3 py-1.5 rounded-md border transition-all hover:opacity-80"
-            style={{ borderColor: "oklch(0.3 0.02 260)", color: "oklch(0.65 0.03 260)" }}
-          >
-            Sign in
-          </Link>
+          {isSignedIn ? (
+            <Link
+              href="/dashboard"
+              className="text-xs font-medium px-3 py-1.5 rounded-md border transition-all hover:opacity-80"
+              style={{ borderColor: "oklch(0.3 0.02 260)", color: "oklch(0.65 0.03 260)" }}
+            >
+              Go to app
+            </Link>
+          ) : (
+            <Link
+              href="/login"
+              className="text-xs font-medium px-3 py-1.5 rounded-md border transition-all hover:opacity-80"
+              style={{ borderColor: "oklch(0.3 0.02 260)", color: "oklch(0.65 0.03 260)" }}
+            >
+              Sign in
+            </Link>
+          )}
         </div>
       </header>
 
@@ -80,16 +88,15 @@ export default async function PublicProfilePage(
       <div className="relative overflow-hidden" style={{ background: "linear-gradient(135deg, oklch(0.12 0.04 260) 0%, oklch(0.10 0.06 280) 50%, oklch(0.09 0.03 240) 100%)" }}>
         <div className="absolute inset-0 opacity-[0.035]" style={{ backgroundImage: "repeating-linear-gradient(0deg, white 0px, white 1px, transparent 1px, transparent 40px), repeating-linear-gradient(90deg, white 0px, white 1px, transparent 1px, transparent 40px)" }} />
         <div className="relative max-w-6xl mx-auto px-5 py-12">
-          <div className="flex items-end gap-6">
+          <div className="flex items-center gap-6">
             <div
               className="shrink-0 w-20 h-20 rounded-2xl flex items-center justify-center text-2xl font-black shadow-xl"
               style={{ background: "linear-gradient(135deg, oklch(0.55 0.18 260), oklch(0.45 0.15 280))", boxShadow: "0 0 0 2px oklch(0.4 0.12 260), 0 8px 32px oklch(0.03 0.05 260)" }}
             >
               <span style={{ color: "oklch(0.98 0.01 260)" }}>{initials}</span>
             </div>
-            <div className="flex-1 min-w-0 pb-1">
-              <h1 className="text-3xl font-black tracking-tight leading-none" style={{ color: "oklch(0.97 0.01 260)" }}>{user.name}</h1>
-              <p className="mt-1 text-sm" style={{ color: "oklch(0.55 0.03 260)" }}>@{user.username}</p>
+            <div className="flex-1 min-w-0">
+              <h1 className="text-3xl font-black tracking-tight leading-none" style={{ color: "oklch(0.97 0.01 260)" }}>@{user.username}</h1>
               <div className="flex flex-wrap gap-2 mt-4">
                 <StatChip icon={<LayersIcon className="h-3.5 w-3.5" />} label={`${collection.length} ${collection.length === 1 ? "card" : "cards"}`} />
                 {tradeBaitCount > 0 && (

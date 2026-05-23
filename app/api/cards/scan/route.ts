@@ -677,6 +677,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ card, _raw: rawText, _labelRaw: labelText, _nameRaw: nameText, _bodyRaw: bodyText });
   } catch (err) {
     const message = err instanceof Error ? err.message : "OCR failed";
+    console.error("[scan] OCR error:", message);
     return NextResponse.json({ error: message }, { status: 500 });
   } finally {
     unlink(tmpPath).catch(() => {});

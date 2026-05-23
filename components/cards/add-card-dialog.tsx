@@ -80,8 +80,13 @@ export function AddCardDialog({ open, onOpenChange, defaultStatus = "owned" }: A
   const cardNumberRef = useRef<HTMLInputElement>(null);
   const variantRef = useRef<HTMLInputElement>(null);
   const gradeValueRef = useRef<HTMLInputElement>(null);
+  const scanAbortRef = useRef<AbortController | null>(null);
 
   function resetForm() {
+    scanAbortRef.current?.abort();
+    scanAbortRef.current = null;
+    setScanning(false);
+    setUploading(false);
     setPhotoPreview(null);
     setPhotoUrl(null);
     setStatus(defaultStatus);
@@ -134,11 +139,15 @@ export function AddCardDialog({ open, onOpenChange, defaultStatus = "owned" }: A
       .catch(() => toast.error("Photo upload failed"))
       .finally(() => setUploading(false));
 
+    const abortController = new AbortController();
+    scanAbortRef.current?.abort();
+    scanAbortRef.current = abortController;
+
     setScanning(true);
     try {
       const fd = new FormData();
       fd.append("image", file);
-      const res = await fetch("/api/cards/scan", { method: "POST", body: fd });
+      const res = await fetch("/api/cards/scan", { method: "POST", body: fd, signal: abortController.signal });
       const data = await res.json() as { card?: Record<string, unknown>; error?: string };
       if (res.ok && !data.error) {
         const c = data.card ?? {};
@@ -152,12 +161,20 @@ export function AddCardDialog({ open, onOpenChange, defaultStatus = "owned" }: A
         if (c.gradeCompany && typeof c.gradeCompany === "string") setGradeCompany(c.gradeCompany);
         if (c.condition && typeof c.condition === "string") setCondition(c.condition);
         toast.success("Card scanned — review and adjust the details as needed.", { duration: 8000 });
+      } else if (!abortController.signal.aborted) {
+        // Scan returned an error — let the user know so they can fill in manually
+        console.error("[scan] server error:", data.error ?? `HTTP ${res.status}`);
+        toast.info("Couldn't read the card automatically — fill in the details below.", { duration: 5000 });
       }
-      // Silently ignore scan errors — user can fill in manually
-    } catch {
-      // Silently ignore — don't interrupt the add flow for a failed scan
+    } catch (err) {
+      if (err instanceof Error && err.name === "AbortError") return; // dialog closed — discard silently
+      console.error("[scan] fetch error:", err);
+      toast.info("Couldn't read the card automatically — fill in the details below.", { duration: 5000 });
     } finally {
-      setScanning(false);
+      if (!abortController.signal.aborted) {
+        setScanning(false);
+        scanAbortRef.current = null;
+      }
     }
   }
 

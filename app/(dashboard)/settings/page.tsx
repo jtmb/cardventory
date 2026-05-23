@@ -7,6 +7,10 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
 import {
@@ -14,6 +18,7 @@ import {
   CheckIcon, DownloadIcon, UploadIcon, SparklesIcon, EyeIcon, ShieldIcon,
   BellIcon, MailIcon, MessageSquareIcon, EyeOffIcon, SendIcon,
   DatabaseIcon, Trash2Icon, StarIcon, ServerIcon, ClockIcon, CpuIcon,
+  TriangleAlertIcon,
 } from "lucide-react";
 import { seedTestData } from "@/lib/actions";
 import { UserManagementSection } from "@/components/user-management-section";
@@ -172,6 +177,9 @@ function SettingsContent() {
   const [logoPreview, setLogoPreview] = useState<string | null>(null);
   const [logoUploading, setLogoUploading] = useState(false);
   const [logoUrlInput, setLogoUrlInput] = useState("");
+  // Banner state (admin)
+  const [bannerPreview, setBannerPreview] = useState<string | null>(null);
+  const [bannerUploading, setBannerUploading] = useState(false);
   // Account panel state
   const [accountName, setAccountName] = useState(session?.user?.name ?? "");
   const [accountCurrentPw, setAccountCurrentPw] = useState("");
@@ -182,7 +190,7 @@ function SettingsContent() {
   const [usernameInput, setUsernameInput] = useState(() => toDefaultUsername(session?.user?.name ?? ""));
   const [profilePublic, setProfilePublic] = useState(false);
   const [profileTradeBaitOnly, setProfileTradeBaitOnly] = useState(false);
-  const [profileSaving, setProfileSaving] = useState(false);
+  const [showPublicConfirm, setShowPublicConfirm] = useState(false);
 
   // Sync name from session when session loads
   useEffect(() => {
@@ -355,6 +363,11 @@ function SettingsContent() {
       fetch("/api/admin/logo")
         .then((r) => r.json())
         .then((data) => { if (data.url) setLogoPreview(data.url); })
+        .catch(() => {});
+      // Load current banner
+      fetch("/api/admin/banner")
+        .then((r) => r.json())
+        .then((data) => { if (data.url) setBannerPreview(data.url); })
         .catch(() => {});
       // Load system info
       fetch("/api/system-info")
@@ -566,6 +579,11 @@ function SettingsContent() {
   }
 
   async function saveSettings() {
+    const u = usernameInput.trim();
+    if (u && !/^[a-zA-Z0-9_-]{3,30}$/.test(u)) {
+      toast.error("Username must be 3–30 characters: letters, numbers, _ and - only.");
+      return;
+    }
     setSaving(true);
     try {
       const s = buildSettingsPayload();
@@ -599,7 +617,13 @@ function SettingsContent() {
           notif_discord_user_id: s.notif_discord_user_id,
           notif_on_new_high: String(s.notif_on_new_high),
           notif_on_price_change: String(s.notif_on_price_change),
+          profile_trade_bait_only: String(profileTradeBaitOnly),
         }),
+      });
+      await fetch("/api/profile", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "update_public_profile", username: u || null, profilePublic }),
       });
       toast.success("Settings saved");
     } catch {
@@ -833,13 +857,23 @@ function SettingsContent() {
 
           {/* Public Profile */}
           <Card>
-            <CardHeader>
-              <CardTitle className="text-base">Public Collection</CardTitle>
-              <CardDescription>
-                Share your collection with a public link. Anyone with the link can view your owned cards.
-              </CardDescription>
+            <CardHeader className="flex flex-row items-start justify-between gap-4 space-y-0">
+              <div>
+                <CardTitle className="text-base">Public Collection</CardTitle>
+                <CardDescription>
+                  Share your collection with a public link. Anyone with the link can view your owned cards.
+                </CardDescription>
+              </div>
+              <button
+                role="switch"
+                aria-checked={profilePublic}
+                onClick={() => { if (!profilePublic) setShowPublicConfirm(true); else setProfilePublic(false); }}
+                className={`relative mt-0.5 inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 ${profilePublic ? "bg-primary" : "bg-muted"}`}
+              >
+                <span className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow-lg transition-transform ${profilePublic ? "translate-x-4" : "translate-x-0"}`} />
+              </button>
             </CardHeader>
-            <CardContent className="space-y-4">
+            <CardContent className={`space-y-4 transition-opacity ${!profilePublic ? "opacity-40 pointer-events-none" : ""}`}>
               <div className="space-y-1.5">
                 <Label>Username</Label>
                 <input
@@ -850,22 +884,12 @@ function SettingsContent() {
                   className="w-full h-9 rounded-md border border-border bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
                 />
                 <p className="text-xs text-muted-foreground">3–30 characters: letters, numbers, _ and - only.</p>
+                <p className="text-xs text-amber-500/80 flex items-center gap-1">
+                  <TriangleAlertIcon className="h-3 w-3 shrink-0" />
+                  Your username is public and visible to anyone with the link.
+                </p>
               </div>
-              <div className="flex items-center justify-between rounded-md border border-border px-3 py-2.5">
-                <div>
-                  <p className="text-sm font-medium">Make collection public</p>
-                  <p className="text-xs text-muted-foreground">Your owned cards will be visible at your profile URL.</p>
-                </div>
-                <button
-                  role="switch"
-                  aria-checked={profilePublic}
-                  onClick={() => setProfilePublic((v) => !v)}
-                  className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 ${profilePublic ? "bg-primary" : "bg-muted"}`}
-                >
-                  <span className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow-lg transition-transform ${profilePublic ? "translate-x-4" : "translate-x-0"}`} />
-                </button>
-              </div>
-              <div className="flex items-center justify-between rounded-md border border-border px-3 py-2.5">
+              <div className={`flex items-center justify-between rounded-md border border-border px-3 py-2.5 transition-opacity ${!profilePublic ? "opacity-40 pointer-events-none" : ""}`}>
                 <div>
                   <p className="text-sm font-medium">Show trade bait only</p>
                   <p className="text-xs text-muted-foreground">Public profile shows only cards marked for trade.</p>
@@ -873,8 +897,9 @@ function SettingsContent() {
                 <button
                   role="switch"
                   aria-checked={profileTradeBaitOnly}
+                  disabled={!profilePublic}
                   onClick={() => setProfileTradeBaitOnly((v) => !v)}
-                  className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 ${profileTradeBaitOnly ? "bg-primary" : "bg-muted"}`}
+                  className={`relative inline-flex h-5 w-9 shrink-0 rounded-full border-2 border-transparent transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 ${!profilePublic ? "cursor-not-allowed" : "cursor-pointer"} ${profileTradeBaitOnly ? "bg-primary" : "bg-muted"}`}
                 >
                   <span className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow-lg transition-transform ${profileTradeBaitOnly ? "translate-x-4" : "translate-x-0"}`} />
                 </button>
@@ -901,43 +926,22 @@ function SettingsContent() {
                   </button>
                 </div>
               )}
-              <div className="flex justify-end">
-                <Button
-                  size="sm"
-                  disabled={profileSaving}
-                  onClick={async () => {
-                    const u = usernameInput.trim();
-                    if (u && !/^[a-zA-Z0-9_-]{3,30}$/.test(u)) {
-                      toast.error("Username must be 3–30 characters: letters, numbers, _ and - only.");
-                      return;
-                    }
-                    setProfileSaving(true);
-                    try {
-                      const res = await fetch("/api/profile", {
-                        method: "PATCH",
-                        headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify({ action: "update_public_profile", username: u || null, profilePublic }),
-                      });
-                      const data = await res.json();
-                      if (!res.ok) throw new Error(data.error);
-                      // Save profile_trade_bait_only to settings
-                      await fetch("/api/settings", {
-                        method: "POST",
-                        headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify({ profile_trade_bait_only: String(profileTradeBaitOnly) }),
-                      });
-                      toast.success("Public profile updated");
-                    } catch (e) {
-                      toast.error(e instanceof Error ? e.message : "Failed");
-                    } finally {
-                      setProfileSaving(false);
-                    }
-                  }}
-                >
-                  Save
-                </Button>
-              </div>
             </CardContent>
+            <AlertDialog open={showPublicConfirm} onOpenChange={setShowPublicConfirm}>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Make collection public?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    This will make your profile and full card inventory visible to anyone with the link.
+                    You can restrict visibility to trade bait cards only using the <strong>Show trade bait only</strong> option after enabling.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                  <AlertDialogAction onClick={() => setProfilePublic(true)}>Make public</AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
           </Card>
         </div>
       )}
@@ -2055,6 +2059,77 @@ function SettingsContent() {
                 >
                   Apply
                 </Button>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        )}
+        {/* App Banner */}
+        {isAdmin && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Navigation Banner</CardTitle>
+            <CardDescription>
+              Upload a banner image to replace the logo + text lockup in the sidebar and public profile nav. Recommended: SVG or wide PNG/WebP, max 512 KB.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex items-center gap-4">
+              {bannerPreview ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={bannerPreview} alt="Banner preview" className="h-10 max-w-[180px] rounded-lg object-contain border border-border bg-muted px-2" />
+              ) : (
+                <div className="h-10 w-44 rounded-lg border border-dashed border-border bg-muted flex items-center justify-center text-muted-foreground text-xs">No banner set</div>
+              )}
+              <div className="flex flex-col gap-2">
+                <label className="cursor-pointer">
+                  <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-border bg-background hover:bg-muted transition-colors text-sm font-medium">
+                    {bannerPreview ? "Change Banner" : "Upload Banner"}
+                  </span>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    disabled={bannerUploading}
+                    onChange={async (e) => {
+                      const file = e.target.files?.[0];
+                      if (!file) return;
+                      if (file.size > 512 * 1024) { toast.error("File too large (max 512 KB)"); return; }
+                      setBannerUploading(true);
+                      try {
+                        const fd = new FormData();
+                        fd.append("banner", file);
+                        const res = await fetch("/api/admin/banner", { method: "POST", body: fd });
+                        const data = await res.json();
+                        if (!res.ok) throw new Error(data.error);
+                        setBannerPreview(data.url);
+                        toast.success("Banner updated");
+                      } catch (err) {
+                        toast.error(err instanceof Error ? err.message : "Upload failed");
+                      } finally {
+                        setBannerUploading(false);
+                        e.target.value = "";
+                      }
+                    }}
+                  />
+                </label>
+                {bannerPreview && (
+                  <button
+                    type="button"
+                    className="text-xs text-destructive hover:underline"
+                    disabled={bannerUploading}
+                    onClick={async () => {
+                      setBannerUploading(true);
+                      try {
+                        await fetch("/api/admin/banner", { method: "DELETE" });
+                        setBannerPreview(null);
+                        toast.success("Banner removed");
+                      } finally { setBannerUploading(false); }
+                    }}
+                  >
+                    Remove banner
+                  </button>
+                )}
               </div>
             </div>
           </CardContent>
