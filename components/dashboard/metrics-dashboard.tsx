@@ -300,7 +300,7 @@ function AcquisitionTab({ data }: { data: AcquisitionData }) {
           <div className="rounded-xl border border-border bg-card p-4 flex items-center justify-center" style={{ height: 240 }}>
             <ResponsiveContainer width="100%" height={200}>
               <PieChart>
-                <Pie data={data.newVsReturning} dataKey="sessions" nameKey="type" cx="50%" cy="50%" outerRadius={80} label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`} labelLine={false}>
+                <Pie data={data.newVsReturning} dataKey="sessions" nameKey="type" cx="50%" cy="50%" outerRadius={80} label={({ name, percent }) => `${name} ${((percent ?? 0) * 100).toFixed(0)}%`} labelLine={false}>
                   {data.newVsReturning.map((_, i) => (
                     <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />
                   ))}
@@ -347,7 +347,7 @@ function DevicesTab({ data }: { data: DevicesData }) {
             <SectionTitle>{title}</SectionTitle>
             <div className="rounded-xl border border-border bg-card p-4">
               <ResponsiveContainer width="100%" height={160}>
-                <BarChart data={rows} layout="vertical" margin={{ top: 4, right: 16, bottom: 4, left: 0 }}>
+                <BarChart data={rows as unknown[]} layout="vertical" margin={{ top: 4, right: 16, bottom: 4, left: 0 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" horizontal={false} />
                   <XAxis type="number" tick={{ fontSize: 10 }} tickLine={false} axisLine={false} />
                   <YAxis type="category" dataKey={keyField} tick={{ fontSize: 11 }} tickLine={false} axisLine={false} width={70} />

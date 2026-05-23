@@ -312,7 +312,7 @@ function parseCardOcr(rawText: string) {
  */
 const GRADE_DESCRIPTOR_RE = /\b(GEM\s*MT|NM[\s\-]MT\+?|MINT|NM|EX[\s\-]MT|EX|VG[\s\-]EX|VG|GOOD|FAIR|POOR)\b/i;
 
-function parseGradingLabel(text: string): ReturnType<typeof parseCardOcr> {
+function parseGradingLabel(text: string) {
   const upper = text.toUpperCase();
   const lines = text.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
 

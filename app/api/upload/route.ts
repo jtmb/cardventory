@@ -94,7 +94,7 @@ export async function POST(req: NextRequest) {
   const [{ count }] = await db
     .select({ count: sql<number>`count(*)` })
     .from(cards)
-    .where(and(eq(cards.userId, userId), like(cards.imageUrl, "/uploads/%")));
+    .where(and(eq(cards.userId, userId), like(cards.photoUrl, "/uploads/%")));
   if (count >= MAX_UPLOADS_PER_USER) {
     return NextResponse.json(
       { error: `Upload limit of ${MAX_UPLOADS_PER_USER} images reached. Delete some card images first.` },
