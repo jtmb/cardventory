@@ -20,6 +20,7 @@
 13. [Environment Variables](#13-environment-variables)
 14. [npm Scripts](#14-npm-scripts)
 15. [OCR Scan System](#15-ocr-scan-system)
+16. [Analytics & Metrics System](#16-analytics--metrics-system)
 
 ---
 
@@ -190,10 +191,58 @@ Connection: `lib/db/index.ts` — exports `db` (Drizzle) and `rawSqlite` (better
 | `banned_by_user_id` | text (nullable) | |
 | `reason` | text (nullable) | |
 
+### `analytics_sessions`
+| Column | Type | Notes |
+|---|---|---|
+| `id` | text PK | `sessionStorage`-generated UUID on the client |
+| `user_id` | text FK→users (nullable) | set null on user delete; null for anonymous |
+| `started_at` | integer (ms epoch) | |
+| `last_seen_at` | integer (ms epoch) | updated on every event |
+| `ended_at` | integer (ms epoch, nullable) | set on `session_end` event |
+| `page_count` | integer | incremented per pageview |
+| `event_count` | integer | total event count |
+| `entry_path` / `exit_path` | text | first/last path seen |
+| `device` | text | `desktop\|mobile\|tablet` |
+| `browser` / `os` | text | parsed from User-Agent |
+| `viewport` | text | `"1920x1080"` string |
+| `country` / `region` / `city` | text | from geoip-lite lookup (nullable if data unavailable) |
+| `utm_source` / `utm_medium` / `utm_campaign` | text | captured from first URL params |
+| `referrer` | text | from first event in session |
+| `has_consent` | boolean | only events from consented sessions are stored |
+
+### `analytics_events`
+| Column | Type | Notes |
+|---|---|---|
+| `id` | text PK | UUID |
+| `session_id` | text | FK to `analytics_sessions.id` (NOT enforced at DB level) |
+| `user_id` | text FK→users (nullable) | |
+| `event_type` | text | see event types below |
+| `event_name` | text (nullable) | for custom events |
+| `path` | text | current page path |
+| `referrer` | text (nullable) | |
+| `properties` | text | JSON string of arbitrary properties |
+| `utm_source/medium/campaign` | text | inherited from session UTM |
+| `created_at` | integer (ms epoch) | |
+
+**Event types:** `pageview`, `click`, `scroll_depth`, `session_start`, `session_end`, `custom`
+
+### `analytics_consent`
+| Column | Type | Notes |
+|---|---|---|
+| `id` | text PK | UUID |
+| `user_id` | text FK→users (nullable) | |
+| `session_id` | text | which session submitted consent |
+| `analytics_consent` | boolean | |
+| `performance_consent` | boolean | |
+| `created_at` | integer (ms epoch) | |
+| `ip_hash` | text (nullable) | truncated SHA-256 of IP — GDPR-safe audit trail |
+| `consent_version` | text | `"1.0"` — bump when consent wording changes |
+
 ### Inferred TypeScript Types
 ```ts
 User, NewUser, Card, NewCard, PriceHistory, NewPriceHistory,
-Setting, Notification, NewNotification, UserLoginLog, NewUserLoginLog, BannedUser
+Setting, Notification, NewNotification, UserLoginLog, NewUserLoginLog, BannedUser,
+AnalyticsSession, AnalyticsEvent, AnalyticsConsent
 ```
 
 ---
@@ -1047,3 +1096,189 @@ This is faster than a full app rebuild and lets you iterate on filters without w
 | Add new sport signal | `SPORT_SIGNALS` in `app/api/cards/scan/route.ts` |
 | Add word to name blocklist | `NAME_STOP` set in `app/api/cards/scan/route.ts` |
 | Add new card set | `KNOWN_SETS` array in `app/api/cards/scan/route.ts` |
+| Add analytics event type | `lib/analytics/client.ts` + `app/api/analytics/event/route.ts` |
+| Add admin analytics chart | `app/(dashboard)/admin/analytics/page.tsx` + new `/api/admin/analytics/<name>` route |
+| Debug analytics consent | Check `cv_consent` cookie; `analytics_consent` table; `has_consent` on session row |
+
+---
+
+## 16. Analytics & Metrics System
+
+### Overview
+
+Cardventory includes a self-hosted, GDPR-aware analytics system. All tracking is:
+- **Consent-gated** — events are only written when `has_consent = 1` on the session row
+- **First-party** — all data stays in the same SQLite database; no third-party scripts
+- **Batched** — the client queues events and flushes every 5 s or on page hide via `sendBeacon`
+- **Admin-only visible** — only admins can access `/admin/analytics`
+
+### Component & data flow
+
+```
+Browser
+  ConsentProvider          reads cv_consent cookie, listens for cv:consent-updated event
+  ConsentBanner            shown if consent not yet resolved; writes cookie via POST /api/analytics/consent
+  AdminConsentInit         auto-consents admins silently (sets cookie + dispatches cv:consent-updated)
+  AnalyticsProvider        if analyticsConsent=true → startFlushLoop(), track pageviews/clicks/scrollDepth
+
+  lib/analytics/client.ts  queue, flush, sendBeacon helpers; getOrCreateSessionId(); captureUTM()
+
+  POST /api/analytics/event  rate-limited (120/min/IP); verifies session has_consent; writes analytics_events + upserts analytics_sessions
+  POST /api/analytics/consent  writes analytics_consent (GDPR log) + sets has_consent on session + sets cookie (1 yr)
+
+Admin dashboard
+  GET /api/admin/analytics/overview    sessions, pageviews, visitors, daily trend, bounce, top pages
+  GET /api/admin/analytics/devices     device / browser / OS / viewport breakdown
+  GET /api/admin/analytics/geography   country / region / city breakdown
+  GET /api/admin/analytics/acquisition UTM sources, referrers
+  GET /api/admin/analytics/engagement  clicks, scroll depth, avg session duration
+  GET /api/admin/analytics/retention   new vs returning users, retention cohorts
+  GET /api/admin/analytics/funnels     step-by-step funnel analysis
+  GET /api/admin/analytics/portfolio-stats  card count + value metrics per user
+  app/(dashboard)/admin/analytics/page.tsx  Recharts-based dashboard (MetricsDashboard component)
+```
+
+### lib/analytics/ utilities
+
+#### `lib/analytics/server.ts`
+```ts
+getClientIp(request: Request): string
+// Reads x-forwarded-for → x-real-ip → "unknown". Always call this; never trust req.socket.
+
+hashIp(ip: string): string
+// Truncated SHA-256 (first 16 hex chars). Used in analytics_consent for GDPR-safe IP logging.
+```
+
+#### `lib/analytics/geoip.ts`
+```ts
+lookupGeo(ip: string): { country: string; region: string; city: string } | null
+```
+- Uses `geoip-lite` (MaxMind GeoLite2 bundled data).
+- **Loaded lazily via `require()` in a `try/catch`** — returns `null` for all lookups if the `.dat` files are absent (e.g. Docker build stage). Never import `geoip-lite` with a static `import` statement.
+- Caches results in an LRU (cap 500) to avoid re-parsing for the same IP.
+- Private IP ranges (127.x, 10.x, 192.168.x, fc00:, fe80:) return `null` immediately.
+
+#### `lib/analytics/ua-parser.ts`
+```ts
+parseUA(ua: string): { browser: string; os: string; device: "desktop" | "mobile" | "tablet" }
+```
+Regex-only UA parser (no external dependency). Device detection: tablet first (iPad UA contains "Mobile"), then mobile, then desktop.
+
+#### `lib/analytics/client.ts` (browser-only — never import from server components)
+```ts
+getOrCreateSessionId(): string         // sessionStorage "cv_sid"
+captureUTM(): UTMParams                // reads/stores utm_* from URL → sessionStorage "cv_utm"
+trackPageview(path, referrer?)         // enqueues pageview event
+trackClick(tag, text, href, x, y)      // enqueues click event with element + coordinate
+trackScrollDepth(depth: 25|50|75|100)  // enqueues scroll_depth event (once per depth per page)
+trackCustomEvent(name, properties)     // enqueues custom event
+startFlushLoop()                       // 5 s interval flush + visibilitychange → sendBeacon
+stopFlushLoop()                        // clears interval
+```
+
+Events are queued in a module-level array. Flush sends `POST /api/analytics/event` with `{ events: TrackEvent[] }`. On failure, events are re-queued (up to 100 total). On page hide, `sendBeacon` is used so events survive navigation.
+
+### Consent system
+
+Cookie name: `cv_consent`  
+Cookie value: `{ version: "1.0", analytics: boolean, performance: boolean, ts: number }` (JSON, URL-encoded, 1-year `max-age`)  
+Consent version: `"1.0"` — if the stored version doesn't match, consent is treated as unresolved and the banner re-appears.
+
+**Consent flow:**
+1. `ConsentProvider` reads cookie on mount → sets `{ analyticsConsent, performanceConsent, resolved }` state
+2. If `!resolved`, `ConsentBanner` appears after 800 ms delay
+3. User clicks Accept → `updateConsent(analytics, performance, sessionId)` → `POST /api/analytics/consent` → sets `has_consent` on session + writes GDPR log + sets cookie
+4. `ConsentProvider` re-reads cookie via `cv:consent-updated` custom event (dispatched by `AdminConsentInit` and the consent API response handler)
+
+**Admin auto-consent (`AdminConsentInit`):**  
+`"use client"` component placed inside `SessionProvider` in the dashboard layout. On mount, if `session.user.role === "admin"` and consent is not yet resolved, it sets the `cv_consent` cookie directly and dispatches `cv:consent-updated` so `ConsentProvider` updates without a page reload. Renders `null`.
+
+### API routes
+
+#### `POST /api/analytics/event`
+Accepts: `{ events: TrackEvent[] }` (max 50 per batch, hard-capped server-side)
+
+**Security:**
+- In-memory rate limiter: 120 events/minute per IP (Map-based sliding window)
+- Events from sessions with `has_consent = 0` are silently dropped (consent checked per-session via `rawSqlite`)
+- No auth required (anonymous tracking supported)
+
+**What it writes:**
+- Upserts `analytics_sessions` — creates row if new `sessionId`, updates `last_seen_at`, increments `page_count`/`event_count`, updates `exit_path`, sets `user_id` if session is now authenticated
+- Inserts `analytics_events` — one row per event (INSERT OR IGNORE to deduplicate retries)
+- Uses `rawSqlite.transaction()` for atomicity
+
+#### `POST /api/analytics/consent`
+Accepts: `{ sessionId, analyticsConsent, performanceConsent }`  
+- Writes audit row to `analytics_consent` with hashed IP
+- Updates `has_consent` on `analytics_sessions`
+- Sets `cv_consent` cookie (1 year, SameSite=Lax)
+- Returns `{ ok: true }`
+
+### Admin analytics API routes
+
+All routes: admin-only (check `role === "admin"` via `db.select().from(users)`). All accept `?range=7d|30d|90d` (default 30d).
+
+| Endpoint | Returns |
+|---|---|
+| `/api/admin/analytics/overview` | `{ totals: { sessions, pageviews, visitors, avgDuration }, dailyTrend[], topPages[], bounceStats }` |
+| `/api/admin/analytics/devices` | `{ devices[], browsers[], oses[], viewports[] }` each with `{ name, sessions }` |
+| `/api/admin/analytics/geography` | `{ countries[], regions[], cities[] }` each with `{ name, sessions }` |
+| `/api/admin/analytics/acquisition` | `{ utmSources[], referrers[], directVsReferred }` |
+| `/api/admin/analytics/engagement` | `{ clicksByElement[], scrollDepths[], avgSessionDuration, topClickedPaths[] }` |
+| `/api/admin/analytics/retention` | `{ newVsReturning, cohortRetention[] }` |
+| `/api/admin/analytics/funnels` | `{ funnelSteps[] }` — ordered page paths with drop-off rates |
+| `/api/admin/analytics/portfolio-stats` | `{ avgCardsPerUser, avgPortfolioValue, topCollectors[] }` |
+
+All queries use `rawSqlite` (synchronous better-sqlite3) and filter on `has_consent = 1`.
+
+### Admin analytics dashboard page
+
+File: `app/(dashboard)/admin/analytics/page.tsx`  
+Component: `MetricsDashboard` (client component — `"use client"`)  
+Fetches all 8 endpoints in parallel on mount. Renders Recharts-based charts:
+- Overview tab: line chart (daily trend), bar chart (top pages), stat cards
+- Devices tab: pie charts (device/browser/OS) + bar chart (viewports)
+- Geography tab: table (countries/regions/cities)
+- Acquisition tab: bar chart (UTM sources), table (referrers)
+- Engagement tab: bar chart (clicks), scroll depth funnel
+- Retention tab: bar + table (new vs returning), cohort table
+
+**Known limitation**: Recharts `percent` prop on `<Cell>` inside `<PieChart>` is typed as `number | undefined` — always guard with `(percent ?? 0) * 100` before formatting. Union-typed `data` arrays (e.g. `{ device }[] | { browser }[]`) must be cast to `unknown[]` for BarChart's generic data prop.
+
+### Tracking what's collected per event type
+
+| eventType | Key properties |
+|---|---|
+| `pageview` | `path`, `referrer`, `viewport`, `utm_*` |
+| `click` | `properties.tag`, `properties.text`, `properties.href`, `properties.x/y` (0–100 percent of viewport) |
+| `scroll_depth` | `properties.depth` (`25\|50\|75\|100`) — fires once per depth bucket per page load |
+| `session_start` | no extra properties |
+| `session_end` | fires on `visibilitychange → hidden` via `sendBeacon` |
+| `custom` | `eventName` + arbitrary `properties` object |
+
+### Adding a new custom event
+
+Client side:
+```ts
+import { trackCustomEvent } from "@/lib/analytics/client";
+trackCustomEvent("card_added", { genre: card.sportGenre, hasPhoto: !!card.photoUrl });
+```
+
+The event is queued and flushed automatically. No server-side changes needed unless you want to query this event specifically in an admin endpoint.
+
+### Adding a new admin analytics chart
+
+1. Create `app/api/admin/analytics/<name>/route.ts` — admin guard + `rawSqlite` query + `range` param
+2. Add fetch call in `MetricsDashboard` `useEffect`
+3. Add a new tab or section in the dashboard JSX with a Recharts chart
+4. Remember: `BarChart data={rows as unknown[]}` if `rows` is a union type
+
+### Pitfalls and lessons learned
+
+| Problem | Root cause | Fix |
+|---|---|---|
+| `Failed to collect page data for /api/analytics/event` at build time | `import geoip from "geoip-lite"` reads `.dat` files at module load | Use `require()` in `try/catch` in `lib/analytics/geoip.ts` — never static `import` |
+| Admin always sees consent banner | Admin consent was set in async root layout (not client context) before SessionProvider mounted | Moved to `AdminConsentInit` client component inside SessionProvider; dispatches `cv:consent-updated` event |
+| Recharts `percent` is `undefined` in PieChart label | Recharts types `percent` as `number \| undefined` | Guard: `(percent ?? 0) * 100` |
+| Union-typed `rows` rejected by BarChart | `BarChart<T>` generic infers from first union member | Cast: `data={rows as unknown[]}` |
