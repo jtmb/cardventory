@@ -11,10 +11,7 @@ const VERSION = process.env.NEXT_PUBLIC_APP_VERSION ?? "unknown";
 export function ReleaseNotesModal() {
   const [entry, setEntry] = useState<ReleaseEntry | null>(null);
 
-  useEffect(() => {
-    const lastSeen = localStorage.getItem(LS_KEY);
-    if (lastSeen === VERSION) return; // already seen this version
-
+  function loadAndShow() {
     fetch("/release-notes.json")
       .then((r) => (r.ok ? r.json() : null))
       .then((data: Record<string, ReleaseEntry> | null) => {
@@ -22,6 +19,19 @@ export function ReleaseNotesModal() {
         setEntry(data[VERSION]);
       })
       .catch(() => {});
+  }
+
+  useEffect(() => {
+    const lastSeen = localStorage.getItem(LS_KEY);
+    if (lastSeen !== VERSION) loadAndShow();
+
+    function handleShowEvent() {
+      localStorage.removeItem(LS_KEY);
+      loadAndShow();
+    }
+    window.addEventListener("cv:show-release-notes", handleShowEvent);
+    return () => window.removeEventListener("cv:show-release-notes", handleShowEvent);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   function dismiss() {

@@ -50,7 +50,7 @@ export function DashboardClientInit() {
         for (const item of newItems) {
           seenIds.current.add(item.id);
           toast.info(item.message, {
-            duration: Infinity,
+            duration: 8000,
             dismissible: true,
           });
         }

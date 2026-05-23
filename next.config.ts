@@ -3,6 +3,9 @@ import { version } from "./package.json";
 
 const nextConfig: NextConfig = {
   output: "standalone",
+  // tesseract.js and sharp use __dirname-relative paths / native binaries;
+  // bundling them breaks those paths, so keep them as native node_modules requires.
+  serverExternalPackages: ["tesseract.js", "sharp"],
   env: {
     NEXT_PUBLIC_APP_VERSION: version,
   },

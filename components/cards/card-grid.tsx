@@ -38,6 +38,19 @@ const GENRES = [
 type ViewMode = "grid" | "list" | "compact";
 const VIEW_LS_KEY = "cv_cards_view";
 const SPARKLINE_LS_KEY = "cv_cards_sparkline";
+const GRID_SIZE_LS_KEY = "cv_cards_grid_size";
+
+// Maps slider value (2–7) to Tailwind grid-cols class
+// Values 2 and 3 apply directly on mobile (no breakpoint prefix) so the slider
+// actually does something on small screens. Values 4+ start at 3 cols on mobile.
+const GRID_COLS_CLASS: Record<number, string> = {
+  2: "grid-cols-2",
+  3: "grid-cols-3",
+  4: "grid-cols-3 md:grid-cols-4",
+  5: "grid-cols-3 md:grid-cols-4 lg:grid-cols-5",
+  6: "grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6",
+  7: "grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-7",
+};
 
 export function CardGrid({ cards, exportHref }: { cards: Card[]; exportHref?: string }) {
   const [selectMode, setSelectMode] = useState(false);
@@ -47,6 +60,7 @@ export function CardGrid({ cards, exportHref }: { cards: Card[]; exportHref?: st
   const [genrePickerOpen, setGenrePickerOpen] = useState(false);
   const [showPriceBadges, setShowPriceBadges] = useState(true);
   const [showSparkline, setShowSparkline] = useState(true);
+  const [gridSize, setGridSize] = useState(6); // default 6 columns
   const router = useRouter();
 
   useEffect(() => {
@@ -54,6 +68,8 @@ export function CardGrid({ cards, exportHref }: { cards: Card[]; exportHref?: st
     if (stored) setView(stored);
     const storedSparkline = localStorage.getItem(SPARKLINE_LS_KEY);
     if (storedSparkline !== null) setShowSparkline(storedSparkline !== "false");
+    const storedSize = localStorage.getItem(GRID_SIZE_LS_KEY);
+    if (storedSize) setGridSize(Math.min(7, Math.max(2, Number(storedSize))) || 5);
     // Load price badge preference
     fetch("/api/settings")
       .then((r) => r.ok ? r.json() : null)
@@ -177,6 +193,19 @@ export function CardGrid({ cards, exportHref }: { cards: Card[]; exportHref?: st
         <div className="flex items-center gap-2">
           {/* View mode toggle — hidden on mobile while selecting to save space */}
           <div className={cn("items-center gap-0.5 bg-muted rounded-md p-0.5", selectMode ? "hidden md:flex" : "flex")}>
+            {/* Sparkline toggle — leftmost in pill, grid view only */}
+            {view === "grid" && (
+              <button
+                onClick={toggleSparkline}
+                title={showSparkline ? "Hide price sparkline" : "Show price sparkline"}
+                className={`flex items-center justify-center h-6 w-6 rounded transition-colors ${
+                  showSparkline ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                <ActivityIcon className="h-3.5 w-3.5" />
+              </button>
+            )}
+
             {([
               { v: "grid" as const,    icon: <LayoutGridIcon className="h-3.5 w-3.5" />, title: "Grid view" },
               { v: "list" as const,    icon: <LayoutListIcon className="h-3.5 w-3.5" />, title: "List view" },
@@ -195,23 +224,38 @@ export function CardGrid({ cards, exportHref }: { cards: Card[]; exportHref?: st
                 {icon}
               </button>
             ))}
-          </div>
 
-          {/* Sparkline toggle — grid view only, hidden on mobile while selecting */}
-          {view === "grid" && (
-            <button
-              onClick={toggleSparkline}
-              title={showSparkline ? "Hide price sparkline" : "Show price sparkline"}
-              className={cn(
-                `flex items-center justify-center h-6 w-6 rounded transition-colors ${
-                  showSparkline ? "bg-muted text-foreground" : "text-muted-foreground hover:text-foreground"
-                }`,
-                selectMode && "hidden md:flex"
-              )}
-            >
-              <ActivityIcon className="h-3.5 w-3.5" />
-            </button>
-          )}
+            {/* Grid size slider — inside the toggle pill, grid view only */}
+            {view === "grid" && !selectMode && (
+              <>
+                <div className="w-px h-3.5 bg-border/60 mx-0.5" />
+                <input
+                  type="range"
+                  min={2}
+                  max={7}
+                  step={1}
+                  value={gridSize}
+                  list="cv-grid-size-ticks"
+                  onChange={(e) => {
+                    const v = Number(e.target.value);
+                    setGridSize(v);
+                    localStorage.setItem(GRID_SIZE_LS_KEY, String(v));
+                  }}
+                  title={`Grid: ${gridSize} columns`}
+                  className={cn(
+                    "w-14 cursor-pointer appearance-none mx-1",
+                    "[&::-webkit-slider-runnable-track]:h-[3px] [&::-webkit-slider-runnable-track]:rounded-full [&::-webkit-slider-runnable-track]:bg-muted-foreground/30",
+                    "[&::-moz-range-track]:h-[3px] [&::-moz-range-track]:rounded-full [&::-moz-range-track]:bg-muted-foreground/30",
+                    "[&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-primary [&::-webkit-slider-thumb]:-mt-[4.5px]",
+                    "[&::-moz-range-thumb]:h-3 [&::-moz-range-thumb]:w-3 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:bg-primary [&::-moz-range-thumb]:border-0"
+                  )}
+                />
+                <datalist id="cv-grid-size-ticks">
+                  {[2, 3, 4, 5, 6, 7].map((n) => <option key={n} value={n} />)}
+                </datalist>
+              </>
+            )}
+          </div>
 
           {/* Bulk actions — desktop only when selecting */}
           {selectMode && count > 0 && (
@@ -318,7 +362,7 @@ export function CardGrid({ cards, exportHref }: { cards: Card[]; exportHref?: st
         )}
         {cards.length > 0 ? (
           view === "grid" ? (
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
+            <div className={`grid ${GRID_COLS_CLASS[gridSize] ?? GRID_COLS_CLASS[5]} gap-4`}>
               {cards.map((card) => (
                 <CardRow key={card.id} card={card} layout="grid" selectable={selectMode} selected={selectedIds.has(card.id)} onToggle={toggleCard} showPriceBadges={showPriceBadges} showSparkline={showSparkline} />
               ))}

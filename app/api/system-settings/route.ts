@@ -15,6 +15,11 @@ export const SYSTEM_SETTING_KEYS = [
   "allow_registration",
   "require_approval",
   "auto_deny_after_hours",
+  "signup_discord_enabled",
+  "signup_discord_webhook",
+  "signup_notify_register",
+  "signup_notify_pending",
+  "demo_mode",
 ] as const;
 
 export async function GET(_req: NextRequest) {

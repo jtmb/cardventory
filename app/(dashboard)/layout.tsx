@@ -7,6 +7,7 @@ import { WelcomeTour } from "@/components/welcome-tour";
 import { DashboardClientInit } from "@/components/dashboard-client-init";
 import { ReleaseNotesModal } from "@/components/release-notes-modal";
 import { MainScrollContainer } from "@/components/main-scroll-container";
+import { DemoModeBanner } from "@/components/demo-mode-banner";
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
   const session = await auth();
@@ -19,6 +20,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
           <Sidebar />
         </Suspense>
         <main className="flex-1 overflow-hidden flex flex-col">
+          <DemoModeBanner />
           <MainScrollContainer>
             {children}
           </MainScrollContainer>

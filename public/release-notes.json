@@ -1,4 +1,21 @@
 {
+  "1.0.37": {
+    "title": "Landing Page, Logo & Auth Improvements",
+    "notes": [
+      "Redesigned landing page with updated copy, stat strip, and Coming Soon overlay on pricing",
+      "Shared app logo component — upload a custom logo or use the default icon app-wide",
+      "Default SVG favicon matches the app's primary colour",
+      "Login and register pages now show the app logo instead of a generic icon",
+      "Fixed auth redirect loop — landing page no longer requires sign-in",
+      "Sign-in page features the landing navbar with Get Started button",
+      "Wider login form on desktop for better readability",
+      "Portfolio Value Trend chart tooltip now readable on dark backgrounds",
+      "Price event toast notifications now auto-dismiss after 8 seconds",
+      "Release notes modal — trigger from Settings › Data at any time",
+      "Discord notifications for new user registrations and pending approvals",
+      "Admin: Sign Out All Users — invalidates all active sessions with optional message"
+    ]
+  },
   "1.0.11": {
     "title": "Notifications, Analytics & More",
     "notes": [

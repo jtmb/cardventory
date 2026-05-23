@@ -19,6 +19,7 @@
 12. [CI/CD Pipeline](#12-cicd-pipeline)
 13. [Environment Variables](#13-environment-variables)
 14. [npm Scripts](#14-npm-scripts)
+15. [OCR Scan System](#15-ocr-scan-system)
 
 ---
 
@@ -732,6 +733,273 @@ npm run db:push      # Push schema without migration file
 
 ---
 
+## 15. OCR Scan System
+
+File: `app/api/cards/scan/route.ts`  
+Endpoint: `POST /api/cards/scan`  
+Accepts: multipart `image` field **or** JSON `{ image: "data:image/..." }`  
+Returns: `{ card: { name, year, setName, cardNumber, variant, gradeCompany, gradeValue, sportGenre }, _raw, _labelRaw, _nameRaw, _bodyRaw }`
+
+---
+
+### Architecture overview
+
+One photo → 4 independent Tesseract OCR passes → 2 parsers → merge.
+
+```
+Photo
+  ├─ Pass 1 (full image, grayscale+sharpen, PSM.SPARSE_TEXT)   → parseCardOcr      → cardFull
+  ├─ Pass 2 (top 25% crop, grayscale+sharpen, PSM.SPARSE_TEXT) → parseGradingLabel  → cardLabel
+  ├─ Pass 3 (22–87% crop, colour+normalise, PSM.SPARSE_TEXT)   → parseCardOcr      → bodyGenre (sport only)
+  └─ Pass 4 (top 15% crop, colour+normalise, PSM.SINGLE_BLOCK) → parseCardOcr      → nameCropOcr
+
+Merge:
+  name         = cardLabel.name         ?? nameCropOcr.name ?? cardFull.name
+  year         = cardLabel.year         ?? cardFull.year
+  setName      = cardLabel.setName      ?? cardFull.setName
+  cardNumber   = cardLabel.cardNumber   ?? cardFull.cardNumber
+  variant      = cardFull.variant       ?? cardLabel.variant
+  gradeCompany = cardLabel.gradeCompany ?? cardFull.gradeCompany
+  gradeValue   = cardLabel.gradeValue   ?? cardFull.gradeValue
+  sportGenre   = cardLabel > cardFull > bodyGenre > Wikipedia fallback
+```
+
+**Why 4 passes?** Different regions of a card need different preprocessing:
+- Grading labels (PSA/BGS) are black-and-white — grayscale + sharpen works best
+- Card faces use coloured fonts — grayscale destroys contrast, colour + normalise is better
+- The name strip (top ~15%) is too narrow for SPARSE_TEXT to assemble into one line — SINGLE_BLOCK fixes this for Pokémon/TCG names
+- Body text (team logos, equipment brands) needs a dedicated crop because the label crop only covers 25% and the name strip only 15%
+
+---
+
+### Image preprocessing per pass
+
+| Pass | Source | Crop | Preprocessing | PSM | Target |
+|---|---|---|---|---|---|
+| 1 | original | none (full) | grayscale → normalise → sharpen(σ1.5, m1:1, m2:3) → upscale ≥1800px | SPARSE_TEXT | general fallback, year, set, grade, sport |
+| 2 | original | top 25% | grayscale → normalise → sharpen(σ1.0) → 2–3× upscale ≥600px | SPARSE_TEXT | PSA/BGS label: name, grade company/value, year |
+| 3 | original | 22%–87% | colour → normalise → 2× upscale | SPARSE_TEXT | sport signals in card photo (team names, logos) |
+| 4 | original | top 15% | colour → normalise → 3× upscale | SINGLE_BLOCK | card name (coloured font, Pokémon/TCG) |
+
+**Why crop from the original each time** (not from the already-upscaled Pass 1 image)?  
+Cropping an already 3× upscaled image introduces stretch artifacts and applying grayscale+sharpen on a previously processed image amplifies noise. Each pass crops the raw original at the correct region, then applies its own independent pipeline.
+
+**Why PSM.SINGLE_BLOCK for Pass 4?**  
+SPARSE_TEXT breaks a short title like "Bulbasaur" into fragments ("Bulb", "a", "ur") on separate lines. SINGLE_BLOCK forces Tesseract to treat the whole crop as a single paragraph, so the name lands on one line and word-level token extraction works.
+
+---
+
+### `parseCardOcr(rawText)` — generic card parser
+
+Used for Pass 1, Pass 3, and Pass 4.
+
+#### Fields extracted
+
+| Field | Method |
+|---|---|
+| `year` | regex `\b(19[5-9]\d\|20[0-2]\d)\b` |
+| `cardNumber` | `#136`, `No. 136`, or `136/350` patterns |
+| `gradeCompany` | `PSA\|BGS\|SGC\|CGC\|HGA\|CSG` or inferred from "GEM MT" |
+| `gradeValue` | adjacent to company, or line-end 1–10 pattern |
+| `setName` | scan `KNOWN_SETS` against uppercased text |
+| `variant` | scan `variantKeywords` (Refractor, Prizm, 1st Edition, etc.) |
+| `sportGenre` | scan `SPORT_SIGNALS` (see Sport Detection below) |
+| `name` | priority chain (see below) |
+
+#### Name extraction priority chain
+
+```
+hpName        Pokémon: name immediately before "HP <number>"
+mtgBodyName   MTG: "Whenever Six attacks" → "Six"
+titleCase     first nameCandidates line matching /^[A-Z][a-z]+ [A-Z][a-z]+/
+allCapsTcg    all-caps multi-word candidate — prefers more words ("TOM BRADY" > "BUCCANEER")
+singleProper  longest single CamelCase word ≥6 chars from nameCandidates tokens
+longest       longest nameCandidates line (skipped for Pokémon cards)
+null
+```
+
+#### `nameCandidates` filter pipeline
+
+Each OCR line is stripped of leading/trailing non-alpha noise, then rejected if **any** condition is true:
+
+| Check | Reason |
+|---|---|
+| Empty after stripping | pure punctuation/symbol noise |
+| Contains the year string | years are not names |
+| Word count > 8 or < 1 | too long = rules text; too short = garbage |
+| Doesn't start with uppercase | card names always start with a capital |
+| Starts with a digit | card numbers, stats |
+| Starts with `#` | card number token like `#201` |
+| Exact match in `NAME_STOP` (whole uppercased line) | known non-name tokens |
+| `startsWith` any prefix in the prefix list | "FUTURE STARS X", "LEGENDARY X", "ROOKIE X" — type descriptors with trailing OCR noise |
+| Single word, all-caps, 1–5 chars | abbreviations (PSA, NBA, GEM) |
+| Every word has ≤2 alpha chars | pure OCR garbage ("rm Tr", "GE MT") |
+| Matches `/^[\d\/\s\-\.]+$/` | number-only lines |
+| Contains damage/weakness/retreat/resistance | Pokémon mechanic text |
+| Starts with MTG ability trigger | "Whenever", "When ", "As long as", "At the beginning", "At the end", "If ", "You may", "Each " |
+| Any token is a pure digit | OCR noise like "Pipi em— : 2 8 J" from mana cost area |
+| Matches illustrator credit pattern | "Illus. Smith" style lines |
+
+#### `hpName` — Pokémon-specific extraction
+
+Three strategies tried in order:
+1. Same-line regex: `NAME[^A-Za-z]{0,8}HP\d+` — energy-type icon between name and HP renders as symbols (up to 8 non-letter chars tolerated)
+2. Line immediately before the `HP \d+` line (up to 2 lines back — icon may be its own OCR line)
+3. Line before a standalone multiple-of-10 number 60–350 — when HP is rendered as a graphic icon and OCR drops it entirely, leaving only the number
+
+#### `mtgBodyName` — MTG-specific extraction
+
+Regex applied to the full raw text:
+```
+/\b(?:Whenever|When)\s+([A-Z][A-Za-z,'\s–\-]{0,40}?)\s+(?:attacks?|enters?|dies?|deals?\s+damage|blocks?)\b/
+```
+
+MTG cards reference themselves by name in their rules text. This catches both single-word names ("Six") and multi-word names ("Garruk, Apex Predator"). Placed **before** `titleCase` in the priority chain because the card type line ("Legendary Creature — Treefolk") often OCR-reads as "Legendary Bea - freefols" which would otherwise win `titleCase`.
+
+---
+
+### `parseGradingLabel(text)` — PSA/BGS/SGC label parser
+
+Used only for Pass 2 (top 25% label crop). Grading labels follow a predictable columnar format:
+```
+[YEAR] [GAME] [SET]
+[CARD-NUMBER] [CARD-NAME]
+[VARIANT / EDITION]
+[GRADE DESCRIPTOR]    [GRADE NUMBER]
+```
+
+#### Name extraction strategy
+
+1. **Grade descriptor scan**: find any line containing a grade word (GEM MT, NM-MT, MINT, etc.). Text before the descriptor on that line = name. If the descriptor is at column 0 (column-split OCR), look at the previous line.
+2. **Positional fallback**: find the line with the year (`yearLineIdx`). Try offsets +1 through +8 from that line. Strip card-number prefixes like `#FS11 `. Use the first candidate that is >3 chars, not all-digits, and not in `NAME_STOP`.
+   - 8 offsets are needed because OCR noise lines (logo fragments, punctuation) can appear between the year line and the actual card name.
+
+---
+
+### Sport detection
+
+`SPORT_SIGNALS` is an ordered array of `[sport, keywords[]]`. **First match wins.** Checked against the uppercased text of each pass independently; label > full image > body crop for final priority.
+
+| Sport | Key signals |
+|---|---|
+| basketball | NBA, BASKETBALL, HOOPS |
+| baseball | MLB, BASEBALL, BOWMAN, + all MLB team names |
+| football | NFL, FOOTBALL, QUARTERBACK, TOUCHDOWN, + all NFL team names |
+| soccer | FIFA, SOCCER, MLS, PREMIER LEAGUE |
+| hockey | NHL, HOCKEY, NHLPA, O-PEE-CHEE, CCM, BAUER, + all NHL team names |
+| pokemon | POKÉMON, POKEMON, TRAINER CARD, ENERGY CARD, HP |
+| yugioh | YU-GI-OH!, EFFECT MONSTER, SPELL CARD, TRAP CARD, ATK/, KAZUKI TAKAHASHI |
+| magic | MAGIC: THE GATHERING, MAGIC THE GATHERING, WIZARDS OF THE COAST, PLANESWALKER |
+
+**Ordering/ambiguity rules:**
+- Team names must be unambiguous. "STARS" was removed from hockey (false-positives on "FUTURE STARS" labels) — use "DALLAS STARS" instead.
+- "HP" fires Pokémon — only add the abbreviation if it's exclusive to that sport context.
+- Generic words like "BEARS", "KINGS", "SAINTS" may appear in multiple sports; only include them in the sport where they're unambiguous or visually dominant on cards.
+
+#### Wikipedia fallback (`inferSportFromWeb`)
+
+If all passes return `sportGenre = "other"`, the merged card name is looked up on Wikipedia:
+1. Wikipedia REST summary API — fast structured JSON
+2. Wikipedia search API — handles OCR name misspellings (fallback)
+3. Both results scanned for `SPORT_SIGNALS` keywords, then Wikipedia-specific patterns ("BASKETBALL PLAYER", "ICE HOCKEY", "PITCHER", etc.)
+4. Hard timeout: 4 s, fails silently — sport is non-critical
+
+---
+
+### `NAME_STOP` — words that are never card names
+
+| Category | Examples |
+|---|---|
+| Grading companies | PSA, BGS, SGC, CGC, HGA, CSG |
+| League abbreviations | NBA, NFL, MLB, NHL, FIFA, MLS |
+| Condition descriptors | MINT, NEAR, GOOD, POOR, EXCELLENT |
+| Generic card words | CARD, CARDS, NO, NUMBER, SERIAL, EDITION, SERIES, SET |
+| Pokémon UI labels | BASIC, STAGE, TRAINER, ENERGY, NINTENDO, CREATURES, ILLUS, POKEMON |
+| Grading label series tags | FUTURE STARS, AUTOGRAPH, AUTHENTIC AUTOGRAPH, ROOKIE, ROOKIE CARD, PROSPECT, FUTURE |
+| MTG keyword abilities | REACH, FLYING, TRAMPLE, VIGILANCE, LIFELINK, DEATHTOUCH, HASTE, FLASH, HEXPROOF, INDESTRUCTIBLE, SHROUD, MENACE, PROWESS, RETRACE |
+| MTG card types | LEGENDARY, CREATURE, PLANESWALKER, ENCHANTMENT, ARTIFACT, SORCERY, INSTANT, LAND |
+| MTG copyright words | WIZARDS, COAST |
+| All known set names | everything in `KNOWN_SETS` (auto-spread at bottom of set) |
+
+---
+
+### Debugging OCR
+
+The scan route writes all 4 raw OCR outputs to `/tmp/scan-debug.txt` on every scan:
+
+```
+=== PASS1 ===
+<full image OCR>
+
+=== PASS2 ===
+<label crop OCR>
+
+=== PASS3 ===
+<body crop OCR>
+
+=== PASS4 ===
+<name crop OCR>
+```
+
+Read it immediately after scanning a card:
+```bash
+cat /tmp/scan-debug.txt
+```
+
+> **Note:** The `writeFileSync("/tmp/scan-debug.txt", ...)` block is temporary and should be removed once debugging is complete. Search for `scan-debug.txt` in `route.ts` to find it.
+
+---
+
+### How to improve the OCR for a new card type
+
+**Rule 1: Never guess what Tesseract produces.** Always scan the actual card and read `/tmp/scan-debug.txt` before writing any code.
+
+**Step 1 — Capture real OCR output.**  
+Scan the problem card in the app. Read `/tmp/scan-debug.txt`. Note which pass (1–4) contains the most useful text for the field you're trying to fix.
+
+**Step 2 — Identify why the wrong value is being selected.**  
+Trace the priority chain manually:
+- Is the bad string entering `nameCandidates`? Walk through every filter condition.
+- Which priority level is firing (`titleCase`, `allCapsTcg`, `singleProper`, `longest`)?
+- Is the correct string being filtered out when it shouldn't be?
+
+**Step 3 — Apply the targeted fix.**
+
+| Symptom | Fix |
+|---|---|
+| Type-line text wins ("Legendary Bea - freefols") | Add the leading word to the `startsWith` prefix list in `nameCandidates` |
+| Copyright/brand text wins as `titleCase` | Add the word to `NAME_STOP` |
+| Name is inside a rules-text phrase ("Whenever X attacks") | Add verb to `mtgBodyName` regex; ensure trigger-word prefix filter is in `nameCandidates` |
+| Grade label: name not found at offset +1 from year | Look at the debug log — find which offset has the name; the fallback already tries +1 through +8 |
+| Pokémon name missed | Check `hpName` — verify "HP" or a nearby multiple-of-10 number appears in pass 4 OCR text |
+| Sport = "other" for obvious sport | Find a unique keyword in the OCR text and add to `SPORT_SIGNALS` for that sport |
+| Wrong sport (e.g. "STARS" → hockey on a baseball card) | Remove the ambiguous word; add the qualified team name ("DALLAS STARS") instead |
+| Pass 4 reads ornate border as garbage ("Pipi em— : 2 8 J") | Standalone digit filter already blocks this. If a new pattern emerges, add a filter to `nameCandidates` |
+
+**Step 4 — Add to the right place.**
+
+| What | Where in `route.ts` |
+|---|---|
+| New card set | `KNOWN_SETS` array (top of file) — auto-added to `NAME_STOP` via spread |
+| New sport signal keyword | `SPORT_SIGNALS` — pick the right sport array |
+| Word that is never a name | `NAME_STOP` set |
+| Word that starts a non-name line | `startsWith` prefix array inside `nameCandidates` |
+| New MTG self-reference verb | `mtgBodyName` regex alternation: `(?:attacks?\|enters?\|...)` |
+| New grading company | `NAME_STOP`, `gradeAdjacentMatch` regex, `parseGradingLabel` company match |
+
+**Step 5 — Simulate before scanning.**  
+Paste the raw OCR text from the debug log into a Node script and test locally:
+```bash
+node --input-type=module << 'EOF'
+const rawText = `... paste content from /tmp/scan-debug.txt ...`;
+// copy the relevant logic from route.ts and run it here
+EOF
+```
+
+This is faster than a full app rebuild and lets you iterate on filters without waiting for Tesseract.
+
+---
+
 ## Quick Reference
 
 | Task | Location |
@@ -748,3 +1016,7 @@ npm run db:push      # Push schema without migration file
 | Understand FOUC prevention | `THEME_INIT_SCRIPT` in `lib/theme.ts` + `app/layout.tsx` |
 | Find Docker image | `ghcr.io/jtmb/cardventory:latest` |
 | Check CI/CD | GitHub Actions: auto-tag, release, deploy, terraform |
+| Fix OCR name/sport detection | Read §15; scan card → `cat /tmp/scan-debug.txt` → trace priority chain → edit `route.ts` |
+| Add new sport signal | `SPORT_SIGNALS` in `app/api/cards/scan/route.ts` |
+| Add word to name blocklist | `NAME_STOP` set in `app/api/cards/scan/route.ts` |
+| Add new card set | `KNOWN_SETS` array in `app/api/cards/scan/route.ts` |

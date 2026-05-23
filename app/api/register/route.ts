@@ -1,8 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { users, settings } from "@/lib/db/schema";
+import { rawSqlite } from "@/lib/db";
+import { users, settings, userLoginLogs } from "@/lib/db/schema";
 import { eq, isNull, and } from "drizzle-orm";
 import bcrypt from "bcryptjs";
+import { sendDiscordNotification } from "@/lib/notifications";
+import { getRealIp } from "@/lib/get-real-ip";
 
 async function getSystemSetting(key: string): Promise<string | null> {
   const row = await db
@@ -13,8 +16,24 @@ async function getSystemSetting(key: string): Promise<string | null> {
   return row?.value ?? null;
 }
 
+// In-memory rate limiter: max 5 registrations per IP per hour
+const regAttempts = new Map<string, number[]>();
+
+function isRateLimited(ip: string): boolean {
+  if (ip === "unknown") return false; // Can't rate-limit unknown IPs
+  const now = Date.now();
+  const windowMs = 60 * 60 * 1000; // 1 hour
+  const maxPerWindow = 5;
+  const attempts = (regAttempts.get(ip) ?? []).filter((t) => now - t < windowMs);
+  if (attempts.length >= maxPerWindow) return true;
+  attempts.push(now);
+  regAttempts.set(ip, attempts);
+  return false;
+}
+
 export async function POST(req: NextRequest) {
   try {
+    const ip = getRealIp(req);
     const { name, email, password } = await req.json();
 
     if (!name || !email || !password) {
@@ -34,6 +53,14 @@ export async function POST(req: NextRequest) {
       if (allowReg === "false") {
         return NextResponse.json({ error: "Registration is currently disabled." }, { status: 403 });
       }
+
+      // Rate limit: max 5 attempts per IP per hour (skip for first user)
+      if (isRateLimited(ip)) {
+        return NextResponse.json(
+          { error: "Too many registration attempts. Please try again later." },
+          { status: 429 }
+        );
+      }
     }
 
     const existing = await db.select().from(users).where(eq(users.email, email)).get();
@@ -50,7 +77,48 @@ export async function POST(req: NextRequest) {
       if (requireApproval === "true") status = "pending";
     }
 
-    await db.insert(users).values({ name, email, passwordHash, role, status });
+    const newUser = await db
+      .insert(users)
+      .values({ name, email, passwordHash, role, status })
+      .returning({ id: users.id })
+      .get();
+
+    // Log the registration IP (shows up in login history for pending accounts)
+    if (newUser?.id) {
+      await db.insert(userLoginLogs).values({ userId: newUser.id, ipAddress: ip });
+    }
+
+    // Discord signup notification (fire and forget)
+    try {
+      const discordEnabled = rawSqlite
+        .prepare("SELECT value FROM settings WHERE user_id IS NULL AND key = 'signup_discord_enabled' LIMIT 1")
+        .get() as { value: string } | undefined;
+      if (discordEnabled?.value === "true") {
+        const webhookRow = rawSqlite
+          .prepare("SELECT value FROM settings WHERE user_id IS NULL AND key = 'signup_discord_webhook' LIMIT 1")
+          .get() as { value: string } | undefined;
+        const webhookUrl = webhookRow?.value?.trim();
+        if (webhookUrl) {
+          if (status === "pending") {
+            const notifyPending = rawSqlite
+              .prepare("SELECT value FROM settings WHERE user_id IS NULL AND key = 'signup_notify_pending' LIMIT 1")
+              .get() as { value: string } | undefined;
+            if (notifyPending?.value !== "false") {
+              sendDiscordNotification(webhookUrl, `⏳ **New pending registration** — ${name} (${email}) is waiting for admin approval.`).catch(() => {});
+            }
+          } else {
+            const notifyRegister = rawSqlite
+              .prepare("SELECT value FROM settings WHERE user_id IS NULL AND key = 'signup_notify_register' LIMIT 1")
+              .get() as { value: string } | undefined;
+            if (notifyRegister?.value !== "false") {
+              sendDiscordNotification(webhookUrl, `✅ **New registration** — ${name} (${email}) has joined Cardventory.`).catch(() => {});
+            }
+          }
+        }
+      }
+    } catch {
+      // Never block registration on Discord errors
+    }
 
     if (status === "pending") {
       return NextResponse.json({ pending: true }, { status: 201 });

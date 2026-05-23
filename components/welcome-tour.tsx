@@ -113,10 +113,24 @@ export function WelcomeTour() {
   const pathname = usePathname();
 
   useEffect(() => {
-    if (typeof localStorage !== "undefined" && !localStorage.getItem(TOUR_LS_KEY)) {
-      // Small delay so the layout is fully painted
-      const t = setTimeout(() => setActive(true), 800);
-      return () => clearTimeout(t);
+    if (typeof localStorage !== "undefined") {
+      if (localStorage.getItem(TOUR_LS_KEY)) return; // fast-path: already seen locally
+
+      // Check server-side setting (persists across browsers / private mode)
+      fetch("/api/settings")
+        .then((r) => r.ok ? r.json() : null)
+        .then((data: Record<string, string> | null) => {
+          if (data?.tour_done === "1") {
+            localStorage.setItem(TOUR_LS_KEY, "1"); // sync to local
+            return;
+          }
+          // Small delay so the layout is fully painted
+          setTimeout(() => setActive(true), 800);
+        })
+        .catch(() => {
+          // If API fails, fall back to showing the tour
+          setTimeout(() => setActive(true), 800);
+        });
     }
   }, []);
 
@@ -236,6 +250,12 @@ export function WelcomeTour() {
   function dismiss() {
     localStorage.setItem(TOUR_LS_KEY, "1");
     setActive(false);
+    // Persist to server so the tour doesn't re-appear on other browsers/private sessions
+    fetch("/api/settings", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ tour_done: "1" }),
+    }).catch(() => {});
   }
 
   function next() {

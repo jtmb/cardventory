@@ -9,12 +9,16 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { AppLogo } from "@/components/app-logo";
+import { LandingNav } from "@/components/landing-nav";
+import { EyeIcon, EyeOffIcon } from "lucide-react";
 
 export default function LoginPage() {
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [showPwd, setShowPwd] = useState(false);
   const [oauthStatus, setOauthStatus] = useState<{ google: boolean; github: boolean } | null>(null);
+  const [signOutMessage, setSignOutMessage] = useState<string | null>(null);
 
   useEffect(() => {
     fetch("/api/oauth-status")
@@ -24,6 +28,13 @@ export default function LoginPage() {
       })
       .then(setOauthStatus)
       .catch(() => setOauthStatus({ google: false, github: false }));
+
+    fetch("/api/sign-out-message")
+      .then((r) => r.ok ? r.json() : null)
+      .then((data: { message?: string } | null) => {
+        if (data?.message) setSignOutMessage(data.message);
+      })
+      .catch(() => {});
   }, []);
 
   function handleOAuthClick(provider: "google" | "github") {
@@ -50,12 +61,21 @@ export default function LoginPage() {
       setError("Invalid email or password");
       setLoading(false);
     } else {
-      router.push("/");
+      router.push("/dashboard");
       router.refresh();
     }
   }
 
   return (
+    <>
+      <LandingNav isLoggedIn={false} hideSignIn />
+      <main className="flex items-center justify-center min-h-screen px-4 py-20">
+        <div className="w-full max-w-lg">
+          {signOutMessage && (
+            <div className="mb-4 rounded-lg border border-border bg-muted/60 px-4 py-3 text-sm text-foreground">
+              {signOutMessage}
+            </div>
+          )}
     <Card>
       <CardHeader className="text-center">
         <div className="flex justify-center mb-2">
@@ -78,13 +98,24 @@ export default function LoginPage() {
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="password">Password</Label>
-            <Input
-              id="password"
-              name="password"
-              type="password"
-              required
-              placeholder="••••••••"
-            />
+            <div className="relative">
+              <Input
+                id="password"
+                name="password"
+                type={showPwd ? "text" : "password"}
+                required
+                placeholder="••••••••"
+                className="pr-9"
+              />
+              <button
+                type="button"
+                onClick={() => setShowPwd((s) => !s)}
+                className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                aria-label={showPwd ? "Hide password" : "Show password"}
+              >
+                {showPwd ? <EyeOffIcon className="h-4 w-4" /> : <EyeIcon className="h-4 w-4" />}
+              </button>
+            </div>
           </div>
           {error && <p className="text-destructive text-sm">{error}</p>}
           <Button type="submit" disabled={loading} className="w-full">
@@ -136,5 +167,8 @@ export default function LoginPage() {
         </p>
       </CardContent>
     </Card>
+        </div>
+      </main>
+    </>
   );
 }

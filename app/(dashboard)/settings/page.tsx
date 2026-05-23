@@ -120,6 +120,13 @@ function SettingsContent() {
   const [notifDiscordUserId, setNotifDiscordUserId] = useState("");
   const [notifOnNewHigh, setNotifOnNewHigh] = useState(true);
   const [notifOnPriceChange, setNotifOnPriceChange] = useState(false);
+  // Signup Discord notifications (admin-only system settings)
+  const [signupDiscordEnabled, setSignupDiscordEnabled] = useState(false);
+  const [signupDiscordWebhook, setSignupDiscordWebhook] = useState("");
+  const [signupNotifyRegister, setSignupNotifyRegister] = useState(true);
+  const [signupNotifyPending, setSignupNotifyPending] = useState(true);
+  // Demo mode
+  const [demoMode, setDemoMode] = useState(false);
   // OAuth / system settings (admin only)
   const [oauthGoogleId, setOauthGoogleId] = useState("");
   const [oauthGoogleSecret, setOauthGoogleSecret] = useState("");
@@ -302,6 +309,11 @@ function SettingsContent() {
           const stored = String(data.auto_deny_after_hours);
           setAutoDenyHours(validOptions.includes(stored) ? stored : "0");
         }
+        if (data.signup_discord_enabled !== undefined) setSignupDiscordEnabled(data.signup_discord_enabled === "true");
+        if (data.signup_discord_webhook) setSignupDiscordWebhook(data.signup_discord_webhook);
+        if (data.signup_notify_register !== undefined) setSignupNotifyRegister(data.signup_notify_register !== "false");
+        if (data.signup_notify_pending !== undefined) setSignupNotifyPending(data.signup_notify_pending !== "false");
+        if (data.demo_mode !== undefined) setDemoMode(data.demo_mode === "true");
       })
       .catch(() => {});
   }, []);
@@ -586,6 +598,11 @@ function SettingsContent() {
           allow_registration: String(allowRegistration),
           require_approval: String(requireApproval),
           auto_deny_after_hours: autoDenyHours,
+          signup_discord_enabled: String(signupDiscordEnabled),
+          signup_discord_webhook: signupDiscordWebhook,
+          signup_notify_register: String(signupNotifyRegister),
+          signup_notify_pending: String(signupNotifyPending),
+          demo_mode: String(demoMode),
         }),
       }).catch(() => {});
     }
@@ -1232,6 +1249,28 @@ function SettingsContent() {
             </Button>
           </CardContent>
         </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Release Notes</CardTitle>
+            <CardDescription>
+              Preview the release notes modal for the current version.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Button
+              variant="outline"
+              className="gap-2"
+              onClick={() => {
+                localStorage.removeItem("cv_last_seen_version");
+                window.dispatchEvent(new CustomEvent("cv:show-release-notes"));
+              }}
+            >
+              <SparklesIcon className="h-4 w-4" />
+              Show Release Notes
+            </Button>
+          </CardContent>
+        </Card>
         </div>
       )}
 
@@ -1590,6 +1629,72 @@ function SettingsContent() {
       {/* ── Authentication ────────────────────────────────────────────────── */}
       {activeSection === "authentication" && isAdmin && (
         <div className={settingsArrangementClass(settingsArrangement)}>
+          {/* Signup Discord notifications — shown first so admins configure alerts before enabling registration */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base flex items-center gap-2">
+                <MessageSquareIcon className="h-4 w-4" /> Signup Notifications
+              </CardTitle>
+              <CardDescription>
+                Send a Discord webhook message when someone registers or is placed in the approval queue.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex items-center gap-3">
+                <input
+                  type="checkbox"
+                  id="signup-discord-enabled"
+                  checked={signupDiscordEnabled}
+                  onChange={(e) => setSignupDiscordEnabled(e.target.checked)}
+                  className="h-4 w-4 rounded border-border"
+                />
+                <Label htmlFor="signup-discord-enabled">Enable signup Discord notifications</Label>
+              </div>
+              {signupDiscordEnabled && (
+                <>
+                  <div className="space-y-1.5">
+                    <Label>Webhook URL</Label>
+                    <input
+                      value={signupDiscordWebhook}
+                      onChange={(e) => setSignupDiscordWebhook(e.target.value)}
+                      placeholder="https://discord.com/api/webhooks/..."
+                      className="w-full h-9 rounded-md border border-border bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <p className="text-sm font-medium">Notify on</p>
+                    <div className="flex items-center gap-3">
+                      <input
+                        type="checkbox"
+                        id="signup-notify-register"
+                        checked={signupNotifyRegister}
+                        onChange={(e) => setSignupNotifyRegister(e.target.checked)}
+                        className="h-4 w-4 rounded border-border"
+                      />
+                      <div>
+                        <Label htmlFor="signup-notify-register">New registration</Label>
+                        <p className="type-label-small text-muted-foreground">Alert when a user successfully registers.</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <input
+                        type="checkbox"
+                        id="signup-notify-pending"
+                        checked={signupNotifyPending}
+                        onChange={(e) => setSignupNotifyPending(e.target.checked)}
+                        className="h-4 w-4 rounded border-border"
+                      />
+                      <div>
+                        <Label htmlFor="signup-notify-pending">Pending approval</Label>
+                        <p className="type-label-small text-muted-foreground">Alert when a new account is waiting for admin approval.</p>
+                      </div>
+                    </div>
+                  </div>
+                </>
+              )}
+            </CardContent>
+          </Card>
+
           {/* Registration Controls */}
           <Card>
             <CardHeader>
@@ -1702,12 +1807,45 @@ function SettingsContent() {
               </p>
             </CardContent>
           </Card>
+
+          {/* Session Management — moved here from System tab */}
+          <SignOutAllCard />
         </div>
       )}
 
       {/* ── System ────────────────────────────────────────────────────────── */}
       {activeSection === "system" && (
         <div className={settingsArrangementClass(settingsArrangement)}>
+        {/* Demo Mode */}
+        {isAdmin && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base flex items-center gap-2">
+                <FlaskConicalIcon className="h-4 w-4" /> Demo Mode
+              </CardTitle>
+              <CardDescription>
+                Show a visible banner indicating this is a demonstration instance. Useful when sharing the app with others.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="flex items-center justify-between gap-4">
+                <div>
+                  <p className="text-sm font-medium">Enable demo mode</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">Displays a &ldquo;Demo Mode&rdquo; banner across the top of the dashboard for all users.</p>
+                </div>
+                <label className="relative inline-flex items-center cursor-pointer shrink-0">
+                  <input
+                    type="checkbox"
+                    checked={demoMode}
+                    onChange={(e) => setDemoMode(e.target.checked)}
+                    className="sr-only peer"
+                  />
+                  <div className="w-10 h-5.5 bg-muted border border-border rounded-full peer peer-checked:bg-primary transition-colors after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:bg-white after:rounded-full after:h-4.5 after:w-4.5 after:transition-all peer-checked:after:translate-x-4.5" />
+                </label>
+              </div>
+            </CardContent>
+          </Card>
+        )}
         {/* App Logo */}
         {isAdmin && (
         <Card>
@@ -2030,6 +2168,88 @@ function SettingsContent() {
         </div>
       </div>
     </div>
+  );
+}
+
+function SignOutAllCard() {
+  const [message, setMessage] = useState("");
+  const [confirming, setConfirming] = useState(false);
+  const [loading, setLoading] = useState(false);
+
+  async function handleSignOutAll() {
+    setLoading(true);
+    try {
+      const res = await fetch("/api/admin/sign-out-all", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ message: message.trim() }),
+      });
+      const data = await res.json() as { count?: number; error?: string };
+      if (!res.ok) throw new Error(data.error ?? "Failed");
+      toast.success(`Signed out ${data.count ?? 0} user${data.count !== 1 ? "s" : ""}.`);
+      setMessage("");
+      setConfirming(false);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to sign out users.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  return (
+    <Card className="border-destructive/40">
+      <CardHeader>
+        <CardTitle className="text-base flex items-center gap-2">
+          <ShieldIcon className="h-4 w-4 text-destructive" /> Session Management
+        </CardTitle>
+        <CardDescription>
+          Force all other users to sign out immediately. Optionally show them a message on the login page.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div className="space-y-1.5">
+          <Label>Sign-out message (optional)</Label>
+          <textarea
+            value={message}
+            onChange={(e) => setMessage(e.target.value)}
+            placeholder="e.g. Maintenance in progress, please sign back in shortly."
+            rows={2}
+            className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring resize-none"
+          />
+          <p className="type-label-small text-muted-foreground">
+            Leave blank to silently sign out all users without displaying a message.
+          </p>
+        </div>
+        {!confirming ? (
+          <Button
+            variant="destructive"
+            onClick={() => setConfirming(true)}
+            className="gap-2"
+          >
+            <ShieldIcon className="h-4 w-4" />
+            Sign Out All Users
+          </Button>
+        ) : (
+          <div className="flex items-center gap-3">
+            <Button
+              variant="destructive"
+              onClick={handleSignOutAll}
+              disabled={loading}
+              className="gap-2"
+            >
+              {loading ? "Signing out…" : "Confirm — Sign Out Everyone"}
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => setConfirming(false)}
+              disabled={loading}
+            >
+              Cancel
+            </Button>
+          </div>
+        )}
+      </CardContent>
+    </Card>
   );
 }
 

@@ -7,6 +7,7 @@ import { db, rawSqlite } from "@/lib/db";
 import { users, bannedUsers } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
 import authConfig from "@/auth.config";
+import { sendDiscordNotification } from "@/lib/notifications";
 
 /** Read a system setting (userId=NULL) synchronously at module init time. */
 function sysVar(settingKey: string, envFallback: string): string {
@@ -124,6 +125,39 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           status,
         });
 
+        // Discord signup notification (fire and forget)
+        try {
+          const discordEnabled = rawSqlite
+            .prepare("SELECT value FROM settings WHERE user_id IS NULL AND key = 'signup_discord_enabled' LIMIT 1")
+            .get() as { value: string } | undefined;
+          if (discordEnabled?.value === "true") {
+            const webhookRow = rawSqlite
+              .prepare("SELECT value FROM settings WHERE user_id IS NULL AND key = 'signup_discord_webhook' LIMIT 1")
+              .get() as { value: string } | undefined;
+            const webhookUrl = webhookRow?.value?.trim();
+            if (webhookUrl) {
+              const displayName = user.name ?? user.email.split("@")[0];
+              if (status === "pending") {
+                const notifyPending = rawSqlite
+                  .prepare("SELECT value FROM settings WHERE user_id IS NULL AND key = 'signup_notify_pending' LIMIT 1")
+                  .get() as { value: string } | undefined;
+                if (notifyPending?.value !== "false") {
+                  sendDiscordNotification(webhookUrl, `⏳ **New pending registration** (OAuth) — ${displayName} (${user.email}) is waiting for admin approval.`).catch(() => {});
+                }
+              } else {
+                const notifyRegister = rawSqlite
+                  .prepare("SELECT value FROM settings WHERE user_id IS NULL AND key = 'signup_notify_register' LIMIT 1")
+                  .get() as { value: string } | undefined;
+                if (notifyRegister?.value !== "false") {
+                  sendDiscordNotification(webhookUrl, `✅ **New registration** (OAuth) — ${displayName} (${user.email}) has joined Cardventory.`).catch(() => {});
+                }
+              }
+            }
+          }
+        } catch {
+          // Never block sign-in on Discord errors
+        }
+
         if (status === "pending") return false; // Don't sign in until approved
         user.id = newId;
       } else {
@@ -133,8 +167,31 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       return true;
     },
     async jwt({ token, user, account }) {
-      if (user?.id) token.id = user.id;
-      if (user?.role) token.role = user.role;
+      if (user?.id) {
+        token.id = user.id;
+        // Increment session version to invalidate all previous active sessions
+        rawSqlite
+          .prepare("UPDATE users SET session_version = session_version + 1 WHERE id = ?")
+          .run(user.id);
+        // Load the new session version
+        const dbUser = rawSqlite
+          .prepare("SELECT role, session_version FROM users WHERE id = ? LIMIT 1")
+          .get(user.id) as { role: string; session_version: number } | undefined;
+        if (dbUser) {
+          if (!token.role) token.role = dbUser.role;
+          token.sessionVersion = dbUser.session_version;
+        }
+      }
+
+      // Validate session version on every token refresh
+      if (token.id && token.sessionVersion !== undefined) {
+        const versionRow = rawSqlite
+          .prepare("SELECT session_version FROM users WHERE id = ? LIMIT 1")
+          .get(token.id as string) as { session_version: number } | undefined;
+        if (!versionRow || versionRow.session_version !== token.sessionVersion) {
+          return null; // Invalidate token → user is signed out
+        }
+      }
 
       // For OAuth users whose role isn't in the provider payload, fetch from DB
       if (account?.type === "oauth" && token.id && !token.role) {

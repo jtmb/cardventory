@@ -8,12 +8,14 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { AppLogo } from "@/components/app-logo";
+import { EyeIcon, EyeOffIcon } from "lucide-react";
 
 export default function RegisterPage() {
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [showPwd, setShowPwd] = useState(false);
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -48,6 +50,8 @@ export default function RegisterPage() {
 
   if (pending) {
     return (
+      <div className="min-h-screen flex items-center justify-center px-4">
+        <div className="w-full max-w-md">
       <Card>
         <CardHeader className="text-center">
           <div className="flex justify-center mb-2">
@@ -65,10 +69,14 @@ export default function RegisterPage() {
           </Link>
         </CardContent>
       </Card>
+        </div>
+      </div>
     );
   }
 
   return (
+    <div className="min-h-screen flex items-center justify-center px-4">
+      <div className="w-full max-w-md">
     <Card>
       <CardHeader className="text-center">
         <div className="flex justify-center mb-2">
@@ -100,14 +108,25 @@ export default function RegisterPage() {
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="password">Password</Label>
-            <Input
-              id="password"
-              name="password"
-              type="password"
-              required
-              minLength={8}
-              placeholder="Min. 8 characters"
-            />
+            <div className="relative">
+              <Input
+                id="password"
+                name="password"
+                type={showPwd ? "text" : "password"}
+                required
+                minLength={8}
+                placeholder="Min. 8 characters"
+                className="pr-9"
+              />
+              <button
+                type="button"
+                onClick={() => setShowPwd((s) => !s)}
+                className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                aria-label={showPwd ? "Hide password" : "Show password"}
+              >
+                {showPwd ? <EyeOffIcon className="h-4 w-4" /> : <EyeIcon className="h-4 w-4" />}
+              </button>
+            </div>
           </div>
           {error && <p className="text-destructive text-sm">{error}</p>}
           <Button type="submit" disabled={loading} className="w-full">
@@ -122,5 +141,7 @@ export default function RegisterPage() {
         </p>
       </CardContent>
     </Card>
+      </div>
+    </div>
   );
 }

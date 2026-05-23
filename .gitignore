@@ -54,3 +54,5 @@ terraform/.terraform.lock.hcl
 terraform/terraform.tfstate
 terraform/terraform.tfstate.backup
 terraform/tfplan
+# Tesseract language data (large binary, downloaded at build time)
+tessdata/

@@ -11,7 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { CustomSelect } from "@/components/cards/custom-select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import { UploadIcon, XIcon, AlertTriangleIcon, SaveIcon } from "lucide-react";
+import { UploadIcon, XIcon, AlertTriangleIcon, SaveIcon, ScanIcon } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
 import { toast } from "sonner";
@@ -53,7 +53,9 @@ export default function AddCardPage() {
   const [condition, setCondition] = useState("none");
   const [duplicate, setDuplicate] = useState<CardType | null>(null);
   const [forceSubmit, setForceSubmit] = useState(false);
+  const [scanning, setScanning] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
+  const scanFileRef = useRef<HTMLInputElement>(null);
   const nameRef = useRef<HTMLInputElement>(null);
   const yearRef = useRef<HTMLInputElement>(null);
   const setNameRef = useRef<HTMLInputElement>(null);
@@ -68,6 +70,50 @@ export default function AddCardPage() {
       cardNumberRef.current?.value ? `#${cardNumberRef.current.value}` : null,
       variantRef.current?.value,
     ].filter(Boolean).join(" ");
+  }
+
+  async function handleScan(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    e.target.value = "";
+    setScanning(true);
+
+    // Also upload the image as the card photo
+    const preview = URL.createObjectURL(file);
+    setPhotoPreview(preview);
+    setUploading(true);
+    const uploadFd = new FormData();
+    uploadFd.append("file", file);
+    fetch("/api/upload", { method: "POST", body: uploadFd })
+      .then((r) => r.ok ? r.json() : null)
+      .then((d: { url?: string } | null) => { if (d?.url) setPhotoUrl(d.url); })
+      .catch(() => {})
+      .finally(() => setUploading(false));
+
+    try {
+      const fd = new FormData();
+      fd.append("image", file);
+      const res = await fetch("/api/cards/scan", { method: "POST", body: fd });
+      const data = await res.json() as { card?: Record<string, unknown>; error?: string };
+      if (!res.ok || data.error) {
+        toast.error(data.error ?? "Scan failed");
+        return;
+      }
+      const c = data.card ?? {};
+      if (c.name && nameRef.current) nameRef.current.value = String(c.name);
+      if (c.year && yearRef.current) yearRef.current.value = String(c.year);
+      if (c.setName && setNameRef.current) setNameRef.current.value = String(c.setName);
+      if (c.cardNumber && cardNumberRef.current) cardNumberRef.current.value = String(c.cardNumber);
+      if (c.variant && variantRef.current) variantRef.current.value = String(c.variant);
+      if (c.sportGenre && typeof c.sportGenre === "string") setGenre(c.sportGenre);
+      if (c.gradeCompany && typeof c.gradeCompany === "string") setGradeCompany(c.gradeCompany);
+      if (c.condition && typeof c.condition === "string") setCondition(c.condition);
+      toast.success("Card details filled in — review and adjust as needed.");
+    } catch {
+      toast.error("Scan failed");
+    } finally {
+      setScanning(false);
+    }
   }
 
   async function handlePhotoChange(e: React.ChangeEvent<HTMLInputElement>) {
@@ -146,8 +192,30 @@ export default function AddCardPage() {
   return (
     <div className="p-6 pb-24 max-w-2xl mx-auto space-y-6">
       <div>
-        <h1 className="type-headline-large font-bold">Add Card</h1>
-        <p className="text-muted-foreground text-sm mt-0.5">Add a card to your collection</p>
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <h1 className="type-headline-large font-bold">Add Card</h1>
+            <p className="text-muted-foreground text-sm mt-0.5">Add a card to your collection</p>
+          </div>
+          <button
+            type="button"
+            onClick={() => scanFileRef.current?.click()}
+            disabled={scanning}
+            className="flex items-center gap-2 px-3 py-2 rounded-lg border border-primary/40 bg-primary/10 hover:bg-primary/20 text-primary text-sm font-medium transition-colors disabled:opacity-60 shrink-0"
+            title="Take a photo of your card and we'll fill in the details automatically"
+          >
+            <ScanIcon className="h-4 w-4" />
+            {scanning ? "Scanning…" : "Scan Card"}
+          </button>
+          <input
+            ref={scanFileRef}
+            type="file"
+            accept="image/*"
+            capture="environment"
+            className="hidden"
+            onChange={handleScan}
+          />
+        </div>
       </div>
 
       {/* Status toggle */}

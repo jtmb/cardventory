@@ -60,6 +60,7 @@ export function migrate(sqlite: InstanceType<typeof Database>) {
   try { sqlite.exec("ALTER TABLE users ADD COLUMN locked_at INTEGER"); } catch {}
   try { sqlite.exec("ALTER TABLE users ADD COLUMN status TEXT NOT NULL DEFAULT 'active'"); } catch {}
   try { sqlite.exec("ALTER TABLE cards ADD COLUMN status TEXT NOT NULL DEFAULT 'owned'"); } catch {}
+  try { sqlite.exec("ALTER TABLE users ADD COLUMN session_version INTEGER NOT NULL DEFAULT 0"); } catch {}
 
   // Additional indexes for new columns
   try { sqlite.exec("CREATE INDEX IF NOT EXISTS idx_cards_status ON cards(status)"); } catch {}

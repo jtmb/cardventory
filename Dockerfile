@@ -7,7 +7,7 @@ RUN npm ci
 
 # Stage 2: Builder
 FROM node:22-alpine AS builder
-RUN apk add --no-cache libc6-compat python3 make g++
+RUN apk add --no-cache libc6-compat python3 make g++ curl
 WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
@@ -18,6 +18,11 @@ ENV NODE_ENV=production
 # Set a dummy secret for build-time (real secret injected at runtime)
 ENV AUTH_SECRET=build-placeholder
 ENV DATABASE_PATH=/app/data/cardventory.db
+
+# Pre-download Tesseract English language data so OCR works offline at runtime
+RUN mkdir -p tessdata && \
+    curl -sL "https://cdn.jsdelivr.net/npm/@tesseract.js-data/eng/4.0.0_best_int/eng.traineddata.gz" \
+    | gunzip > tessdata/eng.traineddata
 
 RUN npm run build
 
@@ -36,6 +41,7 @@ RUN adduser --system --uid 1001 nextjs
 COPY --from=builder /app/public ./public
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
+COPY --from=builder --chown=nextjs:nodejs /app/tessdata ./tessdata
 
 # Create data and uploads directories for volume mounts
 RUN mkdir -p /app/data /app/public/uploads && \

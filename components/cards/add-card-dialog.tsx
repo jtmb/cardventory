@@ -70,6 +70,8 @@ export function AddCardDialog({ open, onOpenChange, defaultStatus = "owned" }: A
   const [condition, setCondition] = useState("none");
   const [duplicate, setDuplicate] = useState<CardType | null>(null);
   const [forceSubmit, setForceSubmit] = useState(false);
+  const [scanning, setScanning] = useState(false);
+  const [confirmingReplace, setConfirmingReplace] = useState(false);
 
   const fileRef = useRef<HTMLInputElement>(null);
   const nameRef = useRef<HTMLInputElement>(null);
@@ -77,6 +79,7 @@ export function AddCardDialog({ open, onOpenChange, defaultStatus = "owned" }: A
   const setNameRef = useRef<HTMLInputElement>(null);
   const cardNumberRef = useRef<HTMLInputElement>(null);
   const variantRef = useRef<HTMLInputElement>(null);
+  const gradeValueRef = useRef<HTMLInputElement>(null);
 
   function resetForm() {
     setPhotoPreview(null);
@@ -87,6 +90,22 @@ export function AddCardDialog({ open, onOpenChange, defaultStatus = "owned" }: A
     setCondition("none");
     setDuplicate(null);
     setForceSubmit(false);
+    setConfirmingReplace(false);
+  }
+
+  function clearOcrFields() {
+    if (nameRef.current) nameRef.current.value = "";
+    if (yearRef.current) yearRef.current.value = "";
+    if (setNameRef.current) setNameRef.current.value = "";
+    if (cardNumberRef.current) cardNumberRef.current.value = "";
+    if (variantRef.current) variantRef.current.value = "";
+    if (gradeValueRef.current) gradeValueRef.current.value = "";
+    setGenre("other");
+    setGradeCompany("none");
+    setCondition("none");
+    setPhotoPreview(null);
+    setPhotoUrl(null);
+    if (fileRef.current) fileRef.current.value = "";
   }
 
   function getSearchQuery() {
@@ -102,17 +121,44 @@ export function AddCardDialog({ open, onOpenChange, defaultStatus = "owned" }: A
   async function handlePhotoChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
-    setUploading(true);
+
     setPhotoPreview(URL.createObjectURL(file));
-    const fd = new FormData();
-    fd.append("file", file);
-    const res = await fetch("/api/upload", { method: "POST", body: fd });
-    if (res.ok) {
-      setPhotoUrl((await res.json()).url);
-    } else {
-      toast.error("Photo upload failed");
+
+    // Upload + OCR run in parallel
+    setUploading(true);
+    const uploadFd = new FormData();
+    uploadFd.append("file", file);
+    fetch("/api/upload", { method: "POST", body: uploadFd })
+      .then((r) => r.ok ? r.json() : null)
+      .then((d: { url?: string } | null) => { if (d?.url) setPhotoUrl(d.url); })
+      .catch(() => toast.error("Photo upload failed"))
+      .finally(() => setUploading(false));
+
+    setScanning(true);
+    try {
+      const fd = new FormData();
+      fd.append("image", file);
+      const res = await fetch("/api/cards/scan", { method: "POST", body: fd });
+      const data = await res.json() as { card?: Record<string, unknown>; error?: string };
+      if (res.ok && !data.error) {
+        const c = data.card ?? {};
+        if (c.name && nameRef.current) nameRef.current.value = String(c.name);
+        if (c.year && yearRef.current) yearRef.current.value = String(c.year);
+        if (c.setName && setNameRef.current) setNameRef.current.value = String(c.setName);
+        if (c.cardNumber && cardNumberRef.current) cardNumberRef.current.value = String(c.cardNumber);
+        if (c.variant && variantRef.current) variantRef.current.value = String(c.variant);
+        if (c.gradeValue && gradeValueRef.current) gradeValueRef.current.value = String(c.gradeValue);
+        if (c.sportGenre && typeof c.sportGenre === "string") setGenre(c.sportGenre);
+        if (c.gradeCompany && typeof c.gradeCompany === "string") setGradeCompany(c.gradeCompany);
+        if (c.condition && typeof c.condition === "string") setCondition(c.condition);
+        toast.success("Card scanned — review and adjust the details as needed.", { duration: 8000 });
+      }
+      // Silently ignore scan errors — user can fill in manually
+    } catch {
+      // Silently ignore — don't interrupt the add flow for a failed scan
+    } finally {
+      setScanning(false);
     }
-    setUploading(false);
   }
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
@@ -276,13 +322,46 @@ export function AddCardDialog({ open, onOpenChange, defaultStatus = "owned" }: A
                     </div>
                     <button
                       type="button"
-                      onClick={() => fileRef.current?.click()}
-                      disabled={uploading}
+                      onClick={() => {
+                        if (photoPreview) {
+                          setConfirmingReplace(true);
+                        } else {
+                          fileRef.current?.click();
+                        }
+                      }}
+                      disabled={uploading || confirmingReplace}
                       className="self-start flex items-center gap-2 px-3 py-2 rounded-lg border border-border bg-background hover:bg-muted hover:border-muted-foreground/30 transition-colors text-sm font-medium disabled:opacity-50"
                     >
                       <UploadIcon className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
                       {uploading ? "Uploading…" : photoPreview ? "Replace photo" : "Upload photo"}
                     </button>
+                    {confirmingReplace && (
+                      <div className="flex flex-col gap-2 p-3 rounded-lg border border-amber-500/40 bg-amber-500/8">
+                        <p className="text-xs text-amber-500 font-medium leading-snug">
+                          Replacing the photo will clear all scanned details. Continue?
+                        </p>
+                        <div className="flex gap-2">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setConfirmingReplace(false);
+                              clearOcrFields();
+                              fileRef.current?.click();
+                            }}
+                            className="text-xs px-2.5 py-1 rounded-md bg-amber-500/15 text-amber-500 hover:bg-amber-500/25 transition-colors font-medium"
+                          >
+                            Replace &amp; clear
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setConfirmingReplace(false)}
+                            className="text-xs px-2.5 py-1 rounded-md border border-border text-muted-foreground hover:bg-muted transition-colors"
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                      </div>
+                    )}
                     <ImagePicker getQuery={getSearchQuery} onSelect={(url) => { setPhotoUrl(url); setPhotoPreview(url); }} />
                     {uploading && (
                       <div className="flex items-center gap-2 mt-1">
@@ -336,7 +415,7 @@ export function AddCardDialog({ open, onOpenChange, defaultStatus = "owned" }: A
                     <CustomSelect name="gradeCompany" value={gradeCompany} onChange={setGradeCompany} options={GRADE_COMPANY_OPTIONS} />
                   </Field>
                   <Field label="Grade">
-                    <Input name="gradeValue" placeholder="e.g. 10, 9.5, 9" />
+                    <Input ref={gradeValueRef} name="gradeValue" placeholder="e.g. 10, 9.5, 9" />
                   </Field>
                 </div>
                 <Field label="Condition (ungraded)">
@@ -386,6 +465,22 @@ export function AddCardDialog({ open, onOpenChange, defaultStatus = "owned" }: A
             </Button>
           </DialogFooter>
         </form>
+
+        {/* Scanning overlay — blocks interaction while OCR is running */}
+        {scanning && (
+          <div className="absolute inset-0 z-50 flex items-center justify-center rounded-xl bg-background/80 backdrop-blur-sm">
+            <div className="flex flex-col items-center gap-4 px-10 py-8 rounded-2xl bg-card border border-border shadow-2xl">
+              <svg className="animate-spin h-10 w-10 text-primary" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-20" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" />
+                <path className="opacity-90" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+              </svg>
+              <div className="text-center">
+                <p className="text-sm font-semibold">Scanning card&hellip;</p>
+                <p className="text-xs text-muted-foreground mt-1">Analyzing your image and extracting card details</p>
+              </div>
+            </div>
+          </div>
+        )}
       </DialogContent>
     </Dialog>
   );

@@ -3,6 +3,7 @@ import { auth } from "@/auth";
 import { db } from "@/lib/db";
 import { userLoginLogs } from "@/lib/db/schema";
 import { eq, desc, sql } from "drizzle-orm";
+import { getRealIp } from "@/lib/get-real-ip";
 
 export async function POST(req: NextRequest) {
   const session = await auth();
@@ -12,10 +13,8 @@ export async function POST(req: NextRequest) {
 
   const userId = session.user.id;
 
-  // Extract IP from standard proxy headers
-  const forwarded = req.headers.get("x-forwarded-for");
-  const realIp = req.headers.get("x-real-ip");
-  const ipAddress = (forwarded ? forwarded.split(",")[0].trim() : realIp) ?? "unknown";
+  // Extract IP — prioritise CF-Connecting-IP (Cloudflare Tunnel), then XFF, then X-Real-IP
+  const ipAddress = getRealIp(req);
 
   // Deduplication: skip if same IP was already logged in the last 10 minutes
   const tenMinutesAgo = new Date(Date.now() - 10 * 60 * 1000);
