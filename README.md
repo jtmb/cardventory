@@ -1,10 +1,8 @@
+<div align="left">
+
+<img src="./public/branding/cardventory-rookie-mark-banner-dark.svg" alt="Cardventory" width="80%" />
+
 <div align="center">
-
-<img src="./public/branding/cardventory-rookie-mark-icon-dark.svg" alt="Cardventory" width="%" />
-
-
-**Self-hosted trading card collection manager with live market pricing**
-
 <table class="no-border">
   <tr>
     <td><a href="https://github.com/jtmb/cardventory/actions/workflows/release.yml"><img src="https://github.com/jtmb/cardventory/actions/workflows/release.yml/badge.svg" alt="Release"/></a></td>
@@ -38,6 +36,7 @@ Everything runs in a single Docker container backed by a local SQLite database �
 ## Features
 
 - **Collection management** — Add, edit and organize cards with photos, grades, purchase prices, set info and variants
+- **OCR card scanning** — Snap or upload a card photo to auto-fill name, year, set, card number, variant, grade and sport before saving
 - **Live price lookups** — Fetches market data from eBay, SportsCardInvestor, CardLadder and SportscardsPro
 - **Portfolio dashboard** — Total collection value, gain/loss tracking, and 30-day portfolio history chart
 - **Watchlist** — Track cards you're hunting without adding them to your collection
@@ -45,6 +44,7 @@ Everything runs in a single Docker container backed by a local SQLite database �
 - **3 card views** — Grid, List and Compact layouts with sortable columns
 - **Multi-user** — Admin + standard user roles, invite-only or open registration
 - **Backups** — Automated scheduled backups with one-click restore and CSV export
+- **Card photos + OCR-assisted entry** — One scan can upload the card photo and prefill the add-card form so cleanup is faster
 - **Fully customizable UI** — Themes, fonts, colours, zoom level, card sleeve effect, and layout options
 - **Self-hosted** — Your data stays on your server; runs via Docker Compose
 
