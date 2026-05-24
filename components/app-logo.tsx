@@ -6,7 +6,9 @@ import { cn } from "@/lib/utils";
 
 interface AppLogoProps {
   size?: "sm" | "md" | "lg";
+  variant?: "icon" | "banner";
   className?: string;
+  style?: React.CSSProperties;
 }
 
 const SIZE_MAP = {
@@ -15,7 +17,11 @@ const SIZE_MAP = {
   lg: { px: 40, cls: "h-10 w-10" },
 };
 
-export function AppLogo({ size = "md", className }: AppLogoProps) {
+// Banner logo — fixed at 70h × 150w px
+const BANNER_HEIGHT = 70;
+const BANNER_WIDTH = 150;
+
+export function AppLogo({ size = "md", variant = "icon", className, style }: AppLogoProps) {
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
 
   useEffect(() => {
@@ -24,6 +30,30 @@ export function AppLogo({ size = "md", className }: AppLogoProps) {
       .then((d) => { if (d?.url) setLogoUrl(d.url); })
       .catch(() => {});
   }, []);
+
+  if (variant === "banner") {
+    return logoUrl ? (
+      <Image
+        src={logoUrl}
+        alt="App logo"
+        width={BANNER_WIDTH}
+        height={BANNER_HEIGHT}
+        className={cn("object-contain rounded", className)}
+        style={{ height: 70, width: 150, ...style }}
+        unoptimized
+      />
+    ) : (
+      <Image
+        src="/branding/cardventory-rookie-mark-banner-logo-dark.svg"
+        alt="Cardventory"
+        width={BANNER_WIDTH}
+        height={BANNER_HEIGHT}
+        className={cn("object-contain", className)}
+        style={{ height: 70, width: 150, ...style }}
+        unoptimized
+      />
+    );
+  }
 
   const { px, cls } = SIZE_MAP[size];
 

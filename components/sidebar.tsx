@@ -271,7 +271,7 @@ export function Sidebar() {
       </aside>
 
       {/* ── Mobile top bar (below md) ─────────────────────────────────────── */}
-      <div className="md:hidden fixed top-0 left-0 right-0 z-40 h-14 bg-sidebar border-b border-sidebar-border flex items-center px-4 gap-3">
+      <div className="md:hidden fixed top-0 left-0 right-0 z-40 h-14 bg-sidebar border-b border-sidebar-border flex items-center px-4 gap-1">
         <button
           type="button"
           aria-label="Open menu"
@@ -280,7 +280,7 @@ export function Sidebar() {
         >
           <MenuIcon className="h-5 w-5" />
         </button>
-        <AppBanner logoSize="sm" textClassName="font-bold text-base text-sidebar-foreground tracking-tight" />
+        <AppLogo variant="banner" style={{ height: 48, width: 109, paddingTop: 7 }} />
       </div>
 
       {/* ── Mobile backdrop ───────────────────────────────────────────────── */}

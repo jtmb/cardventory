@@ -31,9 +31,8 @@ export function LandingNav({ isLoggedIn, hideSignIn = false }: LandingNavProps) 
       )}
     >
       <div className="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between">
-        <Link href="/" className="flex items-center gap-2.5">
-          <AppLogo size="md" />
-          <span className="font-bold text-base tracking-tight">Cardventory</span>
+        <Link href="/" className="flex items-center">
+          <AppLogo variant="banner" />
         </Link>
 
         <div className="flex items-center gap-2">

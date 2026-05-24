@@ -1,4 +1,5 @@
 import { cookies } from "next/headers";
+import { redirect } from "next/navigation";
 import { LandingPage } from "@/components/landing/landing-page";
 
 export default async function Home() {
@@ -9,5 +10,7 @@ export default async function Home() {
     jar.has("authjs.session-token") ||
     jar.has("__Secure-authjs.session-token");
 
-  return <LandingPage isLoggedIn={isLoggedIn} />;
+  if (isLoggedIn) redirect("/dashboard");
+
+  return <LandingPage isLoggedIn={false} />;
 }
