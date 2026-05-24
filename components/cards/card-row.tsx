@@ -191,48 +191,59 @@ export function CardRow({
         </div>
       )}
 
-      {selectable ? (
-        /* In select mode the entire card is a button — no z-index tricks needed */
-        <button
-          type="button"
-          onClick={() => onToggle?.(card.id)}
-          aria-pressed={selected}
-          aria-label={selected ? `Deselect ${card.name}` : `Select ${card.name}`}
-          className={`cv-card w-full text-left rounded-xl border-2 bg-card overflow-hidden transition-all duration-150 ${
-            selected ? "border-primary shadow-lg shadow-primary/30 scale-[0.97]" : "border-border"
-          }`}
-        >
-          {/* Checkbox indicator — pointer-events-none, clicks go to parent button */}
+      {/* Stable wrapper — CardInner never unmounts when toggling select mode, preventing image flash */}
+      <div
+        className={cn(
+          "cv-card relative rounded-xl bg-card overflow-hidden",
+          selectable
+            ? cn(
+                "border-2 transition-[border-color,box-shadow] duration-150",
+                selected
+                  ? "border-primary shadow-lg shadow-primary/30 scale-[0.97]"
+                  : "border-border"
+              )
+            : cn(
+                "border transition-all duration-200",
+                "border-border/60",
+                onCardClick && "hover:border-primary/60 hover:shadow-2xl hover:shadow-black/60 hover:-translate-y-1",
+                isPending && "opacity-40 pointer-events-none"
+              )
+        )}
+      >
+        {/* Interactive overlay — transparent, sits above CardInner, swaps without remounting card content */}
+        {selectable ? (
+          <button
+            type="button"
+            onClick={() => onToggle?.(card.id)}
+            aria-pressed={selected}
+            aria-label={selected ? `Deselect ${card.name}` : `Select ${card.name}`}
+            className="absolute inset-0 z-10"
+          />
+        ) : onCardClick ? (
+          <button
+            type="button"
+            onClick={() => onCardClick(card.id)}
+            aria-label={card.name}
+            className="absolute inset-0 z-10"
+          />
+        ) : (
+          <Link href={`/cards/${card.id}`} aria-label={card.name} className="absolute inset-0 z-10" />
+        )}
+
+        {/* Checkbox indicator — only in select mode */}
+        {selectable && (
           <div
-            className={`absolute top-2 left-2 z-10 w-5 h-5 rounded-full border-2 flex items-center justify-center transition-colors pointer-events-none ${
+            className={cn(
+              "absolute top-2 left-2 z-20 w-5 h-5 rounded-full border-2 flex items-center justify-center transition-colors pointer-events-none",
               selected ? "bg-primary border-primary" : "bg-black/50 border-white/60"
-            }`}
+            )}
           >
             {selected && <CheckIcon className="h-3 w-3 text-primary-foreground" />}
           </div>
-          <CardInner card={card} setLine={setLine} isPending={isPending} sparkline={sparkline} showPriceBadges={showPriceBadges} showSparkline={showSparkline} />
-        </button>
-      ) : onCardClick ? (
-        <button type="button" onClick={() => onCardClick(card.id)} className="block w-full text-left">
-          <div className={cn(
-            "cv-card rounded-xl border bg-card overflow-hidden transition-all duration-200",
-            "border-border/60 hover:border-primary/60 hover:shadow-2xl hover:shadow-black/60 hover:-translate-y-1",
-            isPending && "opacity-40 pointer-events-none"
-          )}>
-            <CardInner card={card} setLine={setLine} isPending={isPending} loading={loading} currentValue={currentValue} priceChange7d={priceChange7d} sparkline={sparkline} showPriceBadges={showPriceBadges} showSparkline={showSparkline} />
-          </div>
-        </button>
-      ) : (
-        <Link href={`/cards/${card.id}`} className="block">
-          <div className={cn(
-            "cv-card rounded-xl border bg-card overflow-hidden transition-all duration-200",
-            "border-border/60 hover:border-primary/60 hover:shadow-2xl hover:shadow-black/60 hover:-translate-y-1",
-            isPending && "opacity-40 pointer-events-none"
-          )}>
-            <CardInner card={card} setLine={setLine} isPending={isPending} loading={loading} currentValue={currentValue} priceChange7d={priceChange7d} sparkline={sparkline} showPriceBadges={showPriceBadges} showSparkline={showSparkline} />
-          </div>
-        </Link>
-      )}
+        )}
+
+        <CardInner card={card} setLine={setLine} isPending={isPending} loading={loading} currentValue={currentValue} priceChange7d={priceChange7d} sparkline={sparkline} showPriceBadges={showPriceBadges} showSparkline={showSparkline} />
+      </div>
     </div>
   );
 }
