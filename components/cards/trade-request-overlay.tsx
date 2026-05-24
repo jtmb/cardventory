@@ -289,8 +289,8 @@ export function TradeRequestOverlay({ targetCard, toUserId, toUserName, onClose,
                   <DropZone
                     id="offered-zone"
                     className={cn("min-h-32 rounded-xl p-2", offeredCards.length === 0 && "flex items-center justify-center")}
-                    style={{ background: "oklch(0.16 0.04 260 / 0.5)" } as React.CSSProperties}
                   >
+                    <div style={{ background: "oklch(0.16 0.04 260 / 0.5)", borderRadius: 12, minHeight: "inherit" }}>
                     {offeredCards.length === 0 ? (
                       <div className="flex flex-col items-center gap-2 py-6">
                         <ArrowRightLeftIcon className="h-6 w-6" style={{ color: "oklch(0.35 0.06 260)" }} />
@@ -318,6 +318,7 @@ export function TradeRequestOverlay({ targetCard, toUserId, toUserName, onClose,
                         ))}
                       </div>
                     )}
+                    </div>
                   </DropZone>
                 </div>
 

@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { db } from "@/lib/db";
 import { cards, priceHistory } from "@/lib/db/schema";
-import { eq, isNotNull, desc } from "drizzle-orm";
+import { eq, isNotNull, desc, and } from "drizzle-orm";
 import { fetchAllPrices } from "@/lib/scrapers";
 
 export async function POST(

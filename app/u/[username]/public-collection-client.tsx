@@ -332,7 +332,7 @@ export function PublicCollectionClient({
                         <div className="absolute inset-0 bg-black/30 opacity-0 group-hover/tb:opacity-100 transition-opacity duration-200" />
                         <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
                         {card.photoUrl && (
-                          <button type="button" onClick={() => setZoomCard({ src: card.photoUrl!, name: card.name, year: card.year, setName: card.setName, gradeCompany: card.gradeCompany, gradeValue: card.gradeValue })} className="absolute inset-0 flex items-center justify-center opacity-0 group-hover/tb:opacity-100 transition-all duration-200" aria-label="Zoom in">
+                          <button type="button" onClick={() => setZoomCard({ src: card.photoUrl!, name: card.name, year: card.year?.toString() ?? null, setName: card.setName, gradeCompany: card.gradeCompany, gradeValue: card.gradeValue })} className="absolute inset-0 flex items-center justify-center opacity-0 group-hover/tb:opacity-100 transition-all duration-200" aria-label="Zoom in">
                             <ZoomInIcon className="h-10 w-10" style={{ color: "oklch(0.97 0.01 260 / 0.65)", filter: "drop-shadow(0 2px 10px oklch(0 0 0 / 0.6))" }} />
                           </button>
                         )}
@@ -424,7 +424,7 @@ export function PublicCollectionClient({
                   <div className="absolute inset-0 bg-black/30 opacity-0 group-hover/tb:opacity-100 transition-opacity duration-200" />
                   <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
                   {card.photoUrl && (
-                    <button type="button" onClick={() => setZoomCard({ src: card.photoUrl!, name: card.name, year: card.year, setName: card.setName, gradeCompany: card.gradeCompany, gradeValue: card.gradeValue })} className="absolute inset-0 flex items-center justify-center opacity-0 group-hover/tb:opacity-100 transition-all duration-200" aria-label="Zoom in">
+                    <button type="button" onClick={() => setZoomCard({ src: card.photoUrl!, name: card.name, year: card.year?.toString() ?? null, setName: card.setName, gradeCompany: card.gradeCompany, gradeValue: card.gradeValue })} className="absolute inset-0 flex items-center justify-center opacity-0 group-hover/tb:opacity-100 transition-all duration-200" aria-label="Zoom in">
                       <ZoomInIcon className="h-10 w-10" style={{ color: "oklch(0.97 0.01 260 / 0.65)", filter: "drop-shadow(0 2px 10px oklch(0 0 0 / 0.6))" }} />
                     </button>
                   )}
@@ -572,7 +572,7 @@ export function PublicCollectionClient({
                       <CardTile
                         card={card}
                         onToggleTrade={handleToggleTrade}
-                        onZoom={card.photoUrl ? () => setZoomCard({ src: card.photoUrl!, name: card.name, year: card.year, setName: card.setName, gradeCompany: card.gradeCompany, gradeValue: card.gradeValue }) : undefined}
+                        onZoom={card.photoUrl ? () => setZoomCard({ src: card.photoUrl!, name: card.name, year: card.year?.toString() ?? null, setName: card.setName, gradeCompany: card.gradeCompany, gradeValue: card.gradeValue }) : undefined}
                       />
                     </DraggableCard>
                   ) : (
@@ -580,7 +580,7 @@ export function PublicCollectionClient({
                       key={card.id}
                       card={card}
                       onToggleTrade={undefined}
-                      onZoom={card.photoUrl ? () => setZoomCard({ src: card.photoUrl!, name: card.name, year: card.year, setName: card.setName, gradeCompany: card.gradeCompany, gradeValue: card.gradeValue }) : undefined}
+                      onZoom={card.photoUrl ? () => setZoomCard({ src: card.photoUrl!, name: card.name, year: card.year?.toString() ?? null, setName: card.setName, gradeCompany: card.gradeCompany, gradeValue: card.gradeValue }) : undefined}
                     />
                   )
                 ))}
