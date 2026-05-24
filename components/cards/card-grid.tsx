@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useTransition } from "react";
+import { useState, useEffect, useLayoutEffect, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { CheckSquare2Icon, Trash2Icon, XIcon, LayoutGridIcon, LayoutListIcon, ListIcon, DownloadIcon, TagIcon, BookmarkIcon, BookmarkCheckIcon, ActivityIcon, ArrowRightLeftIcon } from "lucide-react";
 import { CardRow, CardRowSkeleton } from "./card-row";
@@ -63,14 +63,18 @@ export function CardGrid({ cards, exportHref, readOnly = false }: { cards: Card[
   const [gridSize, setGridSize] = useState(6); // default 6 columns
   const router = useRouter();
 
-  useEffect(() => {
+  // Read layout prefs from localStorage before first paint to prevent layout shift
+  useLayoutEffect(() => {
     const stored = localStorage.getItem(VIEW_LS_KEY) as ViewMode | null;
     if (stored) setView(stored);
     const storedSparkline = localStorage.getItem(SPARKLINE_LS_KEY);
     if (storedSparkline !== null) setShowSparkline(storedSparkline !== "false");
     const storedSize = localStorage.getItem(GRID_SIZE_LS_KEY);
     if (storedSize) setGridSize(Math.min(7, Math.max(2, Number(storedSize))) || 5);
-    // Load price badge preference
+  }, []);
+
+  // Load price badge preference from server settings (async — ok to apply after paint)
+  useEffect(() => {
     fetch("/api/settings")
       .then((r) => r.ok ? r.json() : null)
       .then((d) => { if (d?.price_badges !== undefined) setShowPriceBadges(d.price_badges !== "false"); })

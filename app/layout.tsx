@@ -6,7 +6,8 @@ import ThemeApplicator from "@/components/theme-applicator";
 import { ConsentProvider } from "@/components/analytics/consent-provider";
 import { AnalyticsProvider } from "@/components/analytics/analytics-provider";
 import { ConsentBanner } from "@/components/analytics/consent-banner";
-import { preinit } from "react-dom";
+import { THEME_INIT_SCRIPT } from "@/lib/theme";
+
 import { db } from "@/lib/db";
 import { settings } from "@/lib/db/schema";
 import { isNull, eq, and } from "drizzle-orm";
@@ -62,14 +63,7 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
-  // Applies saved theme colors + font before first paint to prevent FOUC.
-  // preinit injects a <script> into the SSR <head> without adding a React-managed
-  // script element to the component tree, so React 19 does not warn about it.
-  preinit("/theme-init.js", { as: "script" });
-
-  // Font CSS variables must live on <html> so applyFontTheme (which sets
-  // document.documentElement.style.fontFamily) can resolve var(--font-xxx).
-  // CSS custom properties only cascade down, not up from <body>.
+  // Font CSS variables must live on <html> so they can be resolved by CSS.
   const fontVars = [
     jakartaSans.variable, jetbrainsMono.variable, oswald.variable,
     bebasNeue.variable, inter.variable, nunito.variable,
@@ -77,6 +71,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
 
   return (
     <html lang="en" className={`dark ${fontVars}`} suppressHydrationWarning>
+      <head>
+        {/* Inline blocking script — runs synchronously before first paint to prevent FOUC */}
+        <script dangerouslySetInnerHTML={{__html: THEME_INIT_SCRIPT}} />
+      </head>
       <body className="antialiased min-h-screen">
         <ThemeApplicator />
         <ConsentProvider>
