@@ -67,6 +67,7 @@ export function CardRow({
   layout = "grid",
   showPriceBadges = true,
   showSparkline = true,
+  readOnly = false,
 }: {
   card: Card;
   selectable?: boolean;
@@ -76,6 +77,7 @@ export function CardRow({
   showPriceBadges?: boolean;
   infoOverlay?: boolean;
   showSparkline?: boolean;
+  readOnly?: boolean;
 }) {
   const [currentValue, setCurrentValue] = useState<number | null>(null);
   const [priceChange7d, setPriceChange7d] = useState<number | null>(null);
@@ -132,7 +134,7 @@ export function CardRow({
   return (
     <div className="group relative">
       {/* Normal mode: hover edit/delete buttons */}
-      {!selectable && (
+      {!selectable && !readOnly && (
         <div className="absolute top-2 left-2 z-10 flex gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity duration-150">
           <Link
             href={`/cards/${card.id}/edit`}

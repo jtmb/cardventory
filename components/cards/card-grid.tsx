@@ -52,7 +52,7 @@ const GRID_COLS_CLASS: Record<number, string> = {
   7: "grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-7",
 };
 
-export function CardGrid({ cards, exportHref }: { cards: Card[]; exportHref?: string }) {
+export function CardGrid({ cards, exportHref, readOnly = false }: { cards: Card[]; exportHref?: string; readOnly?: boolean }) {
   const [selectMode, setSelectMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [isPending, startTransition] = useTransition();
@@ -173,7 +173,7 @@ export function CardGrid({ cards, exportHref }: { cards: Card[]; exportHref?: st
       {/* Select mode toolbar */}
       <div className="flex items-center justify-between min-h-[2rem]">
         <div className="flex items-center gap-2">
-          {selectMode ? (
+          {!readOnly && (selectMode ? (
             <>
               <button
                 onClick={exitSelectMode}
@@ -197,15 +197,15 @@ export function CardGrid({ cards, exportHref }: { cards: Card[]; exportHref?: st
             >
               <CheckSquare2Icon className="h-4 w-4" /> Select
             </button>
-          )}
+          ))}
         </div>
 
         <div className="flex items-center gap-2">
           {/* View mode toggle — hidden on mobile while selecting to save space */}
           <div className={cn("items-center gap-0.5 bg-muted rounded-md p-0.5", selectMode ? "hidden md:flex" : "flex")}>
             {/* Sparkline toggle — leftmost in pill, grid view only */}
-            {view === "grid" && (
-              <button
+          {view === "grid" && !readOnly && (
+            <button
                 onClick={toggleSparkline}
                 title={showSparkline ? "Hide price sparkline" : "Show price sparkline"}
                 className={`flex items-center justify-center h-6 w-6 rounded transition-colors ${
@@ -400,7 +400,7 @@ export function CardGrid({ cards, exportHref }: { cards: Card[]; exportHref?: st
           view === "grid" ? (
             <div className={`grid ${GRID_COLS_CLASS[gridSize] ?? GRID_COLS_CLASS[5]} gap-4`}>
               {cards.map((card) => (
-                <CardRow key={card.id} card={card} layout="grid" selectable={selectMode} selected={selectedIds.has(card.id)} onToggle={toggleCard} showPriceBadges={showPriceBadges} showSparkline={showSparkline} />
+                <CardRow key={card.id} card={card} layout="grid" selectable={selectMode} selected={selectedIds.has(card.id)} onToggle={toggleCard} showPriceBadges={showPriceBadges} showSparkline={showSparkline} readOnly={readOnly} />
               ))}
             </div>
           ) : (

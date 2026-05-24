@@ -16,12 +16,12 @@ export interface CardsToolbarProps {
   total: number;
   /** Base URL path — /cards or /watchlist */
   basePath: string;
-  /** href for the primary "Add" button */
-  addHref: string;
+  /** href for the primary "Add" button — omit to hide the add button */
+  addHref?: string;
   /** Label for the primary "Add" button */
-  addLabel: string;
-  /** Export CSV href */
-  exportHref: string;
+  addLabel?: string;
+  /** Export CSV href — omit to hide the export button */
+  exportHref?: string;
   /** Genres that have at least one card */
   activeGenres: string[];
   /** Current search query */
@@ -53,6 +53,7 @@ export function CardsToolbar({
   tourId,
   onAddClick,
 }: CardsToolbarProps) {
+  const showAdd = !!(addHref || onAddClick);
   const [expanded, setExpanded] = useState(false);
 
   return (
@@ -105,9 +106,9 @@ export function CardsToolbar({
               activeGenres={activeGenres}
             />
             <div className="w-px h-5 bg-border/60 shrink-0" />
-            <CsvButton exportHref={exportHref} iconOnly />
-            <div className="w-px h-5 bg-border/60 shrink-0" />
-            {onAddClick ? (
+            {exportHref && <CsvButton exportHref={exportHref} iconOnly />}
+            {showAdd && <div className="w-px h-5 bg-border/60 shrink-0" />}
+            {showAdd && (onAddClick ? (
               <button
                 type="button"
                 onClick={onAddClick}
@@ -117,7 +118,7 @@ export function CardsToolbar({
               >
                 <PlusCircleIcon className="h-4 w-4" />
               </button>
-            ) : (
+            ) : addHref ? (
               <Link
                 href={addHref}
                 data-tour-id={addHref === "/cards/add" ? "toolbar-add-card" : undefined}
@@ -126,13 +127,13 @@ export function CardsToolbar({
               >
                 <PlusCircleIcon className="h-4 w-4" />
               </Link>
-            )}
+            ) : null)}
           </div>
         </div>
 
         {/* Mobile: refresh + add button always visible on the far right */}
         <div className="md:hidden ml-auto flex items-center gap-1.5 shrink-0">
-          {onAddClick ? (
+          {showAdd && (onAddClick ? (
             <button
               type="button"
               onClick={onAddClick}
@@ -141,7 +142,7 @@ export function CardsToolbar({
             >
               <PlusCircleIcon className="h-4 w-4" />
             </button>
-          ) : (
+          ) : addHref ? (
             <Link
               href={addHref}
               data-tour-id={addHref === "/cards/add" ? "toolbar-add-card" : undefined}
@@ -150,7 +151,7 @@ export function CardsToolbar({
             >
               <PlusCircleIcon className="h-4 w-4" />
             </Link>
-          )}
+          ) : null)}
         </div>
       </div>
 
@@ -169,7 +170,7 @@ export function CardsToolbar({
               basePath={basePath}
               activeGenres={activeGenres}
             />
-            <CsvButton exportHref={exportHref} iconOnly />
+            {exportHref && <CsvButton exportHref={exportHref} iconOnly />}
           </div>
         </div>
       )}

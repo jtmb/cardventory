@@ -224,11 +224,7 @@ export async function deleteCards(ids: string[]) {
 
 export async function getCardPriceHistory(cardId: string) {
   const session = await auth();
-  const userId = requireAuth(session);
-
-  // Verify card belongs to user
-  const card = await getCard(cardId);
-  if (!card) throw new Error("Card not found");
+  requireAuth(session);
 
   return db
     .select()
@@ -247,6 +243,54 @@ export async function getLatestPrices(cardId: string) {
     .select()
     .from(priceHistory)
     .where(and(eq(priceHistory.cardId, cardId), isNotNull(priceHistory.price)))
+    .orderBy(desc(priceHistory.fetchedAt))
+    .all();
+
+  const latestBySource = new Map<string, typeof rows[0]>();
+  for (const row of rows) {
+    if (!latestBySource.has(row.source)) {
+      latestBySource.set(row.source, row);
+    }
+  }
+
+  return Array.from(latestBySource.values());
+}
+
+// Look up latest prices by card metadata rather than a specific card ID.
+// Searches across ALL cards with matching attributes so trade board panels
+// can show prices even when the viewed card hasn't been scraped recently.
+export async function getLatestPricesByMeta(
+  name: string,
+  setName: string | null,
+  year: number | null,
+  cardNumber: string | null,
+  variant: string | null,
+  gradeCompany: string | null,
+  gradeValue: string | null,
+) {
+  const session = await auth();
+  requireAuth(session);
+
+  // Use SQLite's NULL-safe IS operator to match cards with identical physical attributes.
+  // Drizzle's eq() doesn't handle NULL-safe comparison; IS handles both NULL=NULL and value=value.
+  const matchingCards = rawSqlite.prepare(`
+    SELECT id FROM cards
+    WHERE name IS ?
+      AND set_name IS ?
+      AND year IS ?
+      AND card_number IS ?
+      AND variant IS ?
+      AND grade_company IS ?
+      AND grade_value IS ?
+  `).all(name, setName, year, cardNumber, variant, gradeCompany, gradeValue) as { id: string }[];
+
+  if (matchingCards.length === 0) return [];
+
+  const cardIds = matchingCards.map((c) => c.id);
+  const rows = await db
+    .select()
+    .from(priceHistory)
+    .where(and(inArray(priceHistory.cardId, cardIds), isNotNull(priceHistory.price)))
     .orderBy(desc(priceHistory.fetchedAt))
     .all();
 

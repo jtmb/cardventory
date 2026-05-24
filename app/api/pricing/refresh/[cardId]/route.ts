@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { db } from "@/lib/db";
 import { cards, priceHistory } from "@/lib/db/schema";
-import { eq, and, isNotNull, desc } from "drizzle-orm";
+import { eq, isNotNull, desc } from "drizzle-orm";
 import { fetchAllPrices } from "@/lib/scrapers";
 
 export async function POST(
@@ -19,7 +19,7 @@ export async function POST(
   const card = await db
     .select()
     .from(cards)
-    .where(and(eq(cards.id, cardId), eq(cards.userId, session.user.id)))
+    .where(eq(cards.id, cardId))
     .get();
 
   if (!card) {

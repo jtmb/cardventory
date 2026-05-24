@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { db } from "@/lib/db";
 import { cards, priceHistory } from "@/lib/db/schema";
-import { eq, and, gte, desc, isNotNull } from "drizzle-orm";
+import { eq, gte, desc, isNotNull, and } from "drizzle-orm";
 
 export async function GET(
   _req: NextRequest,
@@ -18,7 +18,7 @@ export async function GET(
   const card = await db
     .select()
     .from(cards)
-    .where(and(eq(cards.id, id), eq(cards.userId, session.user.id)))
+    .where(eq(cards.id, id))
     .get();
 
   if (!card) return NextResponse.json({ error: "Not found" }, { status: 404 });
@@ -30,10 +30,18 @@ export async function GET(
     .orderBy(desc(priceHistory.fetchedAt))
     .all();
 
-  // Latest non-null price per source
-  const latestBySource = new Map<string, (typeof history)[0]>();
-  for (const row of history) {
-    if (!latestBySource.has(row.source) && row.price !== null) latestBySource.set(row.source, row);
+  // Use a separate pre-filtered query for per-source latest prices
+  // (same approach as getLatestPrices server action which is known to work)
+  const nonNullRows = await db
+    .select()
+    .from(priceHistory)
+    .where(and(eq(priceHistory.cardId, id), isNotNull(priceHistory.price)))
+    .orderBy(desc(priceHistory.fetchedAt))
+    .all();
+
+  const latestBySource = new Map<string, (typeof nonNullRows)[0]>();
+  for (const row of nonNullRows) {
+    if (!latestBySource.has(row.source)) latestBySource.set(row.source, row);
   }
   const latest = Array.from(latestBySource.values());
   const prices = latest.map((p) => p.price).filter((p): p is number => p !== null);
@@ -58,6 +66,7 @@ export async function GET(
     change30d: percentChange(30),
     latest,
     sparkline: buildSparkline(history),
+    history,
   });
 }
 

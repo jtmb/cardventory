@@ -33,6 +33,8 @@ const SOURCE_LABELS: Record<string, string> = {
   sportscardspro: "SportsCardsPro",
 };
 
+const KNOWN_SOURCES = ["ebay", "sportscardinvestor", "sportscardspro"] as const;
+
 function fmt(n: number | null | undefined) {
   if (n == null) return "—";
   return new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(n);
@@ -330,46 +332,48 @@ export function CardDetailPanel({
                 </p>
               ) : (
                 <div className="space-y-1.5">
-                  {pricesWithValues
-                    .sort((a, b) => (b.price ?? 0) - (a.price ?? 0))
-                    .map((entry) => {
-                      const isHighest = entry.price === highestPrice;
-                      return (
-                        <div
-                          key={entry.source}
-                          className={`flex items-center justify-between px-3 py-2 rounded-lg border text-sm ${
-                            isHighest
-                              ? "border-primary/40 bg-primary/10"
-                              : "border-border bg-card"
-                          }`}
-                        >
-                          <div className="flex items-center gap-1.5">
-                            <span className="font-medium">
-                              {SOURCE_LABELS[entry.source] ?? entry.source}
-                            </span>
-                            {isHighest && pricesWithValues.length > 1 && (
-                              <Badge className="text-xs bg-primary/20 text-primary border-primary/30">
-                                Highest
-                              </Badge>
-                            )}
-                          </div>
-                          <div className="flex items-center gap-1.5">
-                            <span className="font-semibold">{fmt(entry.price)}</span>
-                            {entry.url && (
-                              <a
-                                href={entry.url}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="text-muted-foreground hover:text-primary transition-colors"
-                                title="View source listing"
-                              >
-                                <ExternalLinkIcon className="h-3 w-3" />
-                              </a>
-                            )}
-                          </div>
+                  {KNOWN_SOURCES.map((source) => {
+                    const entry = latestPrices.find((p) => p.source === source);
+                    const price = entry?.price ?? null;
+                    const isHighest = price != null && price === highestPrice && pricesWithValues.length > 1;
+                    return (
+                      <div
+                        key={source}
+                        className={`flex items-center justify-between px-3 py-2 rounded-lg border text-sm ${
+                          isHighest
+                            ? "border-primary/40 bg-primary/10"
+                            : "border-border bg-card"
+                        }`}
+                      >
+                        <div className="flex items-center gap-1.5">
+                          <span className="font-medium">
+                            {SOURCE_LABELS[source] ?? source}
+                          </span>
+                          {isHighest && (
+                            <Badge className="text-xs bg-primary/20 text-primary border-primary/30">
+                              Highest
+                            </Badge>
+                          )}
                         </div>
-                      );
-                    })}
+                        <div className="flex items-center gap-1.5">
+                          <span className={`font-semibold${price == null ? " text-muted-foreground" : ""}`}>
+                            {fmt(price)}
+                          </span>
+                          {entry?.url && (
+                            <a
+                              href={entry.url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-muted-foreground hover:text-primary transition-colors"
+                              title="View source listing"
+                            >
+                              <ExternalLinkIcon className="h-3 w-3" />
+                            </a>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
               )}
             </div>

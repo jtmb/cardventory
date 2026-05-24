@@ -1,169 +1,436 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import type { ReactNode } from "react";
+import { useState, useEffect, useRef } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { cn } from "@/lib/utils";
+import { ArrowRightLeftIcon, ChevronLeftIcon, ChevronRightIcon, ExternalLinkIcon, RefreshCwIcon, UserIcon, XIcon } from "lucide-react";
+import { CardsToolbar } from "@/components/cards/cards-toolbar";
+import { CardGrid } from "@/components/cards/card-grid";
+import { CardPanelContext } from "@/components/cards/card-panel-context";
+import { Badge } from "@/components/ui/badge";
+import { Separator } from "@/components/ui/separator";
 import { SmartCardImage } from "@/components/cards/smart-card-image";
-import { UserIcon } from "lucide-react";
+import { Card as UICard, CardContent } from "@/components/ui/card";
+import { PriceChart } from "@/components/cards/price-chart";
+import type { Card, PriceHistory } from "@/lib/db/schema";
+import { getLatestPricesByMeta, getCardPriceHistory } from "@/lib/actions";
 
-type TradeCard = {
-  id: string;
-  userId: string;
-  name: string;
-  setName: string | null;
-  year: number | null;
-  sportGenre: string;
-  cardNumber: string | null;
-  variant: string | null;
-  gradeCompany: string | null;
-  gradeValue: string | null;
-  condition: string | null;
-  photoUrl: string | null;
-  isTradeBait: boolean;
-  ownerName: string;
-  ownerUsername: string | null;
+
+type Props = {
+  cards: Card[];
+  ownerMap: Record<string, { name: string; username: string | null }>;
+  total: number;
+  activeGenres: string[];
+  header: ReactNode;
+  q?: string;
+  genre?: string;
+  sort?: string;
+  grade?: string;
 };
 
-const GENRES = [
-  { value: "all",        label: "All" },
-  { value: "basketball", label: "🏀 Basketball" },
-  { value: "baseball",   label: "⚾ Baseball" },
-  { value: "football",   label: "🏈 Football" },
-  { value: "soccer",     label: "⚽ Soccer" },
-  { value: "hockey",     label: "🏒 Hockey" },
-  { value: "pokemon",    label: "⚡ Pokémon" },
-  { value: "yugioh",     label: "🌟 Yu-Gi-Oh!" },
-  { value: "magic",      label: "🔮 Magic" },
-  { value: "other",      label: "📦 Other" },
-];
-
-const GRADE_COLORS: Record<string, string> = {
-  PSA: "bg-blue-500/15 text-blue-400 border-blue-500/30",
-  BGS: "bg-amber-500/15 text-amber-400 border-amber-500/30",
-  Beckett: "bg-amber-500/15 text-amber-400 border-amber-500/30",
-  CGC: "bg-teal-500/15 text-teal-400 border-teal-500/30",
-  CSG: "bg-teal-500/15 text-teal-400 border-teal-500/30",
-  SGC: "bg-red-500/15 text-red-400 border-red-500/30",
-  HGA: "bg-orange-500/15 text-orange-400 border-orange-500/30",
+const GENRE_LABELS: Record<string, string> = {
+  basketball: "Basketball", baseball: "Baseball", football: "Football",
+  soccer: "Soccer", hockey: "Hockey", pokemon: "Pokémon",
+  yugioh: "Yu-Gi-Oh!", magic: "Magic: The Gathering", other: "Other",
 };
 
-export function TradeBoardClient({ trade }: { trade: TradeCard[] }) {
-  const [activeGenre, setActiveGenre] = useState("all");
-  const [search, setSearch] = useState("");
+const SOURCE_LABELS: Record<string, string> = {
+  ebay: "eBay",
+  sportscardinvestor: "SportsCardInvestor",
+  cardladder: "CardLadder",
+  sportscardspro: "SportsCardsPro",
+};
 
-  const activeGenres = useMemo(() => [...new Set(trade.map((c) => c.sportGenre))], [trade]);
-  const visibleGenres = GENRES.filter((g) => g.value === "all" || activeGenres.includes(g.value));
+const KNOWN_SOURCES = ["ebay", "sportscardinvestor", "sportscardspro"] as const;
 
-  const filtered = useMemo(() => {
-    return trade.filter((c) => {
-      if (activeGenre !== "all" && c.sportGenre !== activeGenre) return false;
-      if (search && !c.name.toLowerCase().includes(search.toLowerCase())) return false;
-      return true;
-    });
-  }, [trade, activeGenre, search]);
+function fmt(n: number | null | undefined) {
+  if (n == null) return "—";
+  return new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(n);
+}
 
-  if (trade.length === 0) {
-    return (
-      <div className="flex flex-col items-center justify-center py-24 text-center gap-3">
-        <div className="text-4xl">🔄</div>
-        <h2 className="text-lg font-semibold">No trade bait yet</h2>
-        <p className="text-sm text-muted-foreground max-w-xs">
-          When collectors mark cards as available to trade and make their collection public, they'll appear here.
-        </p>
-        <Link
-          href="/cards"
-          className="mt-2 text-sm text-primary hover:underline"
-        >
-          Go to your collection →
-        </Link>
-      </div>
-    );
+export function TradeBoardShell({
+  cards,
+  ownerMap,
+  total,
+  activeGenres,
+  header,
+  q,
+  genre,
+  sort,
+  grade,
+}: Props) {
+  const router = useRouter();
+  const [selectedCardId, setSelectedCardId] = useState<string | null>(null);
+  const [panelWidth, setPanelWidth] = useState(480);
+  const resizing = useRef(false);
+
+  function startResize(e: React.MouseEvent) {
+    e.preventDefault();
+    resizing.current = true;
+    const startX = e.clientX;
+    const startWidth = panelWidth;
+    function onMove(ev: MouseEvent) {
+      if (!resizing.current) return;
+      setPanelWidth(Math.min(800, Math.max(320, startWidth + (startX - ev.clientX))));
+    }
+    function onUp() {
+      resizing.current = false;
+      document.removeEventListener("mousemove", onMove);
+      document.removeEventListener("mouseup", onUp);
+    }
+    document.addEventListener("mousemove", onMove);
+    document.addEventListener("mouseup", onUp);
   }
 
+  function handleCardClick(id: string) {
+    if (typeof window !== "undefined" && window.innerWidth < 768) {
+      const owner = ownerMap[id];
+      if (owner?.username) {
+        router.push(`/u/${owner.username}`);
+      }
+    } else {
+      setSelectedCardId(id);
+    }
+  }
+
+  const selectedIdx = cards.findIndex((c) => c.id === selectedCardId);
+  const prevId = selectedIdx > 0 ? cards[selectedIdx - 1].id : null;
+  const nextId = selectedIdx < cards.length - 1 ? cards[selectedIdx + 1].id : null;
+  const selectedCard = selectedIdx >= 0 ? cards[selectedIdx] : null;
+  const selectedOwner = selectedCardId ? ownerMap[selectedCardId] : null;
+
   return (
-    <div className="space-y-5">
-      {/* Filters */}
-      <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center">
-        <div className="flex flex-wrap gap-1.5">
-          {visibleGenres.map((g) => (
-            <button
-              key={g.value}
-              onClick={() => setActiveGenre(g.value)}
-              className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors border ${
-                activeGenre === g.value
-                  ? "bg-primary text-primary-foreground border-primary"
-                  : "border-border text-muted-foreground hover:text-foreground hover:bg-muted"
-              }`}
-            >
-              {g.label}
-            </button>
-          ))}
-        </div>
-        <input
-          type="search"
-          placeholder="Search cards…"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="h-8 w-full sm:w-48 rounded-md border border-border bg-background px-3 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+    <CardPanelContext.Provider value={{ onCardClick: handleCardClick }}>
+      <div>
+        <CardsToolbar
+          header={header}
+          total={total}
+          basePath="/trade"
+          activeGenres={activeGenres}
+          q={q}
+          genre={genre}
+          sort={sort}
+          grade={grade}
         />
+        <div className="p-6 max-w-7xl mx-auto">
+          {cards.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-24 text-center gap-3">
+              <ArrowRightLeftIcon className="h-16 w-16 text-muted-foreground/30" />
+              <h2 className="text-xl font-semibold text-muted-foreground">No cards available for trade</h2>
+              <p className="text-muted-foreground/60 mt-1 max-w-xs">
+                When collectors mark cards as trade bait and set their profile to public, they'll appear here.
+              </p>
+            </div>
+          ) : (
+            <CardGrid cards={cards} readOnly />
+          )}
+        </div>
       </div>
 
-      <p className="text-xs text-muted-foreground">{filtered.length} card{filtered.length !== 1 ? "s" : ""} available</p>
+      {/* Detail panel — desktop only, fixed right edge, overlays content */}
+      <div
+        className={cn(
+          "hidden md:flex flex-col fixed top-0 right-0 bottom-0 z-30",
+          "border-l border-border bg-background",
+          "transition-transform duration-300 ease-in-out",
+          selectedCardId ? "translate-x-0" : "translate-x-full"
+        )}
+        style={{ width: panelWidth }}
+      >
+        {/* Resize handle */}
+        <div
+          className="absolute top-0 left-0 bottom-0 w-1.5 cursor-ew-resize hover:bg-primary/40 active:bg-primary/60 transition-colors z-10"
+          onMouseDown={startResize}
+        />
+        {selectedCard && selectedCardId && (
+          <TradeCardDetailPanel
+            key={selectedCardId}
+            card={selectedCard}
+            owner={selectedOwner}
+            prevId={prevId}
+            nextId={nextId}
+            onClose={() => setSelectedCardId(null)}
+            onNavigate={setSelectedCardId}
+          />
+        )}
+      </div>
+    </CardPanelContext.Provider>
+  );
+}
 
-      {/* Grid */}
-      {filtered.length === 0 ? (
-        <p className="text-muted-foreground text-sm py-12 text-center">No cards match your filter.</p>
-      ) : (
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
-          {filtered.map((card) => (
-            <div key={card.id} className="group">
-              <div className="relative aspect-[5/7] rounded-xl overflow-hidden border border-border bg-muted">
-                <SmartCardImage
-                  src={card.photoUrl ?? undefined}
-                  alt={card.name}
-                  containerClassName="w-full h-full"
-                  fitMode="cover"
-                />
-                <div className="absolute top-1.5 right-1.5">
-                  <span className="inline-flex items-center gap-0.5 text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
-                    Trade
-                  </span>
-                </div>
+function TradeCardDetailPanel({
+  card,
+  owner,
+  prevId,
+  nextId,
+  onClose,
+  onNavigate,
+}: {
+  card: Card;
+  owner: { name: string; username: string | null } | null | undefined;
+  prevId: string | null;
+  nextId: string | null;
+  onClose: () => void;
+  onNavigate: (id: string) => void;
+}) {
+  const [latestPrices, setLatestPrices] = useState<PriceHistory[]>([]);
+  const [history, setHistory] = useState<PriceHistory[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [refreshKey, setRefreshKey] = useState(0);
+
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+    setLatestPrices([]);
+    setHistory([]);
+
+    getLatestPricesByMeta(
+      card.name,
+      card.setName ?? null,
+      card.year ?? null,
+      card.cardNumber ?? null,
+      card.variant ?? null,
+      card.gradeCompany ?? null,
+      card.gradeValue ?? null,
+    )
+      .then((prices) => { if (!cancelled) setLatestPrices(prices); })
+      .catch(() => {})
+      .finally(() => { if (!cancelled) setLoading(false); });
+
+    getCardPriceHistory(card.id)
+      .then((hist) => { if (!cancelled) setHistory(hist); })
+      .catch(() => {});
+
+    return () => { cancelled = true; };
+  }, [card.id, refreshKey]);
+
+  async function handleRefresh() {
+    setRefreshing(true);
+    try {
+      await fetch(`/api/pricing/refresh/${card.id}`, { method: "POST" });
+      setRefreshKey((k) => k + 1);
+    } catch {
+      // ignore
+    } finally {
+      setRefreshing(false);
+    }
+  }
+
+  const pricesWithValues = latestPrices.filter((p) => p.price !== null);
+  const highestPrice = pricesWithValues.length > 0
+    ? Math.max(...pricesWithValues.map((p) => p.price!))
+    : null;
+
+  const autoImage = latestPrices.find((p) => p.imageUrl)?.imageUrl;
+  const displayImage = card.photoUrl ?? autoImage;
+
+  const setLine = [card.year, card.setName, card.cardNumber ? `#${card.cardNumber}` : null, card.variant]
+    .filter(Boolean)
+    .join(" · ");
+
+  return (
+    <div className="flex flex-col h-full">
+      {/* Sticky header */}
+      <div className="sticky top-0 z-10 flex items-center gap-2 px-4 py-3 border-b border-border bg-background shrink-0">
+        <button
+          onClick={onClose}
+          className="flex items-center justify-center h-8 w-8 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors shrink-0"
+          aria-label="Close panel"
+        >
+          <XIcon className="h-4 w-4" />
+        </button>
+        <span className="flex-1 font-semibold truncate text-sm">{card.name}</span>
+        <div className="flex items-center gap-0.5 shrink-0">
+          <button
+            onClick={handleRefresh}
+            disabled={refreshing || loading}
+            className={cn(
+              "h-8 w-8 flex items-center justify-center rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors",
+              (refreshing || loading) && "opacity-30 cursor-not-allowed"
+            )}
+            aria-label="Refresh prices"
+          >
+            <RefreshCwIcon className={cn("h-3.5 w-3.5", refreshing && "animate-spin")} />
+          </button>
+          <button
+            onClick={() => prevId && onNavigate(prevId)}
+            disabled={!prevId}
+            className={cn(
+              "h-8 w-8 flex items-center justify-center rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors",
+              !prevId && "opacity-30 cursor-not-allowed"
+            )}
+            aria-label="Previous card"
+          >
+            <ChevronLeftIcon className="h-4 w-4" />
+          </button>
+          <button
+            onClick={() => nextId && onNavigate(nextId)}
+            disabled={!nextId}
+            className={cn(
+              "h-8 w-8 flex items-center justify-center rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors",
+              !nextId && "opacity-30 cursor-not-allowed"
+            )}
+            aria-label="Next card"
+          >
+            <ChevronRightIcon className="h-4 w-4" />
+          </button>
+        </div>
+      </div>
+
+      {/* Body */}
+      <div className="flex-1 overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden p-4 space-y-4">
+        {/* Image */}
+        <div className="flex justify-center">
+          <div
+            className="w-44 aspect-[5/7] rounded-2xl overflow-hidden"
+            style={{ filter: "drop-shadow(0 10px 30px rgba(0,0,0,0.5))" }}
+          >
+            {displayImage ? (
+              <SmartCardImage
+                src={displayImage}
+                alt={card.name}
+                unoptimized={displayImage.startsWith("http")}
+              />
+            ) : (
+              <div className="flex h-full flex-col items-center justify-center bg-muted rounded-2xl">
+                <p className="text-3xl mb-1">🃏</p>
+                <p className="text-muted-foreground text-xs">No image</p>
               </div>
-              <div className="mt-2 space-y-0.5">
-                <p className="text-xs font-semibold leading-tight truncate">{card.name}</p>
-                {(card.year || card.setName) && (
-                  <p className="text-[10px] text-muted-foreground truncate">
-                    {[card.year, card.setName].filter(Boolean).join(" · ")}
-                  </p>
-                )}
-                {card.gradeCompany && card.gradeValue ? (
-                  <span className={`inline-flex items-center gap-0.5 text-[10px] font-semibold px-1.5 py-0.5 rounded border ${GRADE_COLORS[card.gradeCompany] ?? "bg-muted text-muted-foreground border-border"}`}>
-                    {card.gradeCompany} {card.gradeValue}
-                  </span>
-                ) : card.condition ? (
-                  <span className="inline-flex text-[10px] text-muted-foreground">
-                    {card.condition.replace(/_/g, " ")}
-                  </span>
-                ) : null}
-                {card.ownerUsername ? (
-                  <Link
-                    href={`/u/${card.ownerUsername}`}
-                    className="flex items-center gap-1 text-[10px] text-muted-foreground hover:text-foreground transition-colors mt-0.5"
-                  >
-                    <UserIcon className="h-2.5 w-2.5" />
-                    <span className="truncate">{card.ownerName}</span>
-                  </Link>
-                ) : (
-                  <p className="flex items-center gap-1 text-[10px] text-muted-foreground mt-0.5">
-                    <UserIcon className="h-2.5 w-2.5" />
-                    <span className="truncate">{card.ownerName}</span>
-                  </p>
-                )}
+            )}
+          </div>
+        </div>
+
+        <Separator />
+
+        {/* Card info */}
+        <div className="space-y-2">
+          <Badge variant="secondary" className="text-xs">
+            {GENRE_LABELS[card.sportGenre] ?? card.sportGenre}
+          </Badge>
+          <h2 className="text-xl font-bold leading-tight">{card.name}</h2>
+          {setLine && <p className="text-muted-foreground text-sm">{setLine}</p>}
+          {(card.gradeCompany || card.condition) && (
+            <div className="flex gap-2 flex-wrap">
+              {card.gradeCompany && card.gradeValue && (
+                <Badge className="bg-amber-500/20 text-amber-400 border-amber-500/30">
+                  {card.gradeCompany} {card.gradeValue}
+                </Badge>
+              )}
+              {card.condition && !card.gradeCompany && (
+                <Badge className="bg-muted/80 text-muted-foreground border-border">
+                  {card.condition.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())}
+                </Badge>
+              )}
+            </div>
+          )}
+        </div>
+
+        <Separator />
+
+        {/* Price summary */}
+        <div>
+          <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Market Value</p>
+          {loading ? (
+            <div className="h-7 w-24 bg-muted rounded animate-pulse" />
+          ) : (
+            <p className="text-2xl font-bold">{fmt(highestPrice)}</p>
+          )}
+        </div>
+
+        {/* Per-site pricing — always show all 3 sources */}
+        {!loading && (
+          <>
+            <Separator />
+            <div>
+              <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">
+                Pricing by Source
+              </h3>
+              <div className="space-y-1.5">
+                {KNOWN_SOURCES.map((source) => {
+                  const entry = latestPrices.find((p) => p.source === source);
+                  const price = entry?.price ?? null;
+                  const isHighest = price != null && price === highestPrice && pricesWithValues.length > 1;
+                  return (
+                    <div
+                      key={source}
+                      className={cn(
+                        "flex items-center justify-between px-3 py-2 rounded-lg border text-sm",
+                        isHighest ? "border-primary/40 bg-primary/10" : "border-border bg-card"
+                      )}
+                    >
+                      <div className="flex items-center gap-1.5">
+                        <span className="font-medium">
+                          {SOURCE_LABELS[source] ?? source}
+                        </span>
+                        {isHighest && (
+                          <Badge className="text-xs bg-primary/20 text-primary border-primary/30">
+                            Highest
+                          </Badge>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        <span className={cn("font-semibold", price == null && "text-muted-foreground")}>
+                          {fmt(price)}
+                        </span>
+                        {entry?.url && (
+                          <a
+                            href={entry.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-muted-foreground hover:text-primary transition-colors"
+                            title="View source listing"
+                          >
+                            <ExternalLinkIcon className="h-3 w-3" />
+                          </a>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             </div>
-          ))}
-        </div>
-      )}
+          </>
+        )}
+
+        {/* Price History Chart */}
+        {!loading && history.length > 0 && (
+          <UICard>
+            <CardContent className="p-4">
+              <h3 className="text-sm font-semibold mb-3">Price History</h3>
+              <PriceChart history={history} />
+            </CardContent>
+          </UICard>
+        )}
+
+        {/* Owner */}
+        {owner && (
+          <>
+            <Separator />
+            <div>
+              <p className="text-xs text-muted-foreground uppercase tracking-wide mb-2">Listed by</p>
+              {owner.username ? (
+                <Link
+                  href={`/u/${owner.username}`}
+                  className="flex items-center gap-2 text-sm font-medium hover:text-foreground transition-colors text-muted-foreground group"
+                >
+                  <UserIcon className="h-4 w-4" />
+                  <span>{owner.name}</span>
+                  <span className="text-xs opacity-60">@{owner.username}</span>
+                  <ExternalLinkIcon className="h-3 w-3 opacity-0 group-hover:opacity-60 transition-opacity ml-auto" />
+                </Link>
+              ) : (
+                <p className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <UserIcon className="h-4 w-4" />
+                  {owner.name}
+                </p>
+              )}
+            </div>
+          </>
+        )}
+      </div>
     </div>
   );
 }

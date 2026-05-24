@@ -7,6 +7,7 @@ import type { Metadata } from "next";
 import { auth } from "@/auth";
 import { PublicCollectionClient } from "./public-collection-client";
 import { AppBanner } from "@/components/app-banner";
+import { AppLogo } from "@/components/app-logo";
 import { LayersIcon, ArrowRightLeftIcon, SparklesIcon } from "lucide-react";
 
 export async function generateMetadata(
@@ -37,6 +38,8 @@ export default async function PublicProfilePage(
 
   if (!user || !user.profilePublic) notFound();
 
+  const isOwner = session?.user?.id === user.id;
+
   const allCards = await db
     .select()
     .from(cards)
@@ -51,6 +54,8 @@ export default async function PublicProfilePage(
   const tradeBaitOnly = tradeBaitOnlySetting?.value === "true";
 
   const collection = tradeBaitOnly ? allCards.filter((c) => c.isTradeBait) : allCards;
+  // Passed to client: owners see all cards; visitors only see the filtered set
+  const clientCards = isOwner ? allCards : collection;
 
   const tradeBaitCount = collection.filter((c) => c.isTradeBait).length;
   const genres = [...new Set(collection.map((c) => c.sportGenre).filter(Boolean))];
@@ -67,16 +72,16 @@ export default async function PublicProfilePage(
           {isSignedIn ? (
             <Link
               href="/dashboard"
-              className="text-xs font-medium px-3 py-1.5 rounded-md border transition-all hover:opacity-80"
-              style={{ borderColor: "oklch(0.3 0.02 260)", color: "oklch(0.65 0.03 260)" }}
+              className="text-xs font-semibold px-3 py-1.5 rounded-md transition-all hover:opacity-90 active:scale-95"
+              style={{ background: "oklch(0.55 0.18 260)", color: "oklch(0.98 0.01 260)" }}
             >
               Go to app
             </Link>
           ) : (
             <Link
               href="/login"
-              className="text-xs font-medium px-3 py-1.5 rounded-md border transition-all hover:opacity-80"
-              style={{ borderColor: "oklch(0.3 0.02 260)", color: "oklch(0.65 0.03 260)" }}
+              className="text-xs font-semibold px-3 py-1.5 rounded-md transition-all hover:opacity-90 active:scale-95"
+              style={{ background: "oklch(0.55 0.18 260)", color: "oklch(0.98 0.01 260)" }}
             >
               Sign in
             </Link>
@@ -111,12 +116,21 @@ export default async function PublicProfilePage(
         </div>
       </div>
 
-      <main className="max-w-6xl mx-auto px-5 py-8">
-        <PublicCollectionClient cards={collection} />
+      <main className="max-w-6xl mx-auto px-5 py-8 pb-20">
+        <PublicCollectionClient
+          cards={clientCards}
+          isOwner={isOwner}
+          tradeBaitOnly={tradeBaitOnly}
+          isSignedIn={isSignedIn}
+          ownerUsername={username}
+        />
       </main>
 
-      <footer className="border-t py-8 text-center" style={{ borderColor: "oklch(0.16 0.01 260)" }}>
-        <Link href="/" className="text-xs transition-colors hover:opacity-80" style={{ color: "oklch(0.4 0.02 260)" }}>Powered by Cardventory</Link>
+      <footer className="border-t py-10 text-center" style={{ borderColor: "oklch(0.16 0.01 260)" }}>
+        <Link href="/" className="inline-flex items-center gap-2 transition-opacity hover:opacity-80" style={{ color: "oklch(0.55 0.04 260)" }}>
+          <AppLogo size="sm" />
+          <span className="text-xs font-medium">Powered by Cardventory</span>
+        </Link>
       </footer>
     </div>
   );
