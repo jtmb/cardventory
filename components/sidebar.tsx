@@ -63,6 +63,7 @@ function NavContent({ onNavigate }: { onNavigate?: () => void }) {
   const { data: session } = useSession();
   const isAdmin = session?.user?.role === "admin";
   const [pendingCount, setPendingCount] = useState(0);
+  const [notifCount, setNotifCount] = useState(0);
   const [addCardOpen, setAddCardOpen] = useState(false);
 
   useEffect(() => {
@@ -72,6 +73,19 @@ function NavContent({ onNavigate }: { onNavigate?: () => void }) {
       .then((data) => { if (data) setPendingCount(data.count); })
       .catch(() => {});
   }, [isAdmin]);
+
+  useEffect(() => {
+    if (!session?.user?.id) return;
+    function fetchNotifCount() {
+      fetch("/api/notifications")
+        .then((r) => r.ok ? r.json() : [])
+        .then((data: { id: string }[]) => { if (Array.isArray(data)) setNotifCount(data.length); })
+        .catch(() => {});
+    }
+    fetchNotifCount();
+    const interval = setInterval(fetchNotifCount, 30_000);
+    return () => clearInterval(interval);
+  }, [session?.user?.id]);
 
   return (
     <>
@@ -200,28 +214,43 @@ function NavContent({ onNavigate }: { onNavigate?: () => void }) {
         </nav>
       </ScrollFade>
 
-      <div className="px-3 py-4 border-t border-sidebar-border shrink-0 space-y-1">
-        <Link
-          href="/settings?s=account"
-          onClick={onNavigate}
-          className="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-sidebar-accent transition-colors group"
-        >
-          <div className="w-7 h-7 rounded-full bg-primary/20 flex items-center justify-center text-xs font-bold text-primary shrink-0">
-            {session?.user?.name?.[0]?.toUpperCase() ?? "?"}
-          </div>
-          <div className="flex-1 min-w-0">
-            <p className="text-xs font-medium text-sidebar-foreground truncate">{session?.user?.name}</p>
-            <p className="text-[10px] text-sidebar-foreground/50 truncate">Account &amp; Profile</p>
-          </div>
-        </Link>
-        <Button
-          variant="ghost"
-          className="w-full justify-start gap-3 text-sidebar-foreground/60 hover:text-sidebar-foreground hover:bg-sidebar-accent text-sm"
-          onClick={() => { onNavigate?.(); signOut({ callbackUrl: "/login" }); }}
-        >
-          <LogOutIcon className="h-4 w-4" />
-          Sign Out
-        </Button>
+      <div className="px-3 py-4 border-t border-sidebar-border shrink-0">
+        <div className="flex items-center gap-2">
+          <Link
+            href="/settings?s=account"
+            onClick={onNavigate}
+            className="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-sidebar-accent transition-colors group flex-1 min-w-0"
+          >
+            <div className="w-7 h-7 rounded-full bg-primary/20 flex items-center justify-center text-xs font-bold text-primary shrink-0">
+              {session?.user?.name?.[0]?.toUpperCase() ?? "?"}
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-xs font-medium text-sidebar-foreground truncate">{session?.user?.name}</p>
+              <p className="text-[10px] text-sidebar-foreground/50 truncate">Account &amp; Profile</p>
+            </div>
+          </Link>
+          <Link
+            href="/notifications"
+            onClick={onNavigate}
+            title="Notifications"
+            className="relative shrink-0 p-2 rounded-lg text-sidebar-foreground/50 hover:text-sidebar-foreground hover:bg-sidebar-accent transition-colors"
+          >
+            <BellIcon className="h-4 w-4" />
+            {notifCount > 0 && (
+              <span className="absolute -top-0.5 -right-0.5 min-w-[16px] h-4 flex items-center justify-center rounded-full bg-primary text-primary-foreground text-[10px] font-bold px-1 leading-none">
+                {notifCount > 99 ? "99+" : notifCount}
+              </span>
+            )}
+          </Link>
+          <button
+            type="button"
+            title="Sign out"
+            className="shrink-0 p-2 rounded-lg text-sidebar-foreground/50 hover:text-sidebar-foreground hover:bg-sidebar-accent transition-colors"
+            onClick={() => { onNavigate?.(); signOut({ callbackUrl: "/login" }); }}
+          >
+            <LogOutIcon className="h-4 w-4" />
+          </button>
+        </div>
       </div>
       <AddCardDialog open={addCardOpen} onOpenChange={setAddCardOpen} />
     </>

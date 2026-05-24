@@ -16,6 +16,7 @@ export default function RegisterPage() {
   const [pending, setPending] = useState(false);
   const [loading, setLoading] = useState(false);
   const [showPwd, setShowPwd] = useState(false);
+  const [showConfirmPwd, setShowConfirmPwd] = useState(false);
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -23,13 +24,22 @@ export default function RegisterPage() {
     setError(null);
 
     const form = new FormData(e.currentTarget);
+    const password = form.get("password") as string;
+    const confirmPassword = form.get("confirmPassword") as string;
+
+    if (password !== confirmPassword) {
+      setError("Passwords do not match");
+      setLoading(false);
+      return;
+    }
+
     const res = await fetch("/api/register", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         name: form.get("name"),
         email: form.get("email"),
-        password: form.get("password"),
+        password,
       }),
     });
 
@@ -125,6 +135,28 @@ export default function RegisterPage() {
                 aria-label={showPwd ? "Hide password" : "Show password"}
               >
                 {showPwd ? <EyeOffIcon className="h-4 w-4" /> : <EyeIcon className="h-4 w-4" />}
+              </button>
+            </div>
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="confirmPassword">Confirm Password</Label>
+            <div className="relative">
+              <Input
+                id="confirmPassword"
+                name="confirmPassword"
+                type={showConfirmPwd ? "text" : "password"}
+                required
+                minLength={8}
+                placeholder="Repeat your password"
+                className="pr-9"
+              />
+              <button
+                type="button"
+                onClick={() => setShowConfirmPwd((s) => !s)}
+                className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                aria-label={showConfirmPwd ? "Hide password" : "Show password"}
+              >
+                {showConfirmPwd ? <EyeOffIcon className="h-4 w-4" /> : <EyeIcon className="h-4 w-4" />}
               </button>
             </div>
           </div>

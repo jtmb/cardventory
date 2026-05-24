@@ -84,7 +84,7 @@ export const notifications = sqliteTable("notifications", {
     .references(() => users.id, { onDelete: "cascade" }),
   message: text("message").notNull(),
   cardId: text("card_id").references(() => cards.id, { onDelete: "cascade" }),
-  type: text("type", { enum: ["new_high", "price_change"] }).notNull(),
+  type: text("type", { enum: ["new_high", "price_change", "trade_request"] }).notNull(),
   read: integer("read", { mode: "boolean" }).notNull().default(false),
   createdAt: integer("created_at", { mode: "timestamp" })
     .notNull()
@@ -129,6 +129,36 @@ export type NewNotification = typeof notifications.$inferInsert;
 export type UserLoginLog = typeof userLoginLogs.$inferSelect;
 export type NewUserLoginLog = typeof userLoginLogs.$inferInsert;
 export type BannedUser = typeof bannedUsers.$inferSelect;
+
+export const tradeRequests = sqliteTable("trade_requests", {
+  id: text("id")
+    .primaryKey()
+    .$defaultFn(() => crypto.randomUUID()),
+  fromUserId: text("from_user_id")
+    .notNull()
+    .references(() => users.id, { onDelete: "cascade" }),
+  toUserId: text("to_user_id")
+    .notNull()
+    .references(() => users.id, { onDelete: "cascade" }),
+  targetCardId: text("target_card_id")
+    .notNull()
+    .references(() => cards.id, { onDelete: "cascade" }),
+  offeredCardIds: text("offered_card_ids").notNull().default("[]"), // JSON array
+  status: text("status", { enum: ["pending", "accepted", "denied"] })
+    .notNull()
+    .default("pending"),
+  message: text("message"),
+  responseMessage: text("response_message"),
+  createdAt: integer("created_at", { mode: "timestamp" })
+    .notNull()
+    .$defaultFn(() => new Date()),
+  updatedAt: integer("updated_at", { mode: "timestamp" })
+    .notNull()
+    .$defaultFn(() => new Date()),
+});
+
+export type TradeRequest = typeof tradeRequests.$inferSelect;
+export type NewTradeRequest = typeof tradeRequests.$inferInsert;
 
 // ── Analytics ─────────────────────────────────────────────────────────────────
 

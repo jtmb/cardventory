@@ -16,11 +16,12 @@ import { Card as UICard, CardContent } from "@/components/ui/card";
 import { PriceChart } from "@/components/cards/price-chart";
 import type { Card, PriceHistory } from "@/lib/db/schema";
 import { getLatestPricesByMeta, getCardPriceHistory } from "@/lib/actions";
+import { TradeRequestOverlay } from "@/components/cards/trade-request-overlay";
 
 
 type Props = {
   cards: Card[];
-  ownerMap: Record<string, { name: string; username: string | null }>;
+  ownerMap: Record<string, { name: string; username: string | null; userId: string }>;
   total: number;
   activeGenres: string[];
   header: ReactNode;
@@ -65,6 +66,11 @@ export function TradeBoardShell({
   const [selectedCardId, setSelectedCardId] = useState<string | null>(null);
   const [panelWidth, setPanelWidth] = useState(480);
   const resizing = useRef(false);
+  const [tradeOverlay, setTradeOverlay] = useState<{
+    card: Card;
+    toUserId: string;
+    toUserName: string;
+  } | null>(null);
 
   function startResize(e: React.MouseEvent) {
     e.preventDefault();
@@ -153,9 +159,20 @@ export function TradeBoardShell({
             nextId={nextId}
             onClose={() => setSelectedCardId(null)}
             onNavigate={setSelectedCardId}
+            onRequestTrade={(card, toUserId, toUserName) => setTradeOverlay({ card, toUserId, toUserName })}
           />
         )}
       </div>
+
+      {/* Trade request overlay */}
+      {tradeOverlay && (
+        <TradeRequestOverlay
+          targetCard={tradeOverlay.card}
+          toUserId={tradeOverlay.toUserId}
+          toUserName={tradeOverlay.toUserName}
+          onClose={() => setTradeOverlay(null)}
+        />
+      )}
     </CardPanelContext.Provider>
   );
 }
@@ -167,13 +184,15 @@ function TradeCardDetailPanel({
   nextId,
   onClose,
   onNavigate,
+  onRequestTrade,
 }: {
   card: Card;
-  owner: { name: string; username: string | null } | null | undefined;
+  owner: { name: string; username: string | null; userId: string } | null | undefined;
   prevId: string | null;
   nextId: string | null;
   onClose: () => void;
   onNavigate: (id: string) => void;
+  onRequestTrade: (card: Card, toUserId: string, toUserName: string) => void;
 }) {
   const [latestPrices, setLatestPrices] = useState<PriceHistory[]>([]);
   const [history, setHistory] = useState<PriceHistory[]>([]);
@@ -328,6 +347,41 @@ function TradeCardDetailPanel({
           )}
         </div>
 
+        {/* Owner + Request Trade — directly below card identity */}
+        {owner && (
+          <>
+            <Separator />
+            <div className="flex items-center justify-between gap-3">
+              <div className="min-w-0">
+                <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Listed by</p>
+                {owner.username ? (
+                  <Link
+                    href={`/u/${owner.username}`}
+                    className="flex items-center gap-2 text-sm font-medium hover:text-foreground transition-colors text-muted-foreground group"
+                  >
+                    <UserIcon className="h-4 w-4 shrink-0" />
+                    <span>{owner.name}</span>
+                    <span className="text-xs opacity-60">@{owner.username}</span>
+                    <ExternalLinkIcon className="h-3 w-3 opacity-0 group-hover:opacity-60 transition-opacity" />
+                  </Link>
+                ) : (
+                  <p className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <UserIcon className="h-4 w-4" />
+                    {owner.name}
+                  </p>
+                )}
+              </div>
+              <button
+                onClick={() => onRequestTrade(card, owner.userId, owner.name)}
+                className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary text-primary-foreground text-xs font-semibold hover:bg-primary/90 transition-colors"
+              >
+                <ArrowRightLeftIcon className="h-3.5 w-3.5" />
+                Request Trade
+              </button>
+            </div>
+          </>
+        )}
+
         <Separator />
 
         {/* Price summary */}
@@ -403,32 +457,6 @@ function TradeCardDetailPanel({
               <PriceChart history={history} />
             </CardContent>
           </UICard>
-        )}
-
-        {/* Owner */}
-        {owner && (
-          <>
-            <Separator />
-            <div>
-              <p className="text-xs text-muted-foreground uppercase tracking-wide mb-2">Listed by</p>
-              {owner.username ? (
-                <Link
-                  href={`/u/${owner.username}`}
-                  className="flex items-center gap-2 text-sm font-medium hover:text-foreground transition-colors text-muted-foreground group"
-                >
-                  <UserIcon className="h-4 w-4" />
-                  <span>{owner.name}</span>
-                  <span className="text-xs opacity-60">@{owner.username}</span>
-                  <ExternalLinkIcon className="h-3 w-3 opacity-0 group-hover:opacity-60 transition-opacity ml-auto" />
-                </Link>
-              ) : (
-                <p className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <UserIcon className="h-4 w-4" />
-                  {owner.name}
-                </p>
-              )}
-            </div>
-          </>
         )}
       </div>
     </div>

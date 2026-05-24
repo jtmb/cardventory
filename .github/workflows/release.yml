@@ -27,6 +27,35 @@ jobs:
       actions: write        # dispatch deploy workflow
 
     steps:
+      - name: Notify Discord — Pipeline started
+        env:
+          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
+          ACTOR: ${{ github.actor }}
+          ACTOR_URL: ${{ github.server_url }}/${{ github.actor }}
+          COMMIT_SHA: ${{ github.sha }}
+          COMMIT_URL: ${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }}
+          REF_NAME: ${{ github.ref_name }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          EVENT: ${{ github.event_name }}
+        run: |
+          python3 -c "
+          import json, os, urllib.request
+          actor = os.environ['ACTOR']
+          actor_url = os.environ['ACTOR_URL']
+          sha = os.environ['COMMIT_SHA'][:7]
+          commit_url = os.environ['COMMIT_URL']
+          ref = os.environ['REF_NAME']
+          run_url = os.environ['RUN_URL']
+          event = os.environ['EVENT']
+          trigger = f'[{sha}]({commit_url})' if event != 'workflow_dispatch' else f'manual via [{actor}]({actor_url})'
+          p = {'embeds': [{'title': '\U0001f504 Release Pipeline Started', 'description': f'**Tag:** \`{ref}\`\n**Triggered by:** [{actor}]({actor_url})\n**Commit:** {trigger}\n**Run:** [View workflow]({run_url})', 'color': 3447003}]}
+          r = urllib.request.Request(os.environ['DISCORD_WEBHOOK'], json.dumps(p).encode(), {'Content-Type': 'application/json', 'User-Agent': 'curl/7.68.0'})
+          try:
+            urllib.request.urlopen(r, timeout=10)
+          except Exception as e:
+            print('Discord notify failed:', e)
+          " || true
+
       - name: Checkout
         uses: actions/checkout@v4
 

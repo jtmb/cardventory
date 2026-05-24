@@ -87,7 +87,12 @@ export default function AddCardPage() {
     uploadFd.append("file", file);
     fetch("/api/upload", { method: "POST", body: uploadFd })
       .then((r) => r.ok ? r.json() : null)
-      .then((d: { url?: string } | null) => { if (d?.url) setPhotoUrl(d.url); })
+      .then((d: { url?: string } | null) => {
+        if (d?.url) {
+          setPhotoUrl(d.url);
+          setPhotoPreview(d.url);
+        }
+      })
       .catch(() => {})
       .finally(() => setUploading(false));
 
@@ -131,6 +136,7 @@ export default function AddCardPage() {
     if (res.ok) {
       const data = await res.json();
       setPhotoUrl(data.url);
+      setPhotoPreview(data.url);
     } else {
       toast.error("Photo upload failed");
     }
@@ -295,6 +301,7 @@ export default function AddCardPage() {
                       alt="Card preview"
                       fill
                       className="object-contain"
+                      unoptimized={photoPreview.startsWith("http")}
                     />
                     <div className="absolute inset-0 bg-black/0 group-hover:bg-black/25 transition-colors rounded-xl" />
                     <button

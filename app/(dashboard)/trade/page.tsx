@@ -57,9 +57,9 @@ export default async function TradeBoardPage({
   let tradeCards = rows.filter((r) => r.userId !== session.user!.id);
 
   // Build ownerMap before filtering
-  const ownerMap: Record<string, { name: string; username: string | null }> = {};
+  const ownerMap: Record<string, { name: string; username: string | null; userId: string }> = {};
   tradeCards.forEach((r) => {
-    ownerMap[r.id] = { name: r.ownerName, username: r.ownerUsername };
+    ownerMap[r.id] = { name: r.ownerName, username: r.ownerUsername, userId: r.userId };
   });
 
   // Client-side filtering (genre, search, grade)

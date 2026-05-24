@@ -16,6 +16,29 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      - name: Notify Discord — Deploy started
+        env:
+          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
+          ACTOR: ${{ github.actor }}
+          ACTOR_URL: ${{ github.server_url }}/${{ github.actor }}
+          VERSION: ${{ github.event.inputs.version }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          python3 -c "
+          import json, os, urllib.request
+          actor = os.environ['ACTOR']
+          actor_url = os.environ['ACTOR_URL']
+          v = os.environ.get('VERSION', '')
+          run_url = os.environ['RUN_URL']
+          version_str = f'\`v{v}\`' if v else 'latest'
+          p = {'embeds': [{'title': '\U0001f6a7 Deploy Started', 'description': f'**Version:** {version_str}\n**Triggered by:** [{actor}]({actor_url})\n**Run:** [View workflow]({run_url})', 'color': 16776960}]}
+          r = urllib.request.Request(os.environ['DISCORD_WEBHOOK'], json.dumps(p).encode(), {'Content-Type': 'application/json', 'User-Agent': 'curl/7.68.0'})
+          try:
+            urllib.request.urlopen(r, timeout=10)
+          except Exception as e:
+            print('Discord notify failed:', e)
+          " || true
+
       - name: Deploy to Linode
         uses: appleboy/ssh-action@v1.0.3
         with:

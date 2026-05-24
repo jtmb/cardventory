@@ -82,6 +82,7 @@ export function EditCardForm({ card, inOverlay = false }: { card: Card; inOverla
     if (res.ok) {
       const data = await res.json();
       setPhotoUrl(data.url);
+      setPhotoPreview(data.url);
     } else {
       toast.error("Photo upload failed");
     }

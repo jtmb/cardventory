@@ -112,6 +112,27 @@ export function migrate(sqlite: InstanceType<typeof Database>) {
     `);
   } catch {}
 
+  // Trade requests table
+  try {
+    sqlite.exec(`
+      CREATE TABLE IF NOT EXISTS trade_requests (
+        id TEXT PRIMARY KEY,
+        from_user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        to_user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        target_card_id TEXT NOT NULL REFERENCES cards(id) ON DELETE CASCADE,
+        offered_card_ids TEXT NOT NULL DEFAULT '[]',
+        status TEXT NOT NULL DEFAULT 'pending',
+        message TEXT,
+        response_message TEXT,
+        created_at INTEGER NOT NULL,
+        updated_at INTEGER NOT NULL
+      );
+      CREATE INDEX IF NOT EXISTS idx_trade_requests_from ON trade_requests(from_user_id);
+      CREATE INDEX IF NOT EXISTS idx_trade_requests_to ON trade_requests(to_user_id);
+      CREATE INDEX IF NOT EXISTS idx_trade_requests_status ON trade_requests(status);
+    `);
+  } catch {}
+
   // Analytics tables
   try {
     sqlite.exec(`

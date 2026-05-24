@@ -88,6 +88,8 @@ export async function POST(req: NextRequest) {
     // Log the registration IP (shows up in login history for pending accounts)
     if (newUser?.id) {
       await db.insert(userLoginLogs).values({ userId: newUser.id, ipAddress: ip });
+      // Set default font theme to "system" (OS default) for new users
+      await db.insert(settings).values({ userId: newUser.id, key: "font_theme", value: "system" });
     }
 
     // Discord signup notification (fire and forget)
