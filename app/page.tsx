@@ -1,16 +1,12 @@
-import { cookies } from "next/headers";
+import { auth } from "@/auth";
 import { redirect } from "next/navigation";
 import { LandingPage } from "@/components/landing/landing-page";
 
 export default async function Home() {
-  // Check session cookie directly — avoids NextAuth redirect logic
-  // that can fire when auth() is called for unauthenticated requests.
-  const jar = await cookies();
-  const isLoggedIn =
-    jar.has("authjs.session-token") ||
-    jar.has("__Secure-authjs.session-token");
-
-  if (isLoggedIn) redirect("/dashboard");
+  // Validate the session via auth() so stale/invalid tokens don't
+  // cause a redirect loop (/ → /dashboard → /login → back).
+  const session = await auth();
+  if (session?.user) redirect("/dashboard");
 
   return <LandingPage isLoggedIn={false} />;
 }
