@@ -43,7 +43,7 @@ export async function GET() {
       .from(userLoginLogs)
       .where(sql`login_at >= ${d30s}`)
       .groupBy(sql`strftime('%H', login_at, 'unixepoch')`)
-      .orderBy(sql`hour`)
+      .orderBy(sql`cast(strftime('%H', login_at, 'unixepoch') as integer)`)
       .all(),
 
     db
@@ -54,7 +54,7 @@ export async function GET() {
       .from(userLoginLogs)
       .where(sql`login_at >= ${d30s}`)
       .groupBy(sql`strftime('%w', login_at, 'unixepoch')`)
-      .orderBy(sql`dow`)
+      .orderBy(sql`cast(strftime('%w', login_at, 'unixepoch') as integer)`)
       .all(),
 
     db
@@ -81,7 +81,7 @@ export async function GET() {
       .from(users)
       .where(sql`created_at >= ${d365s}`)
       .groupBy(sql`strftime('%Y-%m', created_at, 'unixepoch')`)
-      .orderBy(sql`month`)
+      .orderBy(sql`strftime('%Y-%m', created_at, 'unixepoch')`)
       .all(),
   ]);
 

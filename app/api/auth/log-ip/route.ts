@@ -47,6 +47,7 @@ export async function POST(req: NextRequest) {
       .from(userLoginLogs)
       .where(eq(userLoginLogs.userId, userId))
       .orderBy(desc(userLoginLogs.loginAt))
+      .limit(-1)
       .offset(10)
       .all();
 
