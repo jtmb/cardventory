@@ -4,6 +4,7 @@ import { rawSqlite } from "@/lib/db";
 import { users, settings, userLoginLogs } from "@/lib/db/schema";
 import { eq, isNull, and } from "drizzle-orm";
 import bcrypt from "bcryptjs";
+import { resolveMx } from "dns/promises";
 import { sendDiscordNotification } from "@/lib/notifications";
 import { getRealIp } from "@/lib/get-real-ip";
 import { securityMetrics } from "@/lib/security-metrics";
@@ -43,6 +44,19 @@ export async function POST(req: NextRequest) {
 
     if (password.length < 8) {
       return NextResponse.json({ error: "Password must be at least 8 characters" }, { status: 400 });
+    }
+
+    // Validate email domain has real MX records
+    const atIndex = email.lastIndexOf("@");
+    const domain = atIndex >= 1 ? email.slice(atIndex + 1) : "";
+    if (!domain) {
+      return NextResponse.json({ error: "Invalid email address" }, { status: 400 });
+    }
+    try {
+      const mx = await resolveMx(domain);
+      if (mx.length === 0) throw new Error("no MX");
+    } catch {
+      return NextResponse.json({ error: "Email domain does not appear to be valid" }, { status: 400 });
     }
 
     // First user is always allowed to register (bootstraps the admin account)

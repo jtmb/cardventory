@@ -13,10 +13,27 @@ import { EyeIcon, EyeOffIcon } from "lucide-react";
 export default function RegisterPage() {
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
+  const [emailError, setEmailError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
   const [loading, setLoading] = useState(false);
   const [showPwd, setShowPwd] = useState(false);
   const [showConfirmPwd, setShowConfirmPwd] = useState(false);
+
+  async function handleEmailBlur(e: React.FocusEvent<HTMLInputElement>) {
+    const email = e.target.value.trim();
+    if (!email) { setEmailError(null); return; }
+    try {
+      const res = await fetch("/api/auth/check-email", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email }),
+      });
+      const data: { exists: boolean } = await res.json();
+      setEmailError(data.exists ? null : "This email domain does not appear to be valid.");
+    } catch {
+      // network error — don't block
+    }
+  }
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -114,7 +131,10 @@ export default function RegisterPage() {
               type="email"
               required
               placeholder="you@example.com"
+              onBlur={handleEmailBlur}
+              onChange={() => setEmailError(null)}
             />
+            {emailError && <p className="text-destructive text-sm">{emailError}</p>}
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="password">Password</Label>
