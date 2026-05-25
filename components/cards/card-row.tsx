@@ -59,6 +59,11 @@ function Sparkline({ data, cardId }: { data: number[]; cardId: string }) {
   );
 }
 
+export type ParentPriceState =
+  | "loading"
+  | { highest: number | null; change7d: number | null; sparkline: number[] }
+  | null;
+
 export function CardRow({
   card,
   selectable = false,
@@ -68,6 +73,7 @@ export function CardRow({
   showPriceBadges = true,
   showSparkline = true,
   readOnly = false,
+  parentPriceState,
 }: {
   card: Card;
   selectable?: boolean;
@@ -78,6 +84,9 @@ export function CardRow({
   infoOverlay?: boolean;
   showSparkline?: boolean;
   readOnly?: boolean;
+  /** When set, the parent (CardGrid) manages price data via a single batch request.
+   *  "loading" = batch in-flight; object = data ready; null = no data. */
+  parentPriceState?: ParentPriceState;
 }) {
   const cacheKey = `cv_price_${card.id}`;
   // Always start with server-matching initial state — no localStorage read during render.
@@ -109,7 +118,24 @@ export function CardRow({
     } catch { /* ignore */ }
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Apply price data when it arrives from the parent batch fetch.
   useEffect(() => {
+    if (parentPriceState === undefined) return; // self-fetch mode
+    if (parentPriceState === "loading") return; // still waiting
+    const v = parentPriceState?.highest ?? null;
+    const c = parentPriceState?.change7d ?? null;
+    const s = parentPriceState?.sparkline ?? [];
+    setCurrentValue(v);
+    setPriceChange7d(c);
+    setSparkline(s);
+    setLoading(false);
+    try { localStorage.setItem(cacheKey, JSON.stringify({ v, c, s })); } catch { /* quota */ }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [parentPriceState]);
+
+  // Individual price fetch — only used when no parent is managing prices.
+  useEffect(() => {
+    if (parentPriceState !== undefined) return; // parent is managing
     fetch(`/api/cards/${card.id}/prices`)
       .then((r) => r.json())
       .then((data) => {

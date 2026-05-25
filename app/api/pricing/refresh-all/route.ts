@@ -2,10 +2,11 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { db } from "@/lib/db";
 import { cards, priceHistory, settings } from "@/lib/db/schema";
-import { eq, and, isNotNull, desc } from "drizzle-orm";
+import { eq, and, isNotNull, desc, inArray } from "drizzle-orm";
 import { fetchAllPrices } from "@/lib/scrapers";
 
 const REFRESH_COOLDOWN_MS = 24 * 60 * 60 * 1000; // 24 hours
+const SCRAPE_CONCURRENCY = 5; // parallel scraper calls per refresh-all
 
 // Bulk refresh all cards for the current user
 export async function POST(_req: NextRequest) {
@@ -43,18 +44,25 @@ export async function POST(_req: NextRequest) {
     .where(eq(cards.userId, session.user.id))
     .all();
 
-  // Snapshot prev max prices per card
+  // Snapshot prev max prices per card — single query, not N queries
   const prevPriceMap = new Map<string, number>();
-  for (const card of allCards) {
-    const rows = await db
-      .select({ price: priceHistory.price })
+  if (allCards.length > 0) {
+    const allCardIds = allCards.map((c) => c.id);
+    const prevRows = await db
+      .select({ cardId: priceHistory.cardId, price: priceHistory.price })
       .from(priceHistory)
-      .where(and(eq(priceHistory.cardId, card.id), isNotNull(priceHistory.price)))
+      .where(and(inArray(priceHistory.cardId, allCardIds), isNotNull(priceHistory.price)))
       .orderBy(desc(priceHistory.fetchedAt))
       .all();
-    const recentRows = rows.slice(0, 8);
-    if (recentRows.length > 0) {
-      prevPriceMap.set(card.id, Math.max(...recentRows.map((r) => r.price!)));
+    // Group latest 8 rows per card to find prev max
+    const rowsByCard = new Map<string, number[]>();
+    for (const row of prevRows) {
+      const arr = rowsByCard.get(row.cardId) ?? [];
+      if (arr.length < 8) arr.push(row.price!);
+      rowsByCard.set(row.cardId, arr);
+    }
+    for (const [id, prices] of rowsByCard) {
+      if (prices.length > 0) prevPriceMap.set(id, Math.max(...prices));
     }
   }
 
@@ -63,59 +71,65 @@ export async function POST(_req: NextRequest) {
   let down = 0;
   let unchanged = 0;
 
-  for (const card of allCards) {
-    try {
-      const results = await fetchAllPrices({
-        name: card.name,
-        setName: card.setName,
-        year: card.year,
-        cardNumber: card.cardNumber,
-        variant: card.variant,
-        gradeCompany: card.gradeCompany,
-        gradeValue: card.gradeValue,
-        sportGenre: card.sportGenre,
-      });
+  // Process cards in parallel batches of SCRAPE_CONCURRENCY instead of sequentially
+  for (let i = 0; i < allCards.length; i += SCRAPE_CONCURRENCY) {
+    const batch = allCards.slice(i, i + SCRAPE_CONCURRENCY);
+    await Promise.all(
+      batch.map(async (card) => {
+        try {
+          const results = await fetchAllPrices({
+            name: card.name,
+            setName: card.setName,
+            year: card.year,
+            cardNumber: card.cardNumber,
+            variant: card.variant,
+            gradeCompany: card.gradeCompany,
+            gradeValue: card.gradeValue,
+            sportGenre: card.sportGenre,
+          });
 
-      const now = new Date();
-      const inserts = results.filter((r) => r.price !== null).map((r) => ({
-        cardId: card.id,
-        source: r.source,
-        price: r.price,
-        url: r.url,
-        imageUrl: r.imageUrl,
-        fetchedAt: now,
-      }));
+          const now = new Date();
+          const inserts = results.filter((r) => r.price !== null).map((r) => ({
+            cardId: card.id,
+            source: r.source,
+            price: r.price,
+            url: r.url,
+            imageUrl: r.imageUrl,
+            fetchedAt: now,
+          }));
 
-      if (inserts.length > 0) {
-        await db.insert(priceHistory).values(inserts);
-      }
+          if (inserts.length > 0) {
+            await db.insert(priceHistory).values(inserts);
+          }
 
-      if (!card.photoUrl) {
-        const firstImage = results.find((r) => r.imageUrl)?.imageUrl;
-        if (firstImage) {
-          await db
-            .update(cards)
-            .set({ photoUrl: firstImage, updatedAt: now })
-            .where(eq(cards.id, card.id));
+          if (!card.photoUrl) {
+            const firstImage = results.find((r) => r.imageUrl)?.imageUrl;
+            if (firstImage) {
+              await db
+                .update(cards)
+                .set({ photoUrl: firstImage, updatedAt: now })
+                .where(eq(cards.id, card.id));
+            }
+          }
+
+          // Track price diff
+          const newPrices = results.filter((r) => r.price !== null).map((r) => r.price!);
+          if (newPrices.length > 0) {
+            const newMax = Math.max(...newPrices);
+            const prevMax = prevPriceMap.get(card.id);
+            if (prevMax !== undefined) {
+              if (newMax > prevMax) up++;
+              else if (newMax < prevMax) down++;
+              else unchanged++;
+            }
+          }
+
+          refreshed++;
+        } catch {
+          // Continue on individual card failure
         }
-      }
-
-      // Track price diff
-      const newPrices = results.filter((r) => r.price !== null).map((r) => r.price!);
-      if (newPrices.length > 0) {
-        const newMax = Math.max(...newPrices);
-        const prevMax = prevPriceMap.get(card.id);
-        if (prevMax !== undefined) {
-          if (newMax > prevMax) up++;
-          else if (newMax < prevMax) down++;
-          else unchanged++;
-        }
-      }
-
-      refreshed++;
-    } catch {
-      // Continue on individual card failure
-    }
+      })
+    );
   }
 
   // Record timestamp for non-admin rate limiting

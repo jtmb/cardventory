@@ -4,6 +4,8 @@ import { useState, useEffect, useLayoutEffect, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { CheckSquare2Icon, Trash2Icon, XIcon, LayoutGridIcon, LayoutListIcon, ListIcon, DownloadIcon, TagIcon, BookmarkIcon, BookmarkCheckIcon, ActivityIcon, ArrowRightLeftIcon } from "lucide-react";
 import { CardRow, CardRowSkeleton } from "./card-row";
+import type { ParentPriceState } from "./card-row";
+import type { BatchPriceEntry } from "@/app/api/cards/prices/batch/route";
 import type { Card } from "@/lib/db/schema";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { ButtonLink } from "@/components/ui/button-link";
@@ -70,6 +72,8 @@ export function CardGrid({ cards, exportHref, readOnly = false, defaultGridSize 
   const [showPriceBadges, setShowPriceBadges] = useState(true);
   const [showSparkline, setShowSparkline] = useState(true);
   const [gridSize, setGridSize] = useState(defaultGridSize); // initialized from server cookie
+  // null = loading, "failed" = batch errored (CardRows will self-fetch), Record = done
+  const [batchPrices, setBatchPrices] = useState<Record<string, BatchPriceEntry> | null | "failed">(null);
   const router = useRouter();
 
   // Read layout prefs from localStorage before first paint to prevent layout shift.
@@ -96,6 +100,18 @@ export function CardGrid({ cards, exportHref, readOnly = false, defaultGridSize 
       .then((d) => { if (d?.price_badges !== undefined) setShowPriceBadges(d.price_badges !== "false"); })
       .catch(() => {});
   }, []);
+
+  // Batch-load prices for all visible cards in a single request instead of N individual requests.
+  useEffect(() => {
+    if (cards.length === 0) { setBatchPrices({}); return; }
+    const ids = cards.map((c) => c.id).join(",");
+    setBatchPrices(null); // loading
+    fetch(`/api/cards/prices/batch?ids=${ids}`)
+      .then((r) => r.ok ? r.json() as Promise<Record<string, BatchPriceEntry>> : Promise.reject())
+      .then((data) => setBatchPrices(data))
+      .catch(() => setBatchPrices("failed")); // CardRows will self-fetch individually
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cards.map((c) => c.id).join(",")]);
 
   function setViewMode(v: ViewMode) {
     setView(v);
@@ -422,13 +438,13 @@ export function CardGrid({ cards, exportHref, readOnly = false, defaultGridSize 
           view === "grid" ? (
             <div className={`grid ${GRID_COLS_CLASS[gridSize] ?? GRID_COLS_CLASS[5]} cv-card-grid gap-4`}>
               {cards.map((card) => (
-                <CardRow key={card.id} card={card} layout="grid" selectable={selectMode} selected={selectedIds.has(card.id)} onToggle={toggleCard} showPriceBadges={showPriceBadges} showSparkline={showSparkline} readOnly={readOnly} />
+                <CardRow key={card.id} card={card} layout="grid" selectable={selectMode} selected={selectedIds.has(card.id)} onToggle={toggleCard} showPriceBadges={showPriceBadges} showSparkline={showSparkline} readOnly={readOnly} parentPriceState={batchPrices === "failed" ? undefined : batchPrices === null ? "loading" : (batchPrices[card.id] ?? null) as ParentPriceState} />
               ))}
             </div>
           ) : (
             <div className="rounded-lg border border-border bg-card overflow-hidden divide-y divide-border/60">
               {cards.map((card) => (
-                <CardRow key={card.id} card={card} layout={view} selectable={selectMode} selected={selectedIds.has(card.id)} onToggle={toggleCard} />
+                <CardRow key={card.id} card={card} layout={view} selectable={selectMode} selected={selectedIds.has(card.id)} onToggle={toggleCard} parentPriceState={batchPrices === "failed" ? undefined : batchPrices === null ? "loading" : (batchPrices[card.id] ?? null) as ParentPriceState} />
               ))}
             </div>
           )
