@@ -6,6 +6,7 @@ on:
     # No paths filter — every merge to main triggers a release
 
 permissions:
+  actions: write
   contents: write
 
 jobs:
@@ -59,7 +60,7 @@ jobs:
 
       - name: Trigger release workflow
         env:
-          GH_TOKEN: ${{ secrets.GH_PAT }}
+          GH_TOKEN: ${{ github.token }}
         run: |
           TAG="${{ steps.tagger.outputs.final_tag }}"
           echo "Dispatching release.yml for $TAG"
