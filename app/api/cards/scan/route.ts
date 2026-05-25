@@ -478,7 +478,11 @@ async function inferSportFromWeb(name: string): Promise<string> {
 const SCAN_MAX_BYTES = 15 * 1024 * 1024; // 15 MB
 const SCAN_RATE_WINDOW_MS = 60_000;       // 1 minute sliding window
 const SCAN_RATE_MAX = 5;                  // max scans per user per minute
-const ALLOWED_SCAN_MIMES = new Set(["image/jpeg", "image/png", "image/webp", "image/gif"]);
+const ALLOWED_SCAN_MIMES = new Set([
+  "image/jpeg", "image/png", "image/webp", "image/gif",
+  "image/avif", "image/tiff", "image/bmp", "image/x-bmp", "image/x-ms-bmp",
+  "image/heic", "image/heif",
+]);
 const scanBucket = new Map<string, number[]>(); // per-user timestamp buckets
 
 export async function POST(req: NextRequest) {
@@ -525,7 +529,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Image too large. Maximum size is 15 MB." }, { status: 413 });
   }
   if (!ALLOWED_SCAN_MIMES.has(mimeType)) {
-    return NextResponse.json({ error: "Only JPEG, PNG, WebP, and GIF images are supported." }, { status: 400 });
+    return NextResponse.json({ error: "Unsupported image format. Please use JPEG, PNG, WebP, HEIC, or AVIF." }, { status: 400 });
   }
 
   const ext = mimeType.split("/")[1]?.replace("jpeg", "jpg") ?? "jpg";
