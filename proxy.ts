@@ -8,19 +8,14 @@ export default auth((req) => {
   const isLoggedIn = !!req.auth;
   const { pathname } = req.nextUrl;
 
-  const publicPaths = ["/", "/login", "/register"];
-  const isPublicPath = publicPaths.some((p) => pathname.startsWith(p));
-
-  // Only redirect logged-in users away from auth-only pages (not the landing page)
-  const authOnlyPaths = ["/login", "/register"];
-  const isAuthOnlyPath = authOnlyPaths.some((p) => pathname.startsWith(p));
+  // Keep this explicit so "/" does not accidentally match every route.
+  const isPublicPath =
+    pathname === "/" ||
+    pathname.startsWith("/login") ||
+    pathname.startsWith("/register");
 
   if (!isLoggedIn && !isPublicPath) {
     return NextResponse.redirect(new URL("/login", req.url));
-  }
-
-  if (isLoggedIn && isAuthOnlyPath) {
-    return NextResponse.redirect(new URL("/", req.url));
   }
 
   return NextResponse.next();
