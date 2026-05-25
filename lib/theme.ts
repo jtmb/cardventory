@@ -597,4 +597,13 @@ export const THEME_INIT_SCRIPT = `(function(){
       var v = map[z]; if (v) document.documentElement.style.zoom = v;
     }
   } catch(err) {}
+})();
+// Grid size — set CSS vars before first paint to prevent card-image resize FOUC.
+// --cv-grid-xl drives xl (1280px+) column count; --cv-grid-2xl drives 2xl (1536px+).
+(function(){
+  try {
+    var gs = Math.min(7, Math.max(2, parseInt(localStorage.getItem('cv_cards_grid_size')) || 6));
+    document.documentElement.style.setProperty('--cv-grid-xl', String(Math.min(gs, 6)));
+    document.documentElement.style.setProperty('--cv-grid-2xl', String(gs));
+  } catch(err) {}
 })();`;

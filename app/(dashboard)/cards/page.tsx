@@ -1,6 +1,7 @@
 import { getCards, getActiveGenres, countCards, getAllSettings, getDuplicateGroups } from "@/lib/actions";
 import { LayersIcon } from "lucide-react";
 import { CardGrid } from "@/components/cards/card-grid";
+import { cookies } from "next/headers";
 import { PaginationControls } from "@/components/cards/pagination-controls";
 import { CardsPageShell } from "@/components/cards/cards-page-shell";
 import { DuplicatesBanner } from "@/components/cards/duplicates-banner";
@@ -24,6 +25,13 @@ export default async function CardsPage({
     getAllSettings(),
     getDuplicateGroups(),
   ]);
+
+  // Read grid size from cookie so SSR renders the correct column count (no reflow after hydration)
+  const cookieStore = await cookies();
+  const gridSizeCookie = cookieStore.get("cv_grid_size");
+  const defaultGridSize = gridSizeCookie
+    ? Math.min(7, Math.max(2, parseInt(gridSizeCookie.value) || 6))
+    : 6;
   // In duplicate view, flatten all duplicated cards and show only them
   const isDuplicateView = view === "duplicates";
   const duplicateCardIds = isDuplicateView
@@ -73,7 +81,7 @@ export default async function CardsPage({
           </div>
         ) : (
           <>
-            <CardGrid cards={displayCards} exportHref={exportHref} />
+            <CardGrid cards={displayCards} exportHref={exportHref} defaultGridSize={defaultGridSize} />
             {!isDuplicateView && (
               <PaginationControls
                 page={page}

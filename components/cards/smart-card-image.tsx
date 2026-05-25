@@ -94,8 +94,12 @@ export function SmartCardImage({
   const [cls, setCls] = useState(
     fitMode === "contain" ? "object-contain" : "object-cover object-center"
   );
-  // Ambient mode foreground state
-  const [fgCls, setFgCls] = useState("object-contain");
+  // Smart mode: hide until handleLoad resolves the final object-fit class to avoid a
+  // visible cover→contain (or cover→cover-top) jump. cover/contain never switch so they
+  // start as visible.
+  const [smartLoaded, setSmartLoaded] = useState(fitMode !== "smart");
+  // Ambient mode foreground state — start as cover so the blurred background stays hidden
+  const [fgCls, setFgCls] = useState("object-cover object-center");
   const [fgScale, setFgScale] = useState(1);
 
   const containerRef = useRef<HTMLDivElement>(null);
@@ -132,6 +136,7 @@ export function SmartCardImage({
     } else {
       setCls("object-cover object-center");
     }
+    setSmartLoaded(true);
   }, [fitMode]);
 
   return (
@@ -155,7 +160,7 @@ export function SmartCardImage({
             */}
             <div
               className="absolute inset-0"
-              style={fgScale > 1 ? { transform: `scale(${fgScale.toFixed(3)})` } : undefined}
+              style={fgScale > 1 ? { transform: `scale(${fgScale.toFixed(3)})`, transition: "transform 0.3s ease" } : undefined}
             >
               <Image
                 src={src}
@@ -175,6 +180,7 @@ export function SmartCardImage({
             className={imageClassName ? `${cls} ${imageClassName}` : cls}
             onLoad={handleLoad}
             unoptimized={unoptimized}
+            style={smartLoaded ? undefined : { opacity: 0 }}
           />
         )
       ) : (

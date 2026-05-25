@@ -43,7 +43,7 @@ function Sparkline({ data, cardId }: { data: number[]; cardId: string }) {
   return (
     <svg
       viewBox={`0 0 ${W} ${H}`}
-      className="absolute inset-0 w-full h-full pointer-events-none"
+      className="absolute inset-0 w-full h-full pointer-events-none animate-in fade-in duration-500"
       preserveAspectRatio="none"
       aria-hidden
     >
@@ -79,6 +79,11 @@ export function CardRow({
   showSparkline?: boolean;
   readOnly?: boolean;
 }) {
+  const cacheKey = `cv_price_${card.id}`;
+  // Always start with server-matching initial state — no localStorage read during render.
+  // `mounted` gates price-change badges so they never render before effects fire,
+  // preventing hydration mismatches caused by parent useLayoutEffect re-renders.
+  const [mounted, setMounted] = useState(false);
   const [currentValue, setCurrentValue] = useState<number | null>(null);
   const [priceChange7d, setPriceChange7d] = useState<number | null>(null);
   const [sparkline, setSparkline] = useState<number[]>([]);
@@ -87,16 +92,38 @@ export function CardRow({
   const router = useRouter();
   const { onCardClick } = useCardPanel();
 
+  // Seed from localStorage cache immediately after hydration completes.
+  // useEffect (not useLayoutEffect) ensures this runs after the hydration comparison,
+  // not synchronously during the commit phase.
+  useEffect(() => {
+    setMounted(true);
+    try {
+      const raw = localStorage.getItem(cacheKey);
+      if (raw) {
+        const cachedData = JSON.parse(raw);
+        if (cachedData?.v !== undefined) setCurrentValue(cachedData.v);
+        if (cachedData?.c !== undefined) setPriceChange7d(cachedData.c);
+        if (cachedData?.s) setSparkline(cachedData.s);
+        setLoading(false);
+      }
+    } catch { /* ignore */ }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
   useEffect(() => {
     fetch(`/api/cards/${card.id}/prices`)
       .then((r) => r.json())
       .then((data) => {
-        setCurrentValue(data.highest ?? null);
-        setPriceChange7d(data.change7d ?? null);
-        setSparkline(data.sparkline ?? []);
+        const v = data.highest ?? null;
+        const c = data.change7d ?? null;
+        const s = data.sparkline ?? [];
+        setCurrentValue(v);
+        setPriceChange7d(c);
+        setSparkline(s);
+        try { localStorage.setItem(cacheKey, JSON.stringify({ v, c, s })); } catch { /* quota */ }
       })
       .catch(() => {})
       .finally(() => setLoading(false));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [card.id]);
 
   const setLine = [
@@ -122,9 +149,13 @@ export function CardRow({
     });
   }
 
+  // `!mounted || loading` ensures price-change badges never render during hydration,
+  // even if a parent useLayoutEffect triggers a synchronous re-render first.
+  const effectiveLoading = !mounted || loading;
+
   const rowProps: RowLayoutProps = {
     card, setLine, selectable, selected, onToggle, isPending,
-    loading, currentValue, handleDelete,
+    loading: effectiveLoading, currentValue, handleDelete,
     showPriceBadges,
     onCardClick: onCardClick ?? undefined,
   };
@@ -242,7 +273,7 @@ export function CardRow({
           </div>
         )}
 
-        <CardInner card={card} setLine={setLine} isPending={isPending} loading={loading} currentValue={currentValue} priceChange7d={priceChange7d} sparkline={sparkline} showPriceBadges={showPriceBadges} showSparkline={showSparkline} />
+        <CardInner card={card} setLine={setLine} isPending={isPending} loading={effectiveLoading} currentValue={currentValue} priceChange7d={priceChange7d} sparkline={sparkline} showPriceBadges={showPriceBadges} showSparkline={showSparkline} />
       </div>
     </div>
   );
@@ -386,26 +417,26 @@ function CardInner({
       </SmartCardImage>
 
       {/* Info area */}
-      <div className={cn("p-3 space-y-1 border-t border-border/50 relative overflow-hidden", isPending && "opacity-40")}>
+      <div className={cn("p-3 border-t border-border/50 relative overflow-hidden", isPending && "opacity-40")}>
+        {/* Sparkline is absolute-positioned — keep outside space-y-1 so it
+            doesn't cause margin-top to be added to the name paragraph */}
         <Sparkline data={showSparkline ? sparkline : []} cardId={card.id} />
-        <p className="type-title-small font-semibold leading-tight line-clamp-1 tracking-tight">{card.name}</p>
-        {setLine && (
-          <p className="text-xs text-muted-foreground truncate">{setLine}</p>
-        )}
-        <div className="pt-1">
-          {loading ? (
-            <div className="h-3.5 w-4/5 bg-muted rounded animate-pulse" />
-          ) : (
-            <div>
-              {currentValue !== null ? (
-                <span className="inline-flex items-baseline bg-primary/15 text-primary rounded-md px-2 py-0.5 text-sm font-bold tabular-nums leading-tight ring-1 ring-primary/20">
-                  {fmt(currentValue)}
-                </span>
-              ) : (
-                <span className="text-xs text-muted-foreground/40">No price data</span>
-              )}
-            </div>
+        <div className="space-y-1">
+          <p className="type-title-small font-semibold leading-tight line-clamp-1 tracking-tight">{card.name}</p>
+          {setLine && (
+            <p className="text-xs text-muted-foreground truncate">{setLine}</p>
           )}
+          <div className="pt-1 min-h-[1.75rem] flex items-start">
+            {loading ? (
+              <div className="h-6 w-20 bg-primary/10 rounded-md ring-1 ring-primary/20 animate-pulse" />
+            ) : currentValue !== null ? (
+              <span className="inline-flex items-baseline bg-primary/15 text-primary rounded-md px-2 py-0.5 text-sm font-bold tabular-nums leading-tight ring-1 ring-primary/20">
+                {fmt(currentValue)}
+              </span>
+            ) : (
+              <span className="text-xs text-muted-foreground/40">No price data</span>
+            )}
+          </div>
         </div>
       </div>
     </>

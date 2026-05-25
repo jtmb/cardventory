@@ -40,19 +40,28 @@ const VIEW_LS_KEY = "cv_cards_view";
 const SPARKLINE_LS_KEY = "cv_cards_sparkline";
 const GRID_SIZE_LS_KEY = "cv_cards_grid_size";
 
-// Maps slider value (2–7) to Tailwind grid-cols class
-// Values 2 and 3 apply directly on mobile (no breakpoint prefix) so the slider
-// actually does something on small screens. Values 4+ start at 3 cols on mobile.
+// Maps slider value (2–7) to Tailwind grid-cols class.
+// xl+ column counts are intentionally omitted here — they are driven by
+// CSS custom properties (--cv-grid-xl / --cv-grid-2xl) set by the inline
+// blocking head script so the grid never reflows on initial paint.
 const GRID_COLS_CLASS: Record<number, string> = {
   2: "grid-cols-2",
   3: "grid-cols-3",
   4: "grid-cols-3 md:grid-cols-4",
   5: "grid-cols-3 md:grid-cols-4 lg:grid-cols-5",
-  6: "grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6",
-  7: "grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-7",
+  6: "grid-cols-3 md:grid-cols-4 lg:grid-cols-5",
+  7: "grid-cols-3 md:grid-cols-4 lg:grid-cols-5",
 };
 
-export function CardGrid({ cards, exportHref, readOnly = false }: { cards: Card[]; exportHref?: string; readOnly?: boolean }) {
+/** Sync the CSS custom properties used by .cv-card-grid for xl/2xl column counts. */
+function applyCssGridVars(n: number) {
+  document.documentElement.style.setProperty('--cv-grid-xl', String(Math.min(n, 6)));
+  document.documentElement.style.setProperty('--cv-grid-2xl', String(n));
+}
+
+const GRID_SIZE_COOKIE = "cv_grid_size";
+
+export function CardGrid({ cards, exportHref, readOnly = false, defaultGridSize = 6 }: { cards: Card[]; exportHref?: string; readOnly?: boolean; defaultGridSize?: number }) {
   const [selectMode, setSelectMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [isPending, startTransition] = useTransition();
@@ -60,17 +69,24 @@ export function CardGrid({ cards, exportHref, readOnly = false }: { cards: Card[
   const [genrePickerOpen, setGenrePickerOpen] = useState(false);
   const [showPriceBadges, setShowPriceBadges] = useState(true);
   const [showSparkline, setShowSparkline] = useState(true);
-  const [gridSize, setGridSize] = useState(6); // default 6 columns
+  const [gridSize, setGridSize] = useState(defaultGridSize); // initialized from server cookie
   const router = useRouter();
 
-  // Read layout prefs from localStorage before first paint to prevent layout shift
+  // Read layout prefs from localStorage before first paint to prevent layout shift.
+  // Also backfill the cookie so future SSR renders use the correct initial gridSize.
   useLayoutEffect(() => {
     const stored = localStorage.getItem(VIEW_LS_KEY) as ViewMode | null;
     if (stored) setView(stored);
     const storedSparkline = localStorage.getItem(SPARKLINE_LS_KEY);
     if (storedSparkline !== null) setShowSparkline(storedSparkline !== "false");
     const storedSize = localStorage.getItem(GRID_SIZE_LS_KEY);
-    if (storedSize) setGridSize(Math.min(7, Math.max(2, Number(storedSize))) || 5);
+    if (storedSize) {
+      const n = Math.min(7, Math.max(2, Number(storedSize))) || 5;
+      setGridSize(n);
+      applyCssGridVars(n);
+      // Backfill cookie so next SSR refresh starts at the correct column count
+      document.cookie = `${GRID_SIZE_COOKIE}=${n};path=/;max-age=31536000;samesite=lax`;
+    }
   }, []);
 
   // Load price badge preference from server settings (async — ok to apply after paint)
@@ -253,7 +269,9 @@ export function CardGrid({ cards, exportHref, readOnly = false }: { cards: Card[
                   onChange={(e) => {
                     const v = Number(e.target.value);
                     setGridSize(v);
+                    applyCssGridVars(v);
                     localStorage.setItem(GRID_SIZE_LS_KEY, String(v));
+                    document.cookie = `${GRID_SIZE_COOKIE}=${v};path=/;max-age=31536000;samesite=lax`;
                   }}
                   title={`Grid: ${gridSize} columns`}
                   className={cn(
@@ -402,7 +420,7 @@ export function CardGrid({ cards, exportHref, readOnly = false }: { cards: Card[
         )}
         {cards.length > 0 ? (
           view === "grid" ? (
-            <div className={`grid ${GRID_COLS_CLASS[gridSize] ?? GRID_COLS_CLASS[5]} gap-4`}>
+            <div className={`grid ${GRID_COLS_CLASS[gridSize] ?? GRID_COLS_CLASS[5]} cv-card-grid gap-4`}>
               {cards.map((card) => (
                 <CardRow key={card.id} card={card} layout="grid" selectable={selectMode} selected={selectedIds.has(card.id)} onToggle={toggleCard} showPriceBadges={showPriceBadges} showSparkline={showSparkline} readOnly={readOnly} />
               ))}

@@ -356,3 +356,20 @@
 .sparkle-star:nth-child(4) { animation-delay: 0.84s; }
 .sparkle-star:nth-child(5) { animation-delay: 1.12s; }
 
+/* ── Grid-size FOUC prevention ───────────────────────────────────────────────
+   --cv-grid-xl and --cv-grid-2xl are written by the inline blocking head
+   script (THEME_INIT_SCRIPT) before the first browser paint, so .cv-card-grid
+   gets the correct column count with zero FOUC — even on the very first visit.
+   These rules are intentionally outside @layer so they outrank Tailwind's
+   lg:grid-cols-5 utility at xl+ viewports.                                   */
+@media (min-width: 1280px) {
+  .cv-card-grid {
+    grid-template-columns: repeat(var(--cv-grid-xl, 6), minmax(0, 1fr));
+  }
+}
+@media (min-width: 1536px) {
+  .cv-card-grid {
+    grid-template-columns: repeat(var(--cv-grid-2xl, 6), minmax(0, 1fr));
+  }
+}
+

@@ -1,8 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useState, useEffect } from "react";
-import { usePathname, useSearchParams } from "next/navigation";
+import { useState, useEffect, useLayoutEffect } from "react";
+import { usePathname } from "next/navigation";
 import { signOut, useSession } from "next-auth/react";
 import {
   LayoutDashboardIcon,
@@ -58,8 +58,14 @@ const adminSubItems = [
 function NavContent({ onNavigate }: { onNavigate?: () => void }) {
   const pathname = usePathname();
   const onSettings = pathname.startsWith("/settings") || pathname.startsWith("/admin");
-  const searchParams = useSearchParams();
-  const activeSubSection = onSettings ? (searchParams.get("s") ?? "general") : null;
+  const [activeSubSection, setActiveSubSection] = useState<string | null>(null);
+  useLayoutEffect(() => {
+    setActiveSubSection(
+      onSettings
+        ? new URLSearchParams(window.location.search).get("s") ?? "general"
+        : null
+    );
+  }, [onSettings, pathname]);
   const { data: session } = useSession();
   const isAdmin = session?.user?.role === "admin";
   const [pendingCount, setPendingCount] = useState(0);
