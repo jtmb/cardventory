@@ -20,6 +20,10 @@ export const SYSTEM_SETTING_KEYS = [
   "signup_notify_register",
   "signup_notify_pending",
   "demo_mode",
+  "maintenance_mode",
+  "disable_trades",
+  "user_read_only_mode",
+  "disable_price_refresh",
 ] as const;
 
 export async function GET(_req: NextRequest) {

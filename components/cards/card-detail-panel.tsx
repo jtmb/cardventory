@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { getCard, getLatestPrices, getCardPriceHistory, getCardNeighbors, deleteCard, updateCard } from "@/lib/actions";
@@ -15,6 +15,7 @@ import { SmartCardImage } from "@/components/cards/smart-card-image";
 import {
   XIcon, ChevronLeftIcon, ChevronRightIcon,
   ExternalLinkIcon, PencilIcon, RefreshCwIcon, Trash2Icon, ArrowRightLeftIcon,
+  ZoomInIcon, ZoomOutIcon,
 } from "lucide-react";
 
 type PriceEntry = Awaited<ReturnType<typeof getLatestPrices>>[number];
@@ -34,6 +35,15 @@ const SOURCE_LABELS: Record<string, string> = {
 };
 
 const KNOWN_SOURCES = ["ebay", "sportscardinvestor", "sportscardspro"] as const;
+
+const GRADE_STYLES: Record<string, { bg: string; text: string }> = {
+  PSA:     { bg: "oklch(0.22 0.12 240 / 0.6)", text: "oklch(0.75 0.2 240)" },
+  BGS:     { bg: "oklch(0.22 0.12 60 / 0.6)",  text: "oklch(0.80 0.18 60)" },
+  Beckett: { bg: "oklch(0.22 0.12 60 / 0.6)",  text: "oklch(0.80 0.18 60)" },
+  CGC:     { bg: "oklch(0.22 0.10 180 / 0.6)", text: "oklch(0.75 0.15 180)" },
+  SGC:     { bg: "oklch(0.22 0.12 20 / 0.6)",  text: "oklch(0.75 0.18 20)" },
+  HGA:     { bg: "oklch(0.22 0.12 50 / 0.6)",  text: "oklch(0.78 0.18 50)" },
+};
 
 function fmt(n: number | null | undefined) {
   if (n == null) return "—";
@@ -60,6 +70,7 @@ export function CardDetailPanel({
   const [deleting, setDeleting] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [tradeBaitPending, setTradeBaitPending] = useState(false);
+  const [imageViewerOpen, setImageViewerOpen] = useState(false);
   const router = useRouter();
 
   useEffect(() => {
@@ -162,8 +173,27 @@ export function CardDetailPanel({
         .join(" · ")
     : "";
 
+  const touchStartX = useRef<number | null>(null);
+  const touchStartY = useRef<number | null>(null);
+
+  function handleTouchStart(e: React.TouchEvent) {
+    touchStartX.current = e.touches[0].clientX;
+    touchStartY.current = e.touches[0].clientY;
+  }
+
+  function handleTouchEnd(e: React.TouchEvent) {
+    if (touchStartX.current === null || touchStartY.current === null) return;
+    const dx = e.changedTouches[0].clientX - touchStartX.current;
+    const dy = e.changedTouches[0].clientY - touchStartY.current;
+    touchStartX.current = null;
+    touchStartY.current = null;
+    if (Math.abs(dx) < 50 || Math.abs(dx) < Math.abs(dy)) return;
+    if (dx > 0 && prevId) onNavigate(prevId);
+    else if (dx < 0 && nextId) onNavigate(nextId);
+  }
+
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col h-full" onTouchStart={handleTouchStart} onTouchEnd={handleTouchEnd}>
       {/* Sticky header */}
       <div className="sticky top-0 z-10 flex items-center gap-2 px-4 py-3 border-b border-border bg-background shrink-0">
         <button
@@ -234,24 +264,47 @@ export function CardDetailPanel({
           <>
             {/* Image */}
             <div className="flex justify-center">
-              <div
-                className="w-44 aspect-[5/7] rounded-2xl overflow-hidden"
-                style={{ filter: "drop-shadow(0 10px 30px rgba(0,0,0,0.5))" }}
-              >
-                {displayImage ? (
+              {displayImage ? (
+                <button
+                  type="button"
+                  onClick={() => setImageViewerOpen(true)}
+                  className="group/img relative w-44 aspect-[5/7] rounded-2xl overflow-hidden cursor-zoom-in"
+                  style={{ filter: "drop-shadow(0 10px 30px rgba(0,0,0,0.5))" }}
+                  aria-label="Zoom image"
+                >
                   <SmartCardImage
                     src={displayImage}
                     alt={card.name}
                     unoptimized={displayImage.startsWith("http")}
                   />
-                ) : (
+                  <div className="absolute inset-0 bg-black/0 group-hover/img:bg-black/30 transition-colors duration-200 flex items-center justify-center">
+                    <ZoomInIcon className="h-10 w-10 text-white opacity-0 group-hover/img:opacity-70 transition-opacity duration-200 drop-shadow-lg" />
+                  </div>
+                </button>
+              ) : (
+              <div
+                className="w-44 aspect-[5/7] rounded-2xl overflow-hidden"
+                style={{ filter: "drop-shadow(0 10px 30px rgba(0,0,0,0.5))" }}
+              >
                   <div className="flex h-full flex-col items-center justify-center bg-muted rounded-2xl">
                     <p className="text-3xl mb-1">🃏</p>
                     <p className="text-muted-foreground text-xs">No image</p>
                   </div>
-                )}
               </div>
+              )}
             </div>
+
+            {imageViewerOpen && displayImage && (
+              <CardImageViewer
+                src={displayImage}
+                name={card.name}
+                year={card.year?.toString() ?? null}
+                setName={card.setName}
+                gradeCompany={card.gradeCompany}
+                gradeValue={card.gradeValue}
+                onClose={() => setImageViewerOpen(false)}
+              />
+            )}
 
             <Separator />
 
@@ -429,6 +482,100 @@ export function CardDetailPanel({
               </button>
             </div>
           </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function CardImageViewer({ src, name, year, setName, gradeCompany, gradeValue, onClose }: {
+  src: string; name: string; year?: string | null; setName?: string | null;
+  gradeCompany?: string | null; gradeValue?: string | null; onClose: () => void;
+}) {
+  const [zoomed, setZoomed] = useState(false);
+  const [origin, setOrigin] = useState("50% 50%");
+  const [cursor, setCursor] = useState({ x: 0, y: 0, visible: false });
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [onClose]);
+
+  function handleMouseMove(e: React.MouseEvent<HTMLDivElement>) {
+    setCursor({ x: e.clientX, y: e.clientY, visible: true });
+    if (!zoomed || !containerRef.current) return;
+    const rect = containerRef.current.getBoundingClientRect();
+    const x = ((e.clientX - rect.left) / rect.width) * 100;
+    const y = ((e.clientY - rect.top) / rect.height) * 100;
+    setOrigin(`${x}% ${y}%`);
+  }
+
+  function handleClick(e: React.MouseEvent) {
+    e.stopPropagation();
+    setZoomed((z) => !z);
+    if (zoomed) setOrigin("50% 50%");
+  }
+
+  const CursorIcon = zoomed ? ZoomOutIcon : ZoomInIcon;
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex flex-col items-center justify-center p-6"
+      style={{ background: "oklch(0 0 0 / 0.92)", backdropFilter: "blur(16px)" }}
+      onClick={onClose}
+    >
+      {cursor.visible && (
+        <div
+          className="fixed z-[51] pointer-events-none flex items-center justify-center"
+          style={{ left: cursor.x, top: cursor.y, transform: "translate(-50%, -50%)" }}
+        >
+          <CursorIcon className="h-10 w-10" style={{ color: "oklch(0.88 0.04 260 / 0.9)", filter: "drop-shadow(0 2px 8px oklch(0 0 0 / 0.7))" }} />
+        </div>
+      )}
+      <button
+        type="button"
+        onClick={onClose}
+        className="absolute top-4 right-4 flex items-center justify-center w-9 h-9 rounded-full transition-colors hover:bg-white/10"
+        style={{ color: "oklch(0.6 0.02 260)", background: "oklch(0.15 0.02 260 / 0.8)" }}
+      >
+        <XIcon className="h-5 w-5" />
+      </button>
+      <div
+        ref={containerRef}
+        className="overflow-hidden rounded-2xl"
+        style={{ maxWidth: "min(92vw, 680px)", cursor: "none", boxShadow: "0 32px 100px oklch(0 0 0 / 0.8)" }}
+        onClick={handleClick}
+        onMouseMove={handleMouseMove}
+        onMouseLeave={() => {
+          setCursor((c) => ({ ...c, visible: false }));
+          if (zoomed) setOrigin("50% 50%");
+        }}
+      >
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={src}
+          alt="Card"
+          draggable={false}
+          style={{
+            display: "block", width: "auto", maxWidth: "100%", maxHeight: "58svh", height: "auto",
+            transform: `scale(${zoomed ? 2.5 : 1})`, transformOrigin: origin,
+            transition: zoomed ? "none" : "transform 0.25s ease", userSelect: "none",
+          }}
+        />
+      </div>
+      <div className="mt-5 text-center pointer-events-none">
+        <p className="text-3xl font-bold" style={{ color: "oklch(0.88 0.02 260)" }}>{name}</p>
+        {(year || setName) && (
+          <p className="text-lg mt-2" style={{ color: "oklch(0.48 0.02 260)" }}>
+            {[year, setName].filter(Boolean).join(" · ")}
+          </p>
+        )}
+        {(gradeCompany || gradeValue) && (
+          <p className="text-lg mt-2 font-semibold" style={{ color: GRADE_STYLES[gradeCompany ?? ""]?.text ?? "oklch(0.62 0.04 260)" }}>
+            {[gradeCompany, gradeValue].filter(Boolean).join(" ")}
+          </p>
         )}
       </div>
     </div>

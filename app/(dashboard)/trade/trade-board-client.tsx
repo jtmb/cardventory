@@ -2,10 +2,9 @@
 
 import type { ReactNode } from "react";
 import { useState, useEffect, useRef } from "react";
-import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
-import { ArrowRightLeftIcon, ChevronLeftIcon, ChevronRightIcon, ExternalLinkIcon, RefreshCwIcon, UserIcon, XIcon } from "lucide-react";
+import { ArrowRightLeftIcon, ChevronLeftIcon, ChevronRightIcon, ExternalLinkIcon, RefreshCwIcon, UserIcon, WrenchIcon, XIcon } from "lucide-react";
 import { CardsToolbar } from "@/components/cards/cards-toolbar";
 import { CardGrid } from "@/components/cards/card-grid";
 import { CardPanelContext } from "@/components/cards/card-panel-context";
@@ -29,6 +28,7 @@ type Props = {
   genre?: string;
   sort?: string;
   grade?: string;
+  disableTrades?: boolean;
 };
 
 const GENRE_LABELS: Record<string, string> = {
@@ -61,8 +61,8 @@ export function TradeBoardShell({
   genre,
   sort,
   grade,
+  disableTrades = false,
 }: Props) {
-  const router = useRouter();
   const [selectedCardId, setSelectedCardId] = useState<string | null>(null);
   const [panelWidth, setPanelWidth] = useState(480);
   const resizing = useRef(false);
@@ -91,14 +91,7 @@ export function TradeBoardShell({
   }
 
   function handleCardClick(id: string) {
-    if (typeof window !== "undefined" && window.innerWidth < 768) {
-      const owner = ownerMap[id];
-      if (owner?.username) {
-        router.push(`/u/${owner.username}`);
-      }
-    } else {
-      setSelectedCardId(id);
-    }
+    setSelectedCardId(id);
   }
 
   const selectedIdx = cards.findIndex((c) => c.id === selectedCardId);
@@ -121,6 +114,12 @@ export function TradeBoardShell({
           grade={grade}
         />
         <div className="p-6 max-w-7xl mx-auto">
+          {disableTrades && (
+            <div className="mb-4 flex items-center gap-2.5 rounded-lg border border-orange-400/40 bg-orange-400/10 px-4 py-3 text-sm text-orange-600 dark:text-orange-400">
+              <WrenchIcon className="h-4 w-4 shrink-0" />
+              <span>User trades are disabled by the system for maintenance. Trade requests are temporarily unavailable.</span>
+            </div>
+          )}
           {cards.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-24 text-center gap-3">
               <ArrowRightLeftIcon className="h-16 w-16 text-muted-foreground/30" />
@@ -133,6 +132,30 @@ export function TradeBoardShell({
             <CardGrid cards={cards} readOnly />
           )}
         </div>
+      </div>
+
+      {/* Detail panel — mobile full-screen overlay */}
+      <div
+        className={cn(
+          "flex md:hidden flex-col fixed inset-0 z-50",
+          "bg-background",
+          "transition-transform duration-300 ease-in-out",
+          selectedCardId ? "translate-y-0" : "translate-y-full"
+        )}
+      >
+        {selectedCard && selectedCardId && (
+          <TradeCardDetailPanel
+            key={selectedCardId}
+            card={selectedCard}
+            owner={selectedOwner}
+            prevId={prevId}
+            nextId={nextId}
+            onClose={() => setSelectedCardId(null)}
+            onNavigate={setSelectedCardId}
+            onRequestTrade={(card, toUserId, toUserName) => setTradeOverlay({ card, toUserId, toUserName })}
+            disableTrades={disableTrades}
+          />
+        )}
       </div>
 
       {/* Detail panel — desktop only, fixed right edge, overlays content */}
@@ -160,6 +183,7 @@ export function TradeBoardShell({
             onClose={() => setSelectedCardId(null)}
             onNavigate={setSelectedCardId}
             onRequestTrade={(card, toUserId, toUserName) => setTradeOverlay({ card, toUserId, toUserName })}
+            disableTrades={disableTrades}
           />
         )}
       </div>
@@ -185,6 +209,7 @@ function TradeCardDetailPanel({
   onClose,
   onNavigate,
   onRequestTrade,
+  disableTrades = false,
 }: {
   card: Card;
   owner: { name: string; username: string | null; userId: string } | null | undefined;
@@ -193,6 +218,7 @@ function TradeCardDetailPanel({
   onClose: () => void;
   onNavigate: (id: string) => void;
   onRequestTrade: (card: Card, toUserId: string, toUserName: string) => void;
+  disableTrades?: boolean;
 }) {
   const [latestPrices, setLatestPrices] = useState<PriceHistory[]>([]);
   const [history, setHistory] = useState<PriceHistory[]>([]);
@@ -372,8 +398,15 @@ function TradeCardDetailPanel({
                 )}
               </div>
               <button
-                onClick={() => onRequestTrade(card, owner.userId, owner.name)}
-                className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary text-primary-foreground text-xs font-semibold hover:bg-primary/90 transition-colors"
+                onClick={() => !disableTrades && onRequestTrade(card, owner.userId, owner.name)}
+                disabled={disableTrades}
+                title={disableTrades ? "Trade requests are disabled for maintenance" : undefined}
+                className={cn(
+                  "shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors",
+                  disableTrades
+                    ? "bg-muted text-muted-foreground cursor-not-allowed"
+                    : "bg-primary text-primary-foreground hover:bg-primary/90"
+                )}
               >
                 <ArrowRightLeftIcon className="h-3.5 w-3.5" />
                 Request Trade

@@ -86,6 +86,7 @@ const SECTION_LABELS: Record<string, string> = {
   "user-management": "User Management",
   authentication: "Authentication",
   system: "System",
+  maintenance: "Maintenance",
 };
 
 function formatBytes(bytes: number): string {
@@ -144,6 +145,10 @@ function SettingsContent() {
   const [signupNotifyPending, setSignupNotifyPending] = useState(true);
   // Demo mode
   const [demoMode, setDemoMode] = useState(false);
+  const [maintenanceMode, setMaintenanceMode] = useState(false);
+  const [disableTrades, setDisableTrades] = useState(false);
+  const [userReadOnlyMode, setUserReadOnlyMode] = useState(false);
+  const [disablePriceRefresh, setDisablePriceRefresh] = useState(false);
   // OAuth / system settings (admin only)
   const [oauthGoogleId, setOauthGoogleId] = useState("");
   const [oauthGoogleSecret, setOauthGoogleSecret] = useState("");
@@ -353,6 +358,10 @@ function SettingsContent() {
         if (data.signup_notify_register !== undefined) setSignupNotifyRegister(data.signup_notify_register !== "false");
         if (data.signup_notify_pending !== undefined) setSignupNotifyPending(data.signup_notify_pending !== "false");
         if (data.demo_mode !== undefined) setDemoMode(data.demo_mode === "true");
+        if (data.maintenance_mode !== undefined) setMaintenanceMode(data.maintenance_mode === "true");
+        if (data.disable_trades !== undefined) setDisableTrades(data.disable_trades === "true");
+        if (data.user_read_only_mode !== undefined) setUserReadOnlyMode(data.user_read_only_mode === "true");
+        if (data.disable_price_refresh !== undefined) setDisablePriceRefresh(data.disable_price_refresh === "true");
       })
       .catch(() => {});
   }, []);
@@ -663,6 +672,10 @@ function SettingsContent() {
           signup_notify_register: String(signupNotifyRegister),
           signup_notify_pending: String(signupNotifyPending),
           demo_mode: String(demoMode),
+          maintenance_mode: String(maintenanceMode),
+          disable_trades: String(disableTrades),
+          user_read_only_mode: String(userReadOnlyMode),
+          disable_price_refresh: String(disablePriceRefresh),
         }),
       }).catch(() => {});
     }
@@ -737,7 +750,7 @@ function SettingsContent() {
 
   return (
     <div className="min-h-full flex flex-col">
-      <div className={`p-6 pb-20 ${settingsLayoutWrapperClass(settingsLayout)}`}>
+      <div className={`px-6 pb-20 md:p-6 md:pb-20 ${settingsLayoutWrapperClass(settingsLayout)}`}>
       {activeSection !== "appearance" && (
       <div className="mb-4">
         <h1 className="type-headline-large font-bold">{SECTION_LABELS[activeSection] ?? "Settings"}</h1>
@@ -1930,32 +1943,6 @@ function SettingsContent() {
       {/* ── System ────────────────────────────────────────────────────────── */}
       {activeSection === "system" && (
         <div className={settingsArrangementClass(settingsArrangement)}>
-        {/* Demo Mode */}
-        {isAdmin && (
-          <Card>
-            <CardHeader>
-              <div className="flex items-center justify-between gap-4">
-                <div className="space-y-1">
-                  <CardTitle className="text-base flex items-center gap-2">
-                    <FlaskConicalIcon className="h-4 w-4" /> Demo Mode
-                  </CardTitle>
-                  <CardDescription>
-                    Show a visible banner indicating this is a demonstration instance. Useful when sharing the app with others.
-                  </CardDescription>
-                </div>
-                <label className="relative inline-flex items-center cursor-pointer shrink-0">
-                  <input
-                    type="checkbox"
-                    checked={demoMode}
-                    onChange={(e) => setDemoMode(e.target.checked)}
-                    className="sr-only peer"
-                  />
-                  <div className="w-10 h-5.5 bg-muted border border-border rounded-full peer peer-checked:bg-primary transition-colors after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:bg-white after:rounded-full after:h-4.5 after:w-4.5 after:transition-all peer-checked:after:translate-x-4.5" />
-                </label>
-              </div>
-            </CardHeader>
-          </Card>
-        )}
         {/* App Logo */}
         {isAdmin && (
         <Card>
@@ -2538,6 +2525,146 @@ function SettingsContent() {
             )}
           </CardContent>
         </Card>
+
+        </div>
+      )}
+
+      {/* ── Maintenance ────────────────────────────────────────────────────── */}
+      {activeSection === "maintenance" && isAdmin && (
+        <div className={settingsArrangementClass(settingsArrangement)}>
+
+          {/* Demo Mode */}
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between gap-4">
+                <div className="space-y-1">
+                  <CardTitle className="text-base flex items-center gap-2">
+                    <FlaskConicalIcon className="h-4 w-4" /> Demo Mode
+                  </CardTitle>
+                  <CardDescription>
+                    Show a visible banner indicating this is a demonstration instance. Useful when sharing the app with others.
+                  </CardDescription>
+                </div>
+                <label className="relative inline-flex items-center cursor-pointer shrink-0">
+                  <input
+                    type="checkbox"
+                    checked={demoMode}
+                    onChange={(e) => setDemoMode(e.target.checked)}
+                    className="sr-only peer"
+                  />
+                  <div className="w-10 h-5.5 bg-muted border border-border rounded-full peer peer-checked:bg-primary transition-colors after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:bg-white after:rounded-full after:h-4.5 after:w-4.5 after:transition-all peer-checked:after:translate-x-4.5" />
+                </label>
+              </div>
+            </CardHeader>
+          </Card>
+
+          {/* Maintenance Mode */}
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between gap-4">
+                <div className="space-y-1">
+                  <CardTitle className="text-base flex items-center gap-2">
+                    <TriangleAlertIcon className="h-4 w-4" /> Maintenance Mode
+                  </CardTitle>
+                  <CardDescription>
+                    Show a maintenance banner to all users on every page. The app
+                    remains fully accessible — this is a visibility-only flag for
+                    communicating planned maintenance.
+                  </CardDescription>
+                </div>
+                <label className="relative inline-flex items-center cursor-pointer shrink-0">
+                  <input
+                    type="checkbox"
+                    checked={maintenanceMode}
+                    onChange={(e) => setMaintenanceMode(e.target.checked)}
+                    className="sr-only peer"
+                  />
+                  <div className="w-10 h-5.5 bg-muted border border-border rounded-full peer peer-checked:bg-primary transition-colors after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:bg-white after:rounded-full after:h-4.5 after:w-4.5 after:transition-all peer-checked:after:translate-x-4.5" />
+                </label>
+              </div>
+            </CardHeader>
+          </Card>
+
+          {/* Disable User Trades */}
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between gap-4">
+                <div className="space-y-1">
+                  <CardTitle className="text-base flex items-center gap-2">
+                    <ServerIcon className="h-4 w-4" /> Disable User Trades
+                  </CardTitle>
+                  <CardDescription>
+                    Prevent users from submitting new trade requests. The trade board
+                    remains viewable but the &ldquo;Request Trade&rdquo; button is
+                    disabled and a notice is shown. Existing listings are unaffected.
+                  </CardDescription>
+                </div>
+                <label className="relative inline-flex items-center cursor-pointer shrink-0">
+                  <input
+                    type="checkbox"
+                    checked={disableTrades}
+                    onChange={(e) => setDisableTrades(e.target.checked)}
+                    className="sr-only peer"
+                  />
+                  <div className="w-10 h-5.5 bg-muted border border-border rounded-full peer peer-checked:bg-primary transition-colors after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:bg-white after:rounded-full after:h-4.5 after:w-4.5 after:transition-all peer-checked:after:translate-x-4.5" />
+                </label>
+              </div>
+            </CardHeader>
+          </Card>
+
+          {/* User Read-Only Mode */}
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between gap-4">
+                <div className="space-y-1">
+                  <CardTitle className="text-base flex items-center gap-2">
+                    <DatabaseIcon className="h-4 w-4" /> User Read-Only Mode
+                  </CardTitle>
+                  <CardDescription>
+                    Prevent non-admin users from adding, editing, or deleting cards.
+                    Useful during database migrations or bulk data operations. Admins
+                    are unaffected.
+                  </CardDescription>
+                </div>
+                <label className="relative inline-flex items-center cursor-pointer shrink-0">
+                  <input
+                    type="checkbox"
+                    checked={userReadOnlyMode}
+                    onChange={(e) => setUserReadOnlyMode(e.target.checked)}
+                    className="sr-only peer"
+                  />
+                  <div className="w-10 h-5.5 bg-muted border border-border rounded-full peer peer-checked:bg-primary transition-colors after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:bg-white after:rounded-full after:h-4.5 after:w-4.5 after:transition-all peer-checked:after:translate-x-4.5" />
+                </label>
+              </div>
+            </CardHeader>
+          </Card>
+
+          {/* Disable Price Refresh */}
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between gap-4">
+                <div className="space-y-1">
+                  <CardTitle className="text-base flex items-center gap-2">
+                    <RefreshCwIcon className="h-4 w-4" /> Disable Price Refresh
+                  </CardTitle>
+                  <CardDescription>
+                    Prevent non-admin users from triggering price refresh scrapes.
+                    Useful when the pricing service is undergoing maintenance or
+                    rate-limit recovery. Admins can still refresh prices.
+                  </CardDescription>
+                </div>
+                <label className="relative inline-flex items-center cursor-pointer shrink-0">
+                  <input
+                    type="checkbox"
+                    checked={disablePriceRefresh}
+                    onChange={(e) => setDisablePriceRefresh(e.target.checked)}
+                    className="sr-only peer"
+                  />
+                  <div className="w-10 h-5.5 bg-muted border border-border rounded-full peer peer-checked:bg-primary transition-colors after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:bg-white after:rounded-full after:h-4.5 after:w-4.5 after:transition-all peer-checked:after:translate-x-4.5" />
+                </label>
+              </div>
+            </CardHeader>
+          </Card>
 
         </div>
       )}

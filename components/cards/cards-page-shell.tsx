@@ -2,7 +2,6 @@
 
 import { useState, useRef } from "react";
 import type { ReactNode } from "react";
-import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { AddCardDialog } from "@/components/cards/add-card-dialog";
 import { CardsToolbar, type CardsToolbarProps } from "@/components/cards/cards-toolbar";
@@ -15,7 +14,6 @@ type CardsPageShellProps = Omit<CardsToolbarProps, "onAddClick"> & {
 };
 
 export function CardsPageShell({ children, defaultStatus, ...toolbarProps }: CardsPageShellProps) {
-  const router = useRouter();
   const [addOpen, setAddOpen] = useState(false);
   const [selectedCardId, setSelectedCardId] = useState<string | null>(null);
   const [panelWidth, setPanelWidth] = useState(480);
@@ -40,11 +38,7 @@ export function CardsPageShell({ children, defaultStatus, ...toolbarProps }: Car
   }
 
   function handleCardClick(id: string) {
-    if (typeof window !== "undefined" && window.innerWidth < 768) {
-      router.push(`/cards/${id}`);
-    } else {
-      setSelectedCardId(id);
-    }
+    setSelectedCardId(id);
   }
 
   return (
@@ -52,6 +46,24 @@ export function CardsPageShell({ children, defaultStatus, ...toolbarProps }: Car
       <div>
         <CardsToolbar {...toolbarProps} onAddClick={() => setAddOpen(true)} />
         {children}
+      </div>
+
+      {/* Detail panel — mobile full-screen overlay */}
+      <div
+        className={cn(
+          "flex md:hidden flex-col fixed inset-0 z-50",
+          "bg-background",
+          "transition-transform duration-300 ease-in-out",
+          selectedCardId ? "translate-y-0" : "translate-y-full"
+        )}
+      >
+        {selectedCardId && (
+          <CardDetailPanel
+            cardId={selectedCardId}
+            onClose={() => setSelectedCardId(null)}
+            onNavigate={setSelectedCardId}
+          />
+        )}
       </div>
 
       {/* Detail panel — desktop only, fixed right edge, overlays content */}

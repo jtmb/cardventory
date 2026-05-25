@@ -24,10 +24,10 @@ export function EditCardOverlay({ card }: EditCardOverlayProps) {
     <Dialog
       open={true}
       onOpenChange={(open) => {
-        if (!open) router.push(`/cards/${card.id}`);
+        if (!open) router.back();
       }}
     >
-      <DialogContent className="max-w-2xl">
+      <DialogContent className="max-w-2xl max-md:inset-0 max-md:translate-x-0 max-md:translate-y-0 max-md:max-w-none max-md:h-full max-md:max-h-none max-md:rounded-none max-md:shadow-none max-md:duration-300 max-md:data-open:[--tw-enter-translate-y:100%] max-md:data-open:[--tw-enter-scale:1] max-md:data-closed:[--tw-exit-translate-y:100%] max-md:data-closed:[--tw-exit-scale:1]">
         <DialogHeader>
           <DialogTitle>Edit Card</DialogTitle>
           <DialogClose

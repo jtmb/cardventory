@@ -1,5 +1,5 @@
 import { auth } from "@/auth";
-import { db } from "@/lib/db";
+import { db, rawSqlite } from "@/lib/db";
 import { cards, users } from "@/lib/db/schema";
 import { eq, and, or, like } from "drizzle-orm";
 import { redirect } from "next/navigation";
@@ -18,6 +18,14 @@ export default async function TradeBoardPage({
   if (!session?.user?.id) redirect("/login");
 
   const { genre, q, sort, grade } = await searchParams;
+
+  let disableTrades = false;
+  try {
+    const row = rawSqlite
+      .prepare("SELECT value FROM settings WHERE user_id IS NULL AND key = 'disable_trades' LIMIT 1")
+      .get() as { value: string } | undefined;
+    disableTrades = row?.value === "true";
+  } catch { /* ignore */ }
 
   const rows = await db
     .select({
@@ -100,6 +108,7 @@ export default async function TradeBoardPage({
       genre={genre}
       sort={sort}
       grade={grade}
+      disableTrades={disableTrades}
     />
   );
 }

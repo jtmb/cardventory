@@ -57,7 +57,7 @@ export function CardsToolbar({
   const [expanded, setExpanded] = useState(false);
 
   return (
-    <div className="pt-6" data-tour-id={tourId}>
+    <div className="md:pt-6" data-tour-id={tourId}>
       {/* ── Primary row ─────────────────────────────────────── */}
       <div className="max-w-7xl mx-auto px-6 flex items-center gap-2 h-12 md:h-14">
 

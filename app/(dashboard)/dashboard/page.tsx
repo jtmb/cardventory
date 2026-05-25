@@ -14,7 +14,7 @@ export default async function DashboardPage() {
     getPortfolioHistory(),
   ]);
   return (
-    <div className="p-6 space-y-8 max-w-7xl mx-auto">
+    <div className="px-6 pb-6 md:p-6 space-y-8 max-w-7xl mx-auto">
       {/* Header */}
       <div className="flex items-start justify-between gap-4">
         <div>

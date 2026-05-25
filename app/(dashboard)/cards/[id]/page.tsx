@@ -65,7 +65,7 @@ export default async function CardDetailPage({
 
   return (
     <SwipeCardNav prevId={prevId} nextId={nextId} basePath="/cards">
-    <div className="p-6 max-w-6xl mx-auto space-y-6">
+    <div className="px-6 pb-6 md:p-6 max-w-6xl mx-auto space-y-6">
       {/* Back (left) + desktop prev/next · Edit pinned to the right */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-0.5">

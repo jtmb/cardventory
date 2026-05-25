@@ -198,7 +198,7 @@ export default function AddCardPage() {
   }
 
   return (
-    <div className="p-6 pb-24 max-w-2xl mx-auto space-y-6">
+    <div className="px-6 pt-0 pb-24 md:p-6 md:pb-24 max-w-2xl mx-auto space-y-6">
       <div>
         <div className="flex items-center justify-between gap-3">
           <div>

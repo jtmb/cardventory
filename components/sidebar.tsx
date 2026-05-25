@@ -24,6 +24,7 @@ import {
   UserCircleIcon,
   GaugeIcon,
   ArrowRightLeftIcon,
+  WrenchIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -52,20 +53,23 @@ const adminSubItems = [
   { key: "user-management", label: "User Management", icon: UsersIcon  },
   { key: "authentication",  label: "Authentication",  icon: ShieldIcon },
   { key: "system",          label: "System",          icon: ServerIcon },
+  { key: "maintenance",     label: "Maintenance",     icon: WrenchIcon },
 ];
 
 /** Nav links + sign-out — rendered in both desktop sidebar and mobile drawer. */
 function NavContent({ onNavigate }: { onNavigate?: () => void }) {
   const pathname = usePathname();
-  const onSettings = pathname.startsWith("/settings") || pathname.startsWith("/admin");
   const [activeSubSection, setActiveSubSection] = useState<string | null>(null);
   useLayoutEffect(() => {
     setActiveSubSection(
-      onSettings
+      pathname.startsWith("/settings")
         ? new URLSearchParams(window.location.search).get("s") ?? "general"
         : null
     );
-  }, [onSettings, pathname]);
+  }, [pathname]);
+  const isAdminSection = activeSubSection ? adminSubItems.some(i => i.key === activeSubSection) : false;
+  const onSettings = pathname.startsWith("/settings") && !isAdminSection;
+  const onAdmin = pathname.startsWith("/admin") || (pathname.startsWith("/settings") && isAdminSection);
   const { data: session } = useSession();
   const isAdmin = session?.user?.role === "admin";
   const [pendingCount, setPendingCount] = useState(0);
@@ -102,7 +106,7 @@ function NavContent({ onNavigate }: { onNavigate?: () => void }) {
             href === "/dashboard" ? pathname === "/dashboard" || pathname === "/" :
             href === "/cards"     ? pathname === "/cards" || (pathname.startsWith("/cards/") && !pathname.startsWith("/cards/add")) :
             href === "/cards/add" ? pathname === "/cards/add" :
-            href === "/settings" ? pathname.startsWith("/settings") || pathname.startsWith("/admin") :
+            href === "/settings" ? pathname.startsWith("/settings") && !isAdminSection :
             pathname.startsWith(href);
           const tourId = href === "/cards/add" ? "tour-add-card" : href === "/settings" ? "tour-settings" : undefined;
           return (
@@ -148,68 +152,16 @@ function NavContent({ onNavigate }: { onNavigate?: () => void }) {
                       onClick={onNavigate}
                       data-tour-id={key === "data" ? "tour-settings-data" : undefined}
                       className={cn(
-                        "flex items-center gap-2.5 px-2.5 py-1.5 rounded-md text-xs font-medium transition-colors",
+                        "flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors",
                         activeSubSection === key
                           ? "text-primary bg-primary/10"
                           : "text-sidebar-foreground/55 hover:text-sidebar-foreground hover:bg-sidebar-accent"
                       )}
                     >
-                      <SubIcon className="h-3.5 w-3.5 shrink-0" />
+                      <SubIcon className="h-4 w-4 shrink-0" />
                       {subLabel}
                     </Link>
                   ))}
-                  {isAdmin && (
-                    <>
-                      <div className="px-2.5 pt-3 pb-1 text-[10px] font-semibold uppercase tracking-widest text-sidebar-foreground/35">Admin</div>
-                      <Link
-                        href="/admin/analytics"
-                        onClick={onNavigate}
-                        className={cn(
-                          "flex items-center gap-2.5 px-2.5 py-1.5 rounded-md text-xs font-medium transition-colors",
-                          pathname === "/admin/analytics"
-                            ? "text-primary bg-primary/10"
-                            : "text-sidebar-foreground/55 hover:text-sidebar-foreground hover:bg-sidebar-accent"
-                        )}
-                      >
-                        <BarChart3Icon className="h-3.5 w-3.5 shrink-0" />
-                        Analytics
-                      </Link>
-                      <Link
-                        href="/admin/metrics"
-                        onClick={onNavigate}
-                        className={cn(
-                          "flex items-center gap-2.5 px-2.5 py-1.5 rounded-md text-xs font-medium transition-colors",
-                          pathname === "/admin/metrics"
-                            ? "text-primary bg-primary/10"
-                            : "text-sidebar-foreground/55 hover:text-sidebar-foreground hover:bg-sidebar-accent"
-                        )}
-                      >
-                        <GaugeIcon className="h-3.5 w-3.5 shrink-0" />
-                        Metrics
-                      </Link>
-                      {adminSubItems.map(({ key, label: subLabel, icon: SubIcon }) => (
-                        <Link
-                          key={key}
-                          href={`/settings?s=${key}`}
-                          onClick={onNavigate}
-                          className={cn(
-                            "flex items-center gap-2.5 px-2.5 py-1.5 rounded-md text-xs font-medium transition-colors",
-                            activeSubSection === key
-                              ? "text-primary bg-primary/10"
-                              : "text-sidebar-foreground/55 hover:text-sidebar-foreground hover:bg-sidebar-accent"
-                          )}
-                        >
-                          <SubIcon className="h-3.5 w-3.5 shrink-0" />
-                          <span className="flex-1">{subLabel}</span>
-                          {pendingCount > 0 && key === "user-management" && (
-                            <span className="inline-flex items-center justify-center h-4 min-w-4 px-1 rounded-full bg-amber-400/20 text-amber-400 text-[10px] font-bold leading-none">
-                              {pendingCount}
-                            </span>
-                          )}
-                        </Link>
-                      ))}
-                    </>
-                  )}
                 </div>
               )}
             </div>
@@ -218,6 +170,79 @@ function NavContent({ onNavigate }: { onNavigate?: () => void }) {
 
 
         </nav>
+        {isAdmin && (
+          <div className="mt-1">
+            <Link
+              href="/settings?s=user-management"
+              onClick={onNavigate}
+              className={cn(
+                "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors",
+                onAdmin
+                  ? "bg-primary/15 text-primary"
+                  : "text-sidebar-foreground/60 hover:text-sidebar-foreground hover:bg-sidebar-accent"
+              )}
+            >
+              <ShieldIcon className="h-4 w-4 shrink-0" />
+              <span className="flex-1">Admin</span>
+              {pendingCount > 0 && (
+                <span className="inline-flex items-center justify-center h-4 min-w-4 px-1 rounded-full bg-amber-400/20 text-amber-400 text-[10px] font-bold leading-none">
+                  {pendingCount}
+                </span>
+              )}
+            </Link>
+            {(onAdmin || !!onNavigate) && (
+              <div className="mt-0.5 ml-3 pl-4 border-l border-sidebar-border space-y-0.5">
+                <Link
+                  href="/admin/analytics"
+                  onClick={onNavigate}
+                  className={cn(
+                    "flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors",
+                    pathname === "/admin/analytics"
+                      ? "text-primary bg-primary/10"
+                      : "text-sidebar-foreground/55 hover:text-sidebar-foreground hover:bg-sidebar-accent"
+                  )}
+                >
+                  <BarChart3Icon className="h-4 w-4 shrink-0" />
+                  Analytics
+                </Link>
+                <Link
+                  href="/admin/metrics"
+                  onClick={onNavigate}
+                  className={cn(
+                    "flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors",
+                    pathname === "/admin/metrics"
+                      ? "text-primary bg-primary/10"
+                      : "text-sidebar-foreground/55 hover:text-sidebar-foreground hover:bg-sidebar-accent"
+                  )}
+                >
+                  <GaugeIcon className="h-4 w-4 shrink-0" />
+                  Metrics
+                </Link>
+                {adminSubItems.map(({ key, label: subLabel, icon: SubIcon }) => (
+                  <Link
+                    key={key}
+                    href={`/settings?s=${key}`}
+                    onClick={onNavigate}
+                    className={cn(
+                      "flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors",
+                      activeSubSection === key
+                        ? "text-primary bg-primary/10"
+                        : "text-sidebar-foreground/55 hover:text-sidebar-foreground hover:bg-sidebar-accent"
+                    )}
+                  >
+                    <SubIcon className="h-4 w-4 shrink-0" />
+                    <span className="flex-1">{subLabel}</span>
+                    {pendingCount > 0 && key === "user-management" && (
+                      <span className="inline-flex items-center justify-center h-4 min-w-4 px-1 rounded-full bg-amber-400/20 text-amber-400 text-[10px] font-bold leading-none">
+                        {pendingCount}
+                      </span>
+                    )}
+                  </Link>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
       </ScrollFade>
 
       <div className="px-3 py-4 border-t border-sidebar-border shrink-0">
@@ -286,7 +311,7 @@ export function Sidebar() {
         >
           <MenuIcon className="h-5 w-5" />
         </button>
-        <AppLogo variant="banner" style={{ height: 48, width: 109, paddingTop: 7 }} />
+        <span className="font-extrabold text-lg text-sidebar-foreground tracking-tighter">Cardventory</span>
       </div>
 
       {/* ── Mobile backdrop ───────────────────────────────────────────────── */}

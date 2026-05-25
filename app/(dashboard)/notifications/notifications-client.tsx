@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { BellIcon, ArrowRightLeftIcon, TrendingUpIcon, CheckIcon, XIcon, RefreshCwIcon, InboxIcon } from "lucide-react";
+import { useSession } from "next-auth/react";
+import { BellIcon, ArrowRightLeftIcon, TrendingUpIcon, CheckIcon, XIcon, RefreshCwIcon, InboxIcon, SendIcon } from "lucide-react";
 import { SmartCardImage } from "@/components/cards/smart-card-image";
 import type { Notification } from "@/lib/db/schema";
 import { cn } from "@/lib/utils";
@@ -9,6 +10,8 @@ import { formatDistanceToNow } from "@/lib/date-utils";
 
 interface TradeRequestDetails {
   id: string;
+  fromUserId: string;
+  toUserId: string;
   status: "pending" | "accepted" | "denied";
   message: string | null;
   responseMessage: string | null;
@@ -87,6 +90,8 @@ export function NotificationsClient() {
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState<NotifTab>("all");
   const [markingAll, setMarkingAll] = useState(false);
+  const { data: session } = useSession();
+  const currentUserId = session?.user?.id;
 
   const fetchData = useCallback(async () => {
     try {
@@ -162,9 +167,14 @@ export function NotificationsClient() {
     }
   }
 
-  // Incoming pending trade requests (not in notifications — direct view)
+  // Incoming pending trade requests (sent TO me)
   const incomingPending = tradeRequests.filter(
-    (t) => t.status === "pending"
+    (t) => t.toUserId === currentUserId && t.status === "pending"
+  );
+
+  // Sent trade requests (sent BY me)
+  const sentRequests = tradeRequests.filter(
+    (t) => t.fromUserId === currentUserId
   );
 
   const filteredNotifications = notifications.filter((n) => {
@@ -246,6 +256,50 @@ export function NotificationsClient() {
                   })()}
                   <div className="pt-1">
                     <TradeRequestActions requestId={req.id} status={req.status} onRespond={handleTradeRespond} />
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Sent trade requests */}
+      {sentRequests.length > 0 && (
+        <div className="rounded-xl overflow-hidden" style={{ border: "1px solid oklch(0.35 0.08 260 / 0.4)", background: "oklch(0.14 0.03 260 / 0.5)" }}>
+          <div className="px-4 py-2.5 flex items-center gap-2" style={{ borderBottom: "1px solid oklch(0.22 0.04 260 / 0.4)" }}>
+            <SendIcon className="h-3.5 w-3.5 shrink-0" style={{ color: "oklch(0.60 0.12 260)" }} />
+            <p className="text-xs font-semibold" style={{ color: "oklch(0.62 0.08 260)" }}>
+              Sent Requests
+            </p>
+          </div>
+          <div className="divide-y" style={{ borderColor: "oklch(0.20 0.04 260 / 0.4)" }}>
+            {sentRequests.map((req) => (
+              <div key={req.id} className="px-4 py-3 flex items-start gap-3">
+                {req.cardPhotoUrl && (
+                  <div className="w-10 aspect-[5/7] rounded-lg overflow-hidden shrink-0 bg-muted">
+                    <SmartCardImage src={req.cardPhotoUrl} alt={req.cardName ?? ""} unoptimized={req.cardPhotoUrl.startsWith("http")} />
+                  </div>
+                )}
+                <div className="flex-1 min-w-0 space-y-1">
+                  <p className="text-sm font-medium" style={{ color: "oklch(0.80 0.02 260)" }}>
+                    Your request for <strong>{req.cardName}</strong>
+                  </p>
+                  {req.message && (
+                    <p className="text-xs italic" style={{ color: "oklch(0.50 0.03 260)" }}>&ldquo;{req.message}&rdquo;</p>
+                  )}
+                  <div className="flex items-center gap-2 pt-0.5">
+                    <span className={cn(
+                      "text-[11px] font-medium px-2 py-0.5 rounded-full",
+                      req.status === "pending" && "bg-amber-500/15 text-amber-400",
+                      req.status === "accepted" && "bg-green-500/20 text-green-400",
+                      req.status === "denied" && "bg-red-500/20 text-red-400",
+                    )}>
+                      {req.status === "pending" ? "Awaiting response" : req.status === "accepted" ? "Accepted" : "Declined"}
+                    </span>
+                    <span className="text-[11px]" style={{ color: "oklch(0.40 0.03 260)" }}>
+                      {formatDistanceToNow(new Date(req.createdAt))}
+                    </span>
                   </div>
                 </div>
               </div>
