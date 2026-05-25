@@ -56,3 +56,13 @@ jobs:
             echo "Created tag $TAG"
             echo "final_tag=$TAG" >> "$GITHUB_OUTPUT"
           fi
+
+      - name: Trigger release workflow
+        env:
+          GH_TOKEN: ${{ secrets.GH_PAT }}
+        run: |
+          TAG="${{ steps.tagger.outputs.final_tag }}"
+          echo "Dispatching release.yml for $TAG"
+          gh workflow run release.yml \
+            --repo ${{ github.repository }} \
+            --field tag="$TAG"
