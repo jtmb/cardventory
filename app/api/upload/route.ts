@@ -8,7 +8,8 @@ import { cards } from "@/lib/db/schema";
 import { eq, and, like, sql } from "drizzle-orm";
 import { securityMetrics } from "@/lib/security-metrics";
 
-const MAX_SIZE = 5 * 1024 * 1024; // 5 MB per file
+const MAX_SIZE = 5 * 1024 * 1024; // 5 MB per file (final stored size limit)
+const MAX_RAW_SIZE = 25 * 1024 * 1024; // 25 MB raw upload limit (allow larger HEIC/AVIF to convert)
 const MIN_DISK_FREE = 500 * 1024 * 1024; // Refuse uploads if < 500 MB free
 const MAX_UPLOADS_PER_USER = 500; // Hard cap on stored images per user
 const RATE_WINDOW_MS = 60 * 60 * 1000; // 1 hour
@@ -150,9 +151,10 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "No file provided" }, { status: 400 });
   }
 
-  if (file.size > MAX_SIZE) {
+  // Allow larger raw uploads (e.g. Live Photos / HEIC) but cap raw size to avoid abuse.
+  if (file.size > MAX_RAW_SIZE) {
     return NextResponse.json(
-      { error: "File size must be under 5 MB" },
+      { error: "File size must be under 25 MB" },
       { status: 413 }
     );
   }
@@ -177,6 +179,35 @@ export async function POST(req: NextRequest) {
       detectedMime = "image/jpeg";
     } catch (err) {
       return NextResponse.json({ error: "Failed to convert HEIC/AVIF image. Please try JPG/PNG instead." }, { status: 400 });
+    }
+  }
+
+  // Ensure final image is within the allowed final size. If not, attempt to
+  // recompress or resize to bring it under the MAX_SIZE limit before rejecting.
+  if (buffer.length > MAX_SIZE) {
+    try {
+      // Try lower-quality re-encode first
+      let compressed = await sharp(buffer).jpeg({ quality: 80 }).toBuffer();
+      if (compressed.length <= MAX_SIZE) {
+        buffer = Buffer.from(compressed);
+      } else {
+        // Try resizing (cap width) to reduce size further
+        const meta = await sharp(buffer).metadata();
+        const width = (meta.width && meta.width > 2000) ? 2000 : meta.width || 2000;
+        compressed = await sharp(buffer).resize({ width }).jpeg({ quality: 75 }).toBuffer();
+        if (compressed.length <= MAX_SIZE) {
+          buffer = Buffer.from(compressed);
+        }
+      }
+    } catch (err) {
+      console.error("Error compressing/resizing uploaded image:", err);
+    }
+
+    if (buffer.length > MAX_SIZE) {
+      return NextResponse.json(
+        { error: "File is too large after conversion. Try a smaller image or reduce quality/resolution." },
+        { status: 413 }
+      );
     }
   }
 
