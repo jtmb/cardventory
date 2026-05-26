@@ -1,10 +1,12 @@
-import { ebayScraper } from "./ebay";
+import { priceChartingScraper } from "./pricecharting";
 import { sportsCardInvestorScraper } from "./sportscardinvestor";
 import { sportsCardsProScraper } from "./sportscardspro";
 import type { CardQuery, PriceResult } from "./types";
 
+// eBay blocks server-side fetches with 403; replaced by PriceCharting which
+// covers sports cards, Pokémon, and other TCGs from the same data source.
 export const scrapers = [
-  ebayScraper,
+  priceChartingScraper,
   sportsCardInvestorScraper,
   sportsCardsProScraper,
 ];

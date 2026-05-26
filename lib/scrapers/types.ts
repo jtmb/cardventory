@@ -1,5 +1,5 @@
 export interface PriceResult {
-  source: "ebay" | "sportscardinvestor" | "cardladder" | "sportscardspro";
+  source: "ebay" | "sportscardinvestor" | "cardladder" | "sportscardspro" | "pricecharting";
   price: number | null;
   url: string | null;
   imageUrl: string | null;
