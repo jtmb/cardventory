@@ -28,7 +28,7 @@ RUN mkdir -p tessdata && \
     curl -sL "https://cdn.jsdelivr.net/npm/@tesseract.js-data/eng/4.0.0_best_int/eng.traineddata.gz" \
     | gunzip > tessdata/eng.traineddata
 
-RUN npm run build
+RUN NODE_OPTIONS=--max-old-space-size=2048 npm run build
 
 # Stage 3: Runner
 FROM node:22-bullseye-slim AS runner
