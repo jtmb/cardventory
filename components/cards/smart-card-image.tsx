@@ -91,6 +91,11 @@ export function SmartCardImage({
   placeholder?: React.ReactNode;
   children?: React.ReactNode;
 }) {
+  // Default `unoptimized` behavior: if caller didn't specify, avoid Next.js
+  // image optimization for remote URLs (http(s)) and for local uploads under
+  // `/uploads/` since the optimizer can return 400 behind some proxies.
+  const effectiveUnoptimized = unoptimized ?? (!!src && (typeof src === "string") && (src.startsWith("http") || src.startsWith("/uploads")));
+
   const [cls, setCls] = useState(
     fitMode === "contain" ? "object-contain" : "object-cover object-center"
   );
@@ -150,7 +155,7 @@ export function SmartCardImage({
               alt=""
               fill
               className="object-cover scale-125 blur-xl brightness-50 saturate-150"
-              unoptimized={unoptimized}
+              unoptimized={effectiveUnoptimized}
               aria-hidden
             />
             {/*
@@ -168,7 +173,7 @@ export function SmartCardImage({
                 fill
                 className={imageClassName ? `${fgCls} ${imageClassName}` : fgCls}
                 onLoad={handleLoad}
-                unoptimized={unoptimized}
+                unoptimized={effectiveUnoptimized}
               />
             </div>
           </>
@@ -179,7 +184,7 @@ export function SmartCardImage({
             fill
             className={imageClassName ? `${cls} ${imageClassName}` : cls}
             onLoad={handleLoad}
-            unoptimized={unoptimized}
+            unoptimized={effectiveUnoptimized}
             style={smartLoaded ? undefined : { opacity: 0 }}
           />
         )
