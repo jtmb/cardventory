@@ -6,6 +6,7 @@ import { db, rawSqlite } from "@/lib/db";
 import { cards, priceHistory, settings } from "@/lib/db/schema";
 import { eq, and, desc, asc, sql, isNotNull, inArray, like } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
+import { fetchAllPrices } from "./scrapers";
 import type { NewCard, Card } from "@/lib/db/schema";
 const DDG_UA =
   "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36";
@@ -174,6 +175,51 @@ export async function createCard(data: Omit<NewCard, "id" | "userId" | "createdA
     .insert(cards)
     .values({ ...data, userId })
     .returning();
+
+  // Trigger an immediate price lookup for newly-created owned cards.
+  // Run synchronously here so the UI shows prices right away after create.
+  try {
+    if (data.status === "owned") {
+      const results = await fetchAllPrices({
+        name: card.name,
+        setName: card.setName,
+        year: card.year,
+        cardNumber: card.cardNumber,
+        variant: card.variant,
+        gradeCompany: card.gradeCompany,
+        gradeValue: card.gradeValue,
+        sportGenre: card.sportGenre,
+      });
+
+      const now = new Date();
+      const inserts = results.filter((r) => r.price !== null).map((r) => ({
+        cardId: card.id,
+        source: r.source,
+        price: r.price,
+        url: r.url,
+        imageUrl: r.imageUrl,
+        fetchedAt: now,
+      }));
+
+      if (inserts.length > 0) {
+        await db.insert(priceHistory).values(inserts);
+      }
+
+      // If card has no photo and we got one, auto-set it
+      if (!card.photoUrl) {
+        const firstImage = results.find((r) => r.imageUrl)?.imageUrl;
+        if (firstImage) {
+          await db
+            .update(cards)
+            .set({ photoUrl: firstImage, updatedAt: now })
+            .where(eq(cards.id, card.id));
+        }
+      }
+    }
+  } catch (err) {
+    // Swallow errors to avoid blocking card creation on flaky scrapers
+    // (client-side fetch would have been non-blocking anyway).
+  }
 
   revalidatePath("/cards");
   return card;
