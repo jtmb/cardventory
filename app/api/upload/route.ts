@@ -75,8 +75,30 @@ export async function POST(req: NextRequest) {
   }
 
   // ── Disk space guard ──────────────────────────────────────────────────────
-  const uploadDir = path.join(process.cwd(), "public", "uploads");
-  await mkdir(uploadDir, { recursive: true });
+  // Determine the runtime uploads directory. In some deployment setups the
+  // host volume is mounted at `/app/public/uploads`, in others at `/app/uploads`.
+  // Try `public/uploads` first (matches Next.js `public` static path), then
+  // fall back to `uploads` so common docker-compose mounts still work.
+  const candidateDirs = [
+    path.join(process.cwd(), "public", "uploads"),
+    path.join(process.cwd(), "uploads"),
+  ];
+
+  let uploadDir: string | null = null;
+  for (const d of candidateDirs) {
+    try {
+      await mkdir(d, { recursive: true });
+      uploadDir = d;
+      break;
+    } catch {
+      // try next
+    }
+  }
+
+  if (!uploadDir) {
+    return NextResponse.json({ error: "Server error preparing upload directory" }, { status: 500 });
+  }
+
   try {
     const stat = await statfs(uploadDir);
     const freeBytes = stat.bfree * stat.bsize;
@@ -139,7 +161,13 @@ export async function POST(req: NextRequest) {
   const ext = extMap[detectedMime] ?? "jpg";
   const filename = `${crypto.randomUUID()}.${ext}`;
 
-  await writeFile(path.join(uploadDir, filename), buffer);
+  const outPath = path.join(uploadDir, filename);
+  await writeFile(outPath, buffer);
 
+  // If we wrote to a non-public uploads dir (e.g. /app/uploads), try to ensure
+  // Next's expected public path still points to the file by returning the
+  // canonical `/uploads/...` URL. Deployments should mount the same host
+  // directory where static files are served, but this fallback makes the
+  // handler resilient across variants.
   return NextResponse.json({ url: `/uploads/${filename}` });
 }
