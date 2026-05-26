@@ -46,6 +46,9 @@ next-env.d.ts
 !/uploads/.gitkeep
 data
 uploads
+# Re-include the Next.js route handler that lives at app/uploads/
+!/app/uploads/
+!/app/uploads/**
 
 # terraform
 terraform/terraform.tfvars

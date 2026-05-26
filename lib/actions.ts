@@ -217,8 +217,8 @@ export async function createCard(data: Omit<NewCard, "id" | "userId" | "createdA
       }
     }
   } catch (err) {
-    // Swallow errors to avoid blocking card creation on flaky scrapers
-    // (client-side fetch would have been non-blocking anyway).
+    // Don't block card creation on flaky scrapers, but surface the error in logs
+    console.error("[createCard] Price fetch failed for card", card.id, err);
   }
 
   revalidatePath("/cards");

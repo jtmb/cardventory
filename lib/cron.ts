@@ -119,16 +119,17 @@ async function refreshAllCards() {
       });
 
       const now = new Date();
-      await db.insert(priceHistory).values(
-        results.map((r) => ({
-          cardId: card.id,
-          source: r.source,
-          price: r.price,
-          url: r.url,
-          imageUrl: r.imageUrl,
-          fetchedAt: now,
-        }))
-      );
+      const inserts = results.filter((r) => r.price !== null).map((r) => ({
+        cardId: card.id,
+        source: r.source,
+        price: r.price,
+        url: r.url,
+        imageUrl: r.imageUrl,
+        fetchedAt: now,
+      }));
+      if (inserts.length > 0) {
+        await db.insert(priceHistory).values(inserts);
+      }
 
       if (!card.photoUrl) {
         const firstImage = results.find((r) => r.imageUrl)?.imageUrl;
