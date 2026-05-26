@@ -1,12 +1,15 @@
+import { ebayScraper } from "./ebay";
 import { priceChartingScraper } from "./pricecharting";
 import { sportsCardInvestorScraper } from "./sportscardinvestor";
 import { sportsCardsProScraper } from "./sportscardspro";
 import type { CardQuery, PriceResult } from "./types";
 
-// eBay blocks server-side fetches with 403; replaced by PriceCharting which
-// covers sports cards, Pokémon, and other TCGs from the same data source.
+// eBay HTML scraping is blocked by Akamai on datacenter IPs, but the Finding API
+// (svcs.ebay.com) is not subject to that block. Set EBAY_APP_ID to enable it;
+// the scraper returns null gracefully when the env var is absent.
 export const scrapers = [
   priceChartingScraper,
+  ebayScraper,
   sportsCardInvestorScraper,
   sportsCardsProScraper,
 ];

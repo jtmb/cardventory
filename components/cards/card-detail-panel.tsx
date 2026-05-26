@@ -29,12 +29,13 @@ const GENRE_LABELS: Record<string, string> = {
 
 const SOURCE_LABELS: Record<string, string> = {
   pricecharting: "PriceCharting",
+  ebay: "eBay",
   sportscardinvestor: "SportsCardInvestor",
   cardladder: "CardLadder",
   sportscardspro: "SportsCardsPro",
 };
 
-const KNOWN_SOURCES = ["pricecharting", "sportscardinvestor", "sportscardspro"] as const;
+const KNOWN_SOURCES = ["pricecharting", "ebay", "sportscardinvestor", "sportscardspro"] as const;
 
 const GRADE_STYLES: Record<string, { bg: string; text: string }> = {
   PSA:     { bg: "oklch(0.22 0.12 240 / 0.6)", text: "oklch(0.75 0.2 240)" },

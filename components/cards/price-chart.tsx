@@ -25,6 +25,7 @@ const PERIOD_OPTIONS = [
 
 const SOURCE_COLORS: Record<string, string> = {
   pricecharting: "#3b82f6",
+  ebay: "#f97316",
   sportscardinvestor: "#10b981",
   cardladder: "#f59e0b",
   sportscardspro: "#ef4444",
@@ -32,6 +33,7 @@ const SOURCE_COLORS: Record<string, string> = {
 
 const SOURCE_LABELS: Record<string, string> = {
   pricecharting: "PriceCharting",
+  ebay: "eBay",
   sportscardinvestor: "SCI",
   cardladder: "CardLadder",
   sportscardspro: "SCPro",

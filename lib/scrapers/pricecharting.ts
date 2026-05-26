@@ -65,17 +65,31 @@ export const priceChartingScraper: Scraper = {
       const html = await res.text();
       const $ = cheerio.load(html);
 
-      const selector = priceSelector(card);
-      const priceText = $(`${selector} .price`).first().text().trim();
-      const price = priceText ? parseFloat(priceText.replace(/[^0-9.]/g, "")) : null;
+      let price: number | null = null;
+      let imageUrl: string | null = null;
+      let finalUrl = res.url ?? searchUrl;
 
-      const imageUrl =
-        $("#product-image img").first().attr("src") ??
-        $("img[src*='googleapis']").first().attr("src") ??
-        null;
-
-      // Use the final URL after any redirect so the user gets the direct product page
-      const finalUrl = res.url ?? searchUrl;
+      if ($("#used_price").length > 0) {
+        // Redirected to a product page — use grade-specific selector
+        const selector = priceSelector(card);
+        const priceText = $(`${selector} .price`).first().text().trim();
+        price = priceText ? parseFloat(priceText.replace(/[^0-9.]/g, "")) : null;
+        imageUrl =
+          $("#product-image img").first().attr("src") ??
+          $("img[src*='googleapis']").first().attr("src") ??
+          null;
+      } else {
+        // Still on search results list — grab the first matching row
+        const firstRow = $("tr[id^='product-']").first();
+        if (firstRow.length > 0) {
+          const rowLink = firstRow.find("a").first().attr("href");
+          // cib_price = "mid" price (most representative market value)
+          const midPriceText = firstRow.find("td.cib_price").text().trim();
+          price = midPriceText ? parseFloat(midPriceText.replace(/[^0-9.]/g, "")) : null;
+          imageUrl = firstRow.find("img.photo").attr("src") ?? null;
+          if (rowLink) finalUrl = rowLink;
+        }
+      }
 
       return {
         source: "pricecharting",
