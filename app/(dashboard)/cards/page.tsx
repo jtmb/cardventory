@@ -59,6 +59,7 @@ export default async function CardsPage({
       sort={sort}
       grade={grade}
       tourId="tour-cards-toolbar"
+      showRefresh
     >
       <div data-tour-id="tour-cards-grid" className="p-6 max-w-7xl mx-auto">
         {!isDuplicateView && <DuplicatesBanner count={duplicateGroups.length} basePath="/cards" />}

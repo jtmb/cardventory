@@ -389,6 +389,7 @@ export function CardDetailPanel({
                   {KNOWN_SOURCES.map((source) => {
                     const entry = latestPrices.find((p) => p.source === source);
                     const price = entry?.price ?? null;
+                    if (price == null) return null;
                     const isHighest = price != null && price === highestPrice && pricesWithValues.length > 1;
                     return (
                       <div

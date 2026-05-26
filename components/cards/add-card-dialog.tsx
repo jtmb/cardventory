@@ -217,14 +217,17 @@ export function AddCardDialog({ open, onOpenChange, defaultStatus = "owned" }: A
       });
 
       toast.success("Card added!");
-      if (status === "owned") {
-        fetch(`/api/pricing/refresh/${card.id}`, { method: "POST" }).catch(() => {});
-      }
-
       onOpenChange(false);
       resetForm();
       router.refresh();
-      if (status === "wanted") router.push("/watchlist");
+      if (status === "wanted") {
+        router.push("/watchlist");
+      } else {
+        // Background price fetch — refresh again when done so prices appear automatically
+        fetch(`/api/pricing/refresh/${card.id}`, { method: "POST" })
+          .then(() => router.refresh())
+          .catch(() => {});
+      }
     } catch {
       toast.error("Failed to add card");
       setLoading(false);

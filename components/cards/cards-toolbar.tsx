@@ -7,6 +7,7 @@ import { PlusCircleIcon, ChevronDownIcon } from "lucide-react";
 import { SearchInput } from "@/components/cards/search-input";
 import { FiltersButton } from "@/components/cards/filters-button";
 import { CsvButton } from "@/components/cards/csv-button";
+import { RefreshAllButton } from "@/components/cards/refresh-all-button";
 import { cn } from "@/lib/utils";
 
 export interface CardsToolbarProps {
@@ -34,6 +35,8 @@ export interface CardsToolbarProps {
   grade?: string;
   /** data-tour-id for e2e / onboarding */
   tourId?: string;
+  /** Show a refresh-all-prices button in the toolbar */
+  showRefresh?: boolean;
   /** When provided, renders a button instead of a Link for the Add action */
   onAddClick?: () => void;
 }
@@ -51,6 +54,7 @@ export function CardsToolbar({
   sort,
   grade,
   tourId,
+  showRefresh,
   onAddClick,
 }: CardsToolbarProps) {
   const showAdd = !!(addHref || onAddClick);
@@ -107,6 +111,7 @@ export function CardsToolbar({
             />
             <div className="w-px h-5 bg-border/60 shrink-0" />
             {exportHref && <CsvButton exportHref={exportHref} iconOnly />}
+            {showRefresh && <RefreshAllButton />}
             {showAdd && <div className="w-px h-5 bg-border/60 shrink-0" />}
             {showAdd && (onAddClick ? (
               <button
@@ -133,6 +138,7 @@ export function CardsToolbar({
 
         {/* Mobile: refresh + add button always visible on the far right */}
         <div className="md:hidden ml-auto flex items-center gap-1.5 shrink-0">
+          {showRefresh && <RefreshAllButton />}
           {showAdd && (onAddClick ? (
             <button
               type="button"
