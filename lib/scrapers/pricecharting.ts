@@ -49,6 +49,22 @@ export const priceChartingScraper: Scraper = {
       imageUrl: null,
     });
 
+    // PriceCharting covers TCG/CCG (Pokémon, Magic, etc.) and Funko Pops.
+    // It does NOT have sports trading cards (Topps, Panini, etc.) — skip them.
+    const SPORTS_GENRES = new Set([
+      "basketball",
+      "football",
+      "baseball",
+      "hockey",
+      "soccer",
+      "tennis",
+      "golf",
+      "boxing",
+      "mma",
+      "wrestling",
+    ]);
+    if (SPORTS_GENRES.has((card.sportGenre ?? "").toLowerCase())) return noData();
+
     try {
       const res = await fetch(searchUrl, {
         headers: {
@@ -79,14 +95,65 @@ export const priceChartingScraper: Scraper = {
           $("img[src*='googleapis']").first().attr("src") ??
           null;
       } else {
-        // Still on search results list — grab the first matching row
-        const firstRow = $("tr[id^='product-']").first();
-        if (firstRow.length > 0) {
-          const rowLink = firstRow.find("a").first().attr("href");
+        // Still on search results list — pick the best matching row
+        const rows: ReturnType<typeof $>[] = [];
+        $("tr[id^='product-']")
+          .slice(0, 10)
+          .each((_, el) => rows.push($(el)));
+
+        if (rows.length > 0) {
+          const setWords = (card.setName ?? "")
+            .toLowerCase()
+            .split(/\s+/)
+            .filter((w) => w.length > 3);
+          const yearStr = card.year ? String(card.year) : "";
+          // Meaningful words from the card name (skip very short words)
+          const nameWords = card.name
+            .toLowerCase()
+            .replace(/[''`]/g, "")
+            .split(/[^a-z0-9]+/)
+            .filter((w) => w.length > 2);
+
+          const junkPaths = [
+            "funko-pop",
+            "playstation",
+            "nintendo-",
+            "xbox",
+            "gameboy",
+            "atari",
+            "sega-",
+            "wii-",
+            "switch-",
+          ];
+
+          const href = (row: ReturnType<typeof $>) =>
+            (row.find("a").first().attr("href") ?? "").toLowerCase();
+
+          const hasName = (row: ReturnType<typeof $>) =>
+            nameWords.every((w) => href(row).includes(w));
+          const hasYear = (row: ReturnType<typeof $>) =>
+            yearStr ? href(row).includes(yearStr) : true;
+          const hasSetWord = (row: ReturnType<typeof $>) =>
+            setWords.length > 0 ? setWords.some((w) => href(row).includes(w)) : true;
+          const isJunk = (row: ReturnType<typeof $>) =>
+            junkPaths.some((j) => href(row).includes(j));
+
+          const bestRow =
+            // Priority 1: player name + year in URL
+            rows.find((row) => hasName(row) && hasYear(row)) ??
+            // Priority 2: player name + set word in URL
+            rows.find((row) => hasName(row) && hasSetWord(row)) ??
+            // Priority 3: player name anywhere in URL
+            rows.find((row) => hasName(row)) ??
+            // Priority 4: skip Funko/console junk
+            rows.find((row) => !isJunk(row)) ??
+            rows[0];
+
+          const rowLink = bestRow.find("a").first().attr("href");
           // cib_price = "mid" price (most representative market value)
-          const midPriceText = firstRow.find("td.cib_price").text().trim();
+          const midPriceText = bestRow.find("td.cib_price").text().trim();
           price = midPriceText ? parseFloat(midPriceText.replace(/[^0-9.]/g, "")) : null;
-          imageUrl = firstRow.find("img.photo").attr("src") ?? null;
+          imageUrl = bestRow.find("img.photo").attr("src") ?? null;
           if (rowLink) finalUrl = rowLink;
         }
       }
