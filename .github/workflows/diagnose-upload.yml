@@ -1,0 +1,35 @@
+name: Diagnose Upload
+
+on:
+  workflow_dispatch:
+
+permissions: {}
+
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Fetch container logs from prod
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ vars.LINODE_HOST }}
+          username: root
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          script: |
+            set -e
+            echo "=== Host ==="
+            uname -a || true
+            echo "=== Docker version ==="
+            docker --version || true
+            echo "=== Docker Compose version ==="
+            docker compose version || docker-compose --version || true
+            if [ -d /opt/cardventory ]; then cd /opt/cardventory; fi
+            echo "=== docker compose ps ==="
+            docker compose ps || true
+            echo "=== docker compose logs cardventory (tail 500) ==="
+            docker compose logs --no-color --tail 500 cardventory || true
+            echo "=== docker logs (last 500) for container ==="
+            cname=$(docker ps --filter name=cardventory --format "{{.Names}}" | head -n1)
+            if [ -n "$cname" ]; then docker logs --tail 500 "$cname" || true; fi
+            echo "=== journalctl docker (last 200) ==="
+            if command -v journalctl >/dev/null 2>&1 ; then journalctl -u docker --no-pager -n 200 || true; fi
