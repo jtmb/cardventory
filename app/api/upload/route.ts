@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
-import { writeFile, mkdir, statfs } from "fs/promises";
+import { writeFile, mkdir, statfs, readFile, unlink } from "fs/promises";
 import sharp from "sharp";
 import path from "path";
 import { db } from "@/lib/db";
@@ -171,13 +171,20 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  // If the upload is HEIC/AVIF (common on iPhones), convert to JPEG with sharp
+  // If the upload is HEIC/AVIF (common on iPhones), convert to JPEG with sharp.
+  // Use disk-backed conversion to reduce memory pressure (avoid large in-memory buffers).
   if (detectedMime === "image/heic" || detectedMime === "image/avif") {
     try {
-      const converted = await sharp(buffer).jpeg({ quality: 92 }).toBuffer();
-      buffer = Buffer.from(converted);
+      const inPath = path.join(uploadDir, `${crypto.randomUUID()}.in`);
+      const outPath = path.join(uploadDir, `${crypto.randomUUID()}.jpg`);
+      await writeFile(inPath, buffer);
+      await sharp(inPath).jpeg({ quality: 92 }).toFile(outPath);
+      buffer = await readFile(outPath);
       detectedMime = "image/jpeg";
+      await unlink(inPath).catch(() => {});
+      await unlink(outPath).catch(() => {});
     } catch (err) {
+      console.error("HEIC/AVIF conversion error:", err);
       return NextResponse.json({ error: "Failed to convert HEIC/AVIF image. Please try JPG/PNG instead." }, { status: 400 });
     }
   }
