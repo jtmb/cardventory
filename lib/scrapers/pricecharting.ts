@@ -99,7 +99,7 @@ export const priceChartingScraper: Scraper = {
         const rows: ReturnType<typeof $>[] = [];
         $("tr[id^='product-']")
           .slice(0, 10)
-          .each((_, el) => rows.push($(el)));
+          .each((_, el) => { rows.push($(el)); });
 
         if (rows.length > 0) {
           const setWords = (card.setName ?? "")
