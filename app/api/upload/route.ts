@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { writeFile, mkdir, statfs } from "fs/promises";
+import sharp from "sharp";
 import path from "path";
 import { db } from "@/lib/db";
 import { cards } from "@/lib/db/schema";
@@ -35,6 +36,23 @@ function detectMime(buf: Buffer): string | null {
       return sig.mime;
     }
   }
+
+  // Detect ISO BMFF-based containers (HEIF/HEIC/AVIF) via 'ftyp' box brands
+  // Check the 'ftyp' box header (at offset 4) and look for known brands.
+  try {
+    if (buf.length >= 12) {
+      const box = buf.slice(4, 12).toString("ascii").toLowerCase();
+      // common brands include: heic, heix, hevc, mif1, avif, miaf
+      if (box.includes("heic") || box.includes("heix") || box.includes("hevc") || box.includes("mif1") || box.includes("avif") || box.includes("miaf")) {
+        // prefer HEIF/HEIC label; AVIF is similar container but for AV1-coded images
+        if (box.includes("avif") || box.includes("mif1")) return "image/avif";
+        return "image/heic";
+      }
+    }
+  } catch {
+    // ignore and continue
+  }
+
   return null;
 }
 
@@ -141,14 +159,25 @@ export async function POST(req: NextRequest) {
 
   // ── Read buffer & validate magic bytes (not just Content-Type) ────────────
   const bytes = await file.arrayBuffer();
-  const buffer = Buffer.from(bytes);
-  const detectedMime = detectMime(buffer);
+  let buffer = Buffer.from(bytes);
+  let detectedMime = detectMime(buffer);
 
   if (!detectedMime) {
     return NextResponse.json(
-      { error: "Only JPEG, PNG, WebP, and GIF images are allowed" },
+      { error: "Only JPEG, PNG, WebP, GIF, HEIC, and AVIF images are allowed" },
       { status: 400 }
     );
+  }
+
+  // If the upload is HEIC/AVIF (common on iPhones), convert to JPEG with sharp
+  if (detectedMime === "image/heic" || detectedMime === "image/avif") {
+    try {
+      const converted = await sharp(buffer).jpeg({ quality: 92 }).toBuffer();
+      buffer = Buffer.from(converted);
+      detectedMime = "image/jpeg";
+    } catch (err) {
+      return NextResponse.json({ error: "Failed to convert HEIC/AVIF image. Please try JPG/PNG instead." }, { status: 400 });
+    }
   }
 
   // ── Write file ────────────────────────────────────────────────────────────

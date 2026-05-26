@@ -1,13 +1,17 @@
 # Stage 1: Dependencies
-FROM node:22-alpine AS deps
-RUN apk add --no-cache libc6-compat python3 make g++
+FROM node:22-bullseye-slim AS deps
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential python3 pkg-config curl ca-certificates \
+    libvips-dev libheif-dev libjpeg-dev libpng-dev libwebp-dev libavif-dev && \
+    rm -rf /var/lib/apt/lists/*
 WORKDIR /app
 COPY package.json package-lock.json ./
 RUN npm ci
 
 # Stage 2: Builder
-FROM node:22-alpine AS builder
-RUN apk add --no-cache libc6-compat python3 make g++ curl
+FROM node:22-bullseye-slim AS builder
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential python3 curl ca-certificates && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
@@ -27,15 +31,16 @@ RUN mkdir -p tessdata && \
 RUN npm run build
 
 # Stage 3: Runner
-FROM node:22-alpine AS runner
-RUN apk add --no-cache libc6-compat python3 make g++
+FROM node:22-bullseye-slim AS runner
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    libvips42 libheif1 ca-certificates && rm -rf /var/lib/apt/lists/* || true
 WORKDIR /app
 
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
 
-RUN addgroup --system --gid 1001 nodejs
-RUN adduser --system --uid 1001 nextjs
+RUN groupadd --system --gid 1001 nodejs && \
+    useradd --system --uid 1001 --gid nodejs --home /nonexistent --shell /usr/sbin/nologin nextjs
 
 # Copy built app
 COPY --from=builder /app/public ./public
