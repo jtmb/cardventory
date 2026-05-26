@@ -475,6 +475,43 @@ async function inferSportFromWeb(name: string): Promise<string> {
   }
 }
 
+// Magic-byte signatures for allowed image types (used for robust MIME detection)
+const MAGIC: Array<{ mime: string; bytes: number[]; offset?: number }> = [
+  { mime: "image/jpeg", bytes: [0xff, 0xd8, 0xff] },
+  { mime: "image/png", bytes: [0x89, 0x50, 0x4e, 0x47] },
+  { mime: "image/gif", bytes: [0x47, 0x49, 0x46, 0x38] },
+  { mime: "image/webp", bytes: [0x52, 0x49, 0x46, 0x46], offset: 0 },
+];
+
+function detectMime(buf: Buffer): string | null {
+  for (const sig of MAGIC) {
+    const off = sig.offset ?? 0;
+    if (sig.bytes.every((b, i) => buf[off + i] === b)) {
+      // Extra WebP check: bytes 8-11 must be "WEBP"
+      if (sig.mime === "image/webp") {
+        if (buf.length < 12) continue;
+        if (buf.slice(8, 12).toString("ascii") !== "WEBP") continue;
+      }
+      return sig.mime;
+    }
+  }
+
+  // Detect ISO BMFF-based containers (HEIF/HEIC/AVIF) via 'ftyp' box brands
+  try {
+    if (buf.length >= 12) {
+      const box = buf.slice(4, 12).toString("ascii").toLowerCase();
+      if (box.includes("heic") || box.includes("heix") || box.includes("hevc") || box.includes("mif1") || box.includes("avif") || box.includes("miaf")) {
+        if (box.includes("avif") || box.includes("mif1")) return "image/avif";
+        return "image/heic";
+      }
+    }
+  } catch {
+    // ignore and fall through
+  }
+
+  return null;
+}
+
 const SCAN_MAX_BYTES = 15 * 1024 * 1024; // 15 MB
 const SCAN_RATE_WINDOW_MS = 60_000;       // 1 minute sliding window
 const SCAN_RATE_MAX = 5;                  // max scans per user per minute
@@ -524,23 +561,47 @@ export async function POST(req: NextRequest) {
     imageBuffer = Buffer.from(base64, "base64");
   }
 
-  // Validate size and MIME before passing to sharp + Tesseract
+  // Validate size before any processing
   if (imageBuffer.length > SCAN_MAX_BYTES) {
     return NextResponse.json({ error: "Image too large. Maximum size is 15 MB." }, { status: 413 });
   }
+
+  // Try to detect the real MIME from magic bytes — some browsers/clients do not
+  // set the correct Content-Type for HEIC/AVIF uploads.  Prefer detected value
+  // when available so we can accept and convert unsupported browser-set types.
+  const detected = detectMime(imageBuffer);
+  if (detected) mimeType = detected;
+
   if (!ALLOWED_SCAN_MIMES.has(mimeType)) {
     return NextResponse.json({ error: "Unsupported image format. Please use JPEG, PNG, WebP, HEIC, or AVIF." }, { status: 400 });
   }
 
   const ext = mimeType.split("/")[1]?.replace("jpeg", "jpg") ?? "jpg";
   const cacheDir = join(process.cwd(), "tessdata");
-  const tmpPath = join(tmpdir(), `cv-scan-${randomUUID()}.${ext}`);
+  let tmpPath = join(tmpdir(), `cv-scan-${randomUUID()}.${ext}`);
   const processedPath = join(tmpdir(), `cv-scan-${randomUUID()}-ocr.png`);
   const bodyPath = join(tmpdir(), `cv-scan-${randomUUID()}-body.png`);
   const namePath = join(tmpdir(), `cv-scan-${randomUUID()}-name.png`);
+  const tempFiles: string[] = [];
 
   try {
     await writeFile(tmpPath, imageBuffer);
+    tempFiles.push(tmpPath);
+
+    // If the file is HEIC/HEIF/AVIF convert to PNG on-disk before further processing.
+    // Disk-backed conversion reduces peak memory usage compared to in-memory buffers.
+    if (mimeType === "image/heic" || mimeType === "image/heif" || mimeType === "image/avif") {
+      const convPath = join(tmpdir(), `cv-scan-${randomUUID()}-conv.png`);
+      try {
+        await sharp(tmpPath).png().toFile(convPath);
+        tempFiles.push(convPath);
+        tmpPath = convPath; // use converted PNG for downstream processing
+        mimeType = "image/png";
+      } catch (err) {
+        console.error("[scan] HEIC/AVIF conversion error:", err);
+        return NextResponse.json({ error: "Failed to convert HEIC/AVIF image for OCR." }, { status: 400 });
+      }
+    }
 
     // Preprocess for better OCR accuracy:
     // 1. Grayscale — removes color noise from foil/holo backgrounds
@@ -684,8 +745,9 @@ export async function POST(req: NextRequest) {
     console.error("[scan] OCR error:", message);
     return NextResponse.json({ error: message }, { status: 500 });
   } finally {
-    unlink(tmpPath).catch(() => {});
-    unlink(processedPath).catch(() => {});
-    unlink(bodyPath).catch(() => {});
+    // Best-effort cleanup for all temp files we created during processing
+    for (const f of [...tempFiles, processedPath, bodyPath, namePath]) {
+      try { await unlink(f); } catch {}
+    }
   }
 }
