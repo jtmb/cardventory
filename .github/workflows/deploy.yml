@@ -40,7 +40,7 @@ jobs:
           " || true
 
       - name: Deploy to Linode
-        uses: appleboy/ssh-action@v1.0.3
+        uses: appleboy/ssh-action@v1.2.5
         with:
           host: ${{ vars.LINODE_HOST }}
           username: root
