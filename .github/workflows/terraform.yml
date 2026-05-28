@@ -38,18 +38,18 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Restore Terraform state
         id: cache-restore
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@v5
         with:
           path: terraform/terraform.tfstate
           key: terraform-state-${{ github.run_id }}
           restore-keys: terraform-state-
 
       - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v3
+        uses: hashicorp/setup-terraform@v4
         with:
           terraform_wrapper: false
 
@@ -84,7 +84,7 @@ jobs:
 
       - name: Save Terraform state
         if: (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && !cancelled()
-        uses: actions/cache/save@v4
+        uses: actions/cache/save@v5
         with:
           path: terraform/terraform.tfstate
           key: terraform-state-${{ github.run_id }}
